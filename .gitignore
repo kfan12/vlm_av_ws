@@ -3,3 +3,5 @@ install/
 data/
 __pycache__/
 docs/av_daily_plans/
+log/
+.vscode/

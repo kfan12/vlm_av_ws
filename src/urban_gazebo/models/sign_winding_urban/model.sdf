@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="sign_winding_urban">
+    <static>true</static>
+    <link name="link">
+      <visual name="post">
+        <pose>0 0 0.800 0 0 0</pose>
+        <geometry><cylinder><radius>0.06</radius><length>1.600</length></cylinder></geometry>
+        <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material>
+      </visual>
+      <visual name="board_face">
+        <pose>0 0 2.200 0 0 0</pose>
+        <geometry><mesh>
+          <uri>model://sign_winding_urban/meshes/sign.obj</uri>
+          <scale>1.80 1.80 1.80</scale>
+        </mesh></geometry>
+      </visual>
+      <collision name="board_col">
+        <pose>0 0 2.200 0 0 0</pose>
+        <geometry><box><size>0.06 1.800 1.800</size></box></geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>

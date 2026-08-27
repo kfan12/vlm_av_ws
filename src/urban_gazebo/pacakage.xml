@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+    <name>urban_gazebo</name>
+    <version>0.1.0</version>
+    <description>V2 urban sim tooling: generated worlds, traffic_light_controller (set_pose lens
+        swap), actor_puppeteer. Python by policy: sim infrastructure, not the driving chain.</description>
+    <maintainer email="tju.fanke@gmail.com">kefan</maintainer>
+    <license>MIT</license>
+
+    <buildtool_depend>ament_python</buildtool_depend>
+
+    <exec_depend>rclpy</exec_depend>
+    <exec_depend>std_msgs</exec_depend>
+
+    <export>
+        <build_type>ament_python</build_type>
+    </export>
+</package>

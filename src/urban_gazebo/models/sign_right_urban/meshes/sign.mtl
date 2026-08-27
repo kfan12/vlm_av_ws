@@ -1,0 +1,4 @@
+newmtl sign_right
+Ka 1 1 1
+Kd 1 1 1
+map_Kd sign_right.png

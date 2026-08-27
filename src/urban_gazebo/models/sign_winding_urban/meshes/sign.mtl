@@ -1,0 +1,4 @@
+newmtl sign_winding
+Ka 1 1 1
+Kd 1 1 1
+map_Kd sign_winding.png

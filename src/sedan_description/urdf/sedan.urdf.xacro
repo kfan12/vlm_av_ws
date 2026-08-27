@@ -1,0 +1,365 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sedan">
+
+    <!-- V2 full-size sedan (day 03). Same plugin set / joint naming as the v1
+       robotcar (the AckermannSteering plugin keys off the joint names).
+       Mass is 300 kg NOT 1400 (plan note: stability > physics fidelity;
+       raise later if the sim tolerates it). Camera extrinsic (cam_x/cam_z/
+       cam_pitch) is duplicated as parameters in every av_perception node —
+       keep them in sync. -->
+
+    <!-- ===================== PHYSICAL PARAMETERS ===================== -->
+    <xacro:property name="wheelbase" value="2.7" />
+    <xacro:property name="track_width" value="1.6" />
+    <xacro:property name="wheel_radius" value="0.33" />
+    <xacro:property name="wheel_width" value="0.25" />
+
+    <xacro:property name="ch_l" value="4.5" />
+    <xacro:property name="ch_w" value="1.8" />
+    <xacro:property name="ch_h" value="0.15" />
+    <xacro:property name="ch_mass" value="300" />
+
+    <xacro:property name="body_l" value="4.2" />
+    <xacro:property name="body_w" value="1.75" />
+    <xacro:property name="body_h" value="0.55" />
+
+    <xacro:property name="cabin_l" value="2.0" />
+    <xacro:property name="cabin_w" value="1.6" />
+    <xacro:property name="cabin_h" value="0.55" />
+
+    <xacro:property name="steer_mass" value="5.0" />
+    <xacro:property name="wheel_mass" value="15.0" />
+
+    <!-- camera mount (day-03 memo: 1.4 m height buys ~25-35 m lane visibility) -->
+    <xacro:property name="cam_x" value="1.9" />
+    <xacro:property name="cam_z" value="1.4" />
+    <xacro:property name="cam_pitch" value="0.06" />
+
+    <!-- ===================== INERTIA MACROS ===================== -->
+    <xacro:macro name="box_inertia" params="m x y z">
+        <inertial>
+            <mass value="${m}" />
+            <inertia ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0"
+                iyy="${m*(x*x+z*z)/12}" iyz="0"
+                izz="${m*(x*x+y*y)/12}" />
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="cyl_inertia" params="m r h">
+        <inertial>
+            <mass value="${m}" />
+            <inertia ixx="${m*(3*r*r+h*h)/12}" ixy="0" ixz="0"
+                iyy="${m*(3*r*r+h*h)/12}" iyz="0"
+                izz="${m*r*r/2}" />
+        </inertial>
+    </xacro:macro>
+
+    <!-- ===================== BASE LINK ===================== -->
+    <link name="base_link" />
+
+    <!-- ===================== CHASSIS ===================== -->
+    <joint name="chassis_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="chassis" />
+        <origin xyz="0 0 ${wheel_radius + ch_h/2}" rpy="0 0 0" />
+    </joint>
+
+    <link name="chassis">
+        <!-- floor pan -->
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="${ch_l} ${ch_w} ${ch_h}" />
+            </geometry>
+            <material name="anthracite">
+                <color rgba="0.18 0.18 0.18 1.0" />
+            </material>
+        </visual>
+        <!-- body shell -->
+        <visual>
+            <origin xyz="0 0 ${ch_h/2 + body_h/2}" rpy="0 0 0" />
+            <geometry>
+                <box size="${body_l} ${body_w} ${body_h}" />
+            </geometry>
+            <material name="sedan_blue">
+                <color rgba="0.10 0.25 0.55 1.0" />
+            </material>
+        </visual>
+        <!-- cabin / greenhouse -->
+        <visual>
+            <origin xyz="-0.3 0 ${ch_h/2 + body_h + cabin_h/2}" rpy="0 0 0" />
+            <geometry>
+                <box size="${cabin_l} ${cabin_w} ${cabin_h}" />
+            </geometry>
+            <material name="glass_dark">
+                <color rgba="0.12 0.14 0.18 1.0" />
+            </material>
+        </visual>
+
+        <collision>
+            <origin xyz="0 0 ${ch_h/2 + body_h/2}" rpy="0 0 0" />
+            <geometry>
+                <box size="${ch_l} ${ch_w} ${ch_h + body_h}" />
+            </geometry>
+        </collision>
+
+        <xacro:box_inertia m="${ch_mass}" x="${ch_l}" y="${ch_w}" z="${ch_h + body_h}" />
+    </link>
+
+    <!-- ===================== STEERING LINK MACRO ===================== -->
+    <xacro:macro name="steering_link" params="prefix x_off y_off">
+        <joint name="${prefix}_wheel_steering_joint" type="revolute">
+            <parent link="chassis" />
+            <child link="${prefix}_wheel_steering_link" />
+            <origin xyz="${x_off} ${y_off} ${-ch_h/2}" rpy="0 0 0" />
+            <axis xyz="0 0 1" />
+            <!-- velocity 2.5 (power steering at low speed) + light damping: the
+           1.0 rad/s + damping 5 actuator lagged the MPC into a bang-bang
+           steering limit cycle (2026-07-11 steer probe). The MPC node also
+           slew-limits its command to steer_slew_rps to match. -->
+            <limit lower="-0.55" upper="0.55" effort="400.0" velocity="2.5" />
+            <dynamics damping="2.0" />
+        </joint>
+
+        <link name="${prefix}_wheel_steering_link">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <cylinder radius="0.03" length="0.12" />
+                </geometry>
+                <material name="silver">
+                    <color rgba="0.75 0.75 0.75 1.0" />
+                </material>
+            </visual>
+            <inertial>
+                <mass value="${steer_mass}" />
+                <inertia ixx="0.01" ixy="0" ixz="0"
+                    iyy="0.01" iyz="0"
+                    izz="0.01" />
+            </inertial>
+        </link>
+    </xacro:macro>
+
+    <!-- ===================== WHEEL MACRO ===================== -->
+    <xacro:macro name="wheel" params="name parent x_off y_off">
+        <joint name="${name}_joint" type="continuous">
+            <parent link="${parent}" />
+            <child link="${name}" />
+            <origin xyz="${x_off} ${y_off} 0" rpy="0 0 0" />
+            <axis xyz="0 1 0" />
+        </joint>
+
+        <link name="${name}">
+            <visual>
+                <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+                </geometry>
+                <material name="tyre">
+                    <color rgba="0.08 0.08 0.08 1.0" />
+                </material>
+            </visual>
+            <collision>
+                <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+                </geometry>
+            </collision>
+            <xacro:cyl_inertia m="${wheel_mass}" r="${wheel_radius}" h="${wheel_width}" />
+        </link>
+    </xacro:macro>
+
+    <!-- ===================== INSTANTIATE ===================== -->
+    <xacro:steering_link prefix="front_left" x_off="${wheelbase/2}" y_off="${track_width/2}" />
+    <xacro:steering_link prefix="front_right" x_off="${wheelbase/2}" y_off="${-track_width/2}" />
+
+    <xacro:wheel name="front_left_wheel"
+        parent="front_left_wheel_steering_link" x_off="0" y_off="0" />
+    <xacro:wheel name="front_right_wheel"
+        parent="front_right_wheel_steering_link" x_off="0" y_off="0" />
+    <xacro:wheel name="rear_left_wheel"
+        parent="chassis" x_off="${-wheelbase/2}" y_off="${track_width/2}" />
+    <xacro:wheel name="rear_right_wheel"
+        parent="chassis" x_off="${-wheelbase/2}" y_off="${-track_width/2}" />
+
+    <!-- ===================== FRONT CAMERA ===================== -->
+    <joint name="front_camera_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="front_camera_link" />
+        <origin xyz="${cam_x} 0 ${cam_z}" rpy="0 ${cam_pitch} 0" />
+    </joint>
+
+    <link name="front_camera_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.05 0.12 0.05" />
+            </geometry>
+            <material name="lens">
+                <color rgba="0.05 0.05 0.05 1.0" />
+            </material>
+        </visual>
+        <inertial>
+            <mass value="0.2" />
+            <inertia ixx="0.0001" ixy="0" ixz="0"
+                iyy="0.0001" iyz="0"
+                izz="0.0001" />
+        </inertial>
+    </link>
+
+    <joint name="front_camera_optical_joint" type="fixed">
+        <parent link="front_camera_link" />
+        <child link="front_camera_optical_frame" />
+        <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}" />
+    </joint>
+    <link name="front_camera_optical_frame" />
+
+    <!-- ===================== GAZEBO: ACKERMANN STEERING ===================== -->
+    <gazebo>
+        <plugin filename="ignition-gazebo-ackermann-steering-system"
+            name="ignition::gazebo::systems::AckermannSteering">
+            <left_joint>rear_left_wheel_joint</left_joint>
+            <right_joint>rear_right_wheel_joint</right_joint>
+            <left_steering_joint>front_left_wheel_steering_joint</left_steering_joint>
+            <right_steering_joint>front_right_wheel_steering_joint</right_steering_joint>
+            <kingpin_width>${track_width}</kingpin_width>
+            <steering_limit>0.50</steering_limit>
+            <wheel_base>${wheelbase}</wheel_base>
+            <wheel_separation>${track_width}</wheel_separation>
+            <wheel_radius>${wheel_radius}</wheel_radius>
+            <min_velocity>-3.0</min_velocity>
+            <max_velocity>10.0</max_velocity>
+            <min_acceleration>-6.0</min_acceleration>
+            <max_acceleration>4.0</max_acceleration>
+            <odom_publish_frequency>50</odom_publish_frequency>
+            <frame_id>odom</frame_id>
+            <child_frame_id>base_link</child_frame_id>
+            <odom_topic>/model/sedan/odometry</odom_topic>
+            <tf_topic>/model/sedan/tf</tf_topic>
+        </plugin>
+    </gazebo>
+
+    <!-- ===================== IMU ===================== -->
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="0 0 ${wheel_radius + ch_h/2}" rpy="0 0 0" />
+    </joint>
+    <link name="imu_link">
+        <inertial>
+            <mass value="0.01" />
+            <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+        </inertial>
+    </link>
+
+    <gazebo reference="imu_link">
+        <sensor name="imu_sensor" type="imu">
+            <always_on>true</always_on>
+            <update_rate>100</update_rate>
+            <topic>imu</topic>
+            <ignition_frame_id>imu_link</ignition_frame_id>
+            <imu>
+                <angular_velocity>
+                    <x>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.009</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.0004</bias_stddev>
+                        </noise>
+                    </x>
+                    <y>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.009</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.0004</bias_stddev>
+                        </noise>
+                    </y>
+                    <z>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.009</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.0004</bias_stddev>
+                        </noise>
+                    </z>
+                </angular_velocity>
+                <linear_acceleration>
+                    <x>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.08</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.005</bias_stddev>
+                        </noise>
+                    </x>
+                    <y>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.08</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.005</bias_stddev>
+                        </noise>
+                    </y>
+                    <z>
+                        <noise type="gaussian">
+                            <mean>0.0</mean>
+                            <stddev>0.08</stddev>
+                            <bias_mean>0.0</bias_mean>
+                            <bias_stddev>0.005</bias_stddev>
+                        </noise>
+                    </z>
+                </linear_acceleration>
+            </imu>
+        </sensor>
+    </gazebo>
+
+    <!-- ===================== GAZEBO: GROUND-TRUTH ODOMETRY ===================== -->
+    <gazebo>
+        <plugin filename="ignition-gazebo-odometry-publisher-system"
+            name="ignition::gazebo::systems::OdometryPublisher">
+            <dimensions>2</dimensions>
+            <odom_frame>odom</odom_frame>
+            <robot_base_frame>base_link</robot_base_frame>
+            <odom_publish_frequency>50</odom_publish_frequency>
+            <odom_topic>/model/sedan/odometry_truth</odom_topic>
+            <tf_topic>/model/sedan/tf_truth</tf_topic>
+        </plugin>
+    </gazebo>
+
+    <!-- ===================== GAZEBO: RGB-D CAMERA ===================== -->
+    <!-- 640x360 @10 Hz, HFOV 1.6 (day-02 spike NOT run — conservative default;
+       848x480 is the upgrade candidate). far=50 m: day-11 obstacle range
+       needs >= 40 m (v1 was 15!). -->
+    <gazebo reference="front_camera_link">
+        <sensor name="front_camera" type="rgbd_camera">
+            <always_on>true</always_on>
+            <update_rate>10</update_rate>
+            <camera>
+                <horizontal_fov>1.6</horizontal_fov>
+                <image>
+                    <width>640</width>
+                    <height>360</height>
+                    <format>R8G8B8</format>
+                </image>
+                <clip>
+                    <near>0.3</near>
+                    <far>50.0</far>
+                </clip>
+                <depth_camera>
+                    <output>depths</output>
+                </depth_camera>
+            </camera>
+            <topic>camera/front</topic>
+            <ignition_frame_id>front_camera_optical_frame</ignition_frame_id>
+        </sensor>
+    </gazebo>
+
+    <!-- ===================== GAZEBO: JOINT STATE PUBLISHER ===================== -->
+    <gazebo>
+        <plugin filename="ignition-gazebo-joint-state-publisher-system"
+            name="ignition::gazebo::systems::JointStatePublisher" />
+    </gazebo>
+
+</robot>
