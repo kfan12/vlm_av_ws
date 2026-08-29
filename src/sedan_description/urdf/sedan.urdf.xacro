@@ -61,7 +61,7 @@
     <joint name="chassis_joint" type="fixed">
         <parent link="base_link" />
         <child link="chassis" />
-        <origin xyz="0 0 ${wheel_radius + ch_h/2}" rpy="0 0 0" />
+        <origin xyz="0 0 ${wheel_radius}" rpy="0 0 0" />
     </joint>
 
     <link name="chassis">
@@ -111,7 +111,7 @@
         <joint name="${prefix}_wheel_steering_joint" type="revolute">
             <parent link="chassis" />
             <child link="${prefix}_wheel_steering_link" />
-            <origin xyz="${x_off} ${y_off} ${-ch_h/2}" rpy="0 0 0" />
+            <origin xyz="${x_off} ${y_off} 0" rpy="0 0 0" />
             <axis xyz="0 0 1" />
             <!-- velocity 2.5 (power steering at low speed) + light damping: the
            1.0 rad/s + damping 5 actuator lagged the MPC into a bang-bang
@@ -141,11 +141,11 @@
     </xacro:macro>
 
     <!-- ===================== WHEEL MACRO ===================== -->
-    <xacro:macro name="wheel" params="name parent x_off y_off">
+    <xacro:macro name="wheel" params="name parent x_off y_off z_off">
         <joint name="${name}_joint" type="continuous">
             <parent link="${parent}" />
             <child link="${name}" />
-            <origin xyz="${x_off} ${y_off} 0" rpy="0 0 0" />
+            <origin xyz="${x_off} ${y_off} ${z_off}" rpy="0 0 0" />
             <axis xyz="0 1 0" />
         </joint>
 
@@ -174,19 +174,19 @@
     <xacro:steering_link prefix="front_right" x_off="${wheelbase/2}" y_off="${-track_width/2}" />
 
     <xacro:wheel name="front_left_wheel"
-        parent="front_left_wheel_steering_link" x_off="0" y_off="0" />
+        parent="front_left_wheel_steering_link" x_off="0" y_off="0" z_off="0" />
     <xacro:wheel name="front_right_wheel"
-        parent="front_right_wheel_steering_link" x_off="0" y_off="0" />
+        parent="front_right_wheel_steering_link" x_off="0" y_off="0" z_off="0" />
     <xacro:wheel name="rear_left_wheel"
-        parent="chassis" x_off="${-wheelbase/2}" y_off="${track_width/2}" />
+        parent="chassis" x_off="${-wheelbase/2}" y_off="${track_width/2}" z_off="0" />
     <xacro:wheel name="rear_right_wheel"
-        parent="chassis" x_off="${-wheelbase/2}" y_off="${-track_width/2}" />
+        parent="chassis" x_off="${-wheelbase/2}" y_off="${-track_width/2}" z_off="0" />
 
     <!-- ===================== FRONT CAMERA ===================== -->
     <joint name="front_camera_joint" type="fixed">
-        <parent link="base_link" />
+        <parent link="chassis" />
         <child link="front_camera_link" />
-        <origin xyz="${cam_x} 0 ${cam_z}" rpy="0 ${cam_pitch} 0" />
+        <origin xyz="${cam_x} 0 ${cam_z - wheel_radius}" rpy="0 ${cam_pitch} 0" />
     </joint>
 
     <link name="front_camera_link">
@@ -241,9 +241,9 @@
 
     <!-- ===================== IMU ===================== -->
     <joint name="imu_joint" type="fixed">
-        <parent link="base_link" />
+        <parent link="chassis" />
         <child link="imu_link" />
-        <origin xyz="0 0 ${wheel_radius + ch_h/2}" rpy="0 0 0" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
     </joint>
     <link name="imu_link">
         <inertial>

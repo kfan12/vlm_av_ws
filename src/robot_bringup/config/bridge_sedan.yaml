@@ -1,0 +1,52 @@
+# ros_gz bridge for the V2 sedan in the generated urban world (day 06).
+# NEW file — the v1 bridge.yaml is untouched. Model name: sedan. Only
+# world-independent topics belong here; the joint_state topic embeds the world
+# name, so urban_world.launch.py bridges it via a positional arg instead.
+
+- ros_topic_name: "/clock"
+  gz_topic_name:  "/clock"
+  ros_type_name:  "rosgraph_msgs/msg/Clock"
+  gz_type_name:   "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name:  "/model/sedan/cmd_vel"
+  ros_type_name:  "geometry_msgs/msg/Twist"
+  gz_type_name:   "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/odom"
+  gz_topic_name:  "/model/sedan/odometry"
+  ros_type_name:  "nav_msgs/msg/Odometry"
+  gz_type_name:   "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/imu"
+  gz_topic_name:  "/imu"
+  ros_type_name:  "sensor_msgs/msg/Imu"
+  gz_type_name:   "gz.msgs.IMU"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/odom_truth"
+  gz_topic_name:  "/model/sedan/odometry_truth"
+  ros_type_name:  "nav_msgs/msg/Odometry"
+  gz_type_name:   "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/front/image_raw"
+  gz_topic_name:  "/camera/front/image"
+  ros_type_name:  "sensor_msgs/msg/Image"
+  gz_type_name:   "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/front/camera_info"
+  gz_topic_name:  "/camera/front/camera_info"
+  ros_type_name:  "sensor_msgs/msg/CameraInfo"
+  gz_type_name:   "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/camera/front/depth/image_raw"
+  gz_topic_name:  "/camera/front/depth_image"
+  ros_type_name:  "sensor_msgs/msg/Image"
+  gz_type_name:   "gz.msgs.Image"
+  direction: GZ_TO_ROS

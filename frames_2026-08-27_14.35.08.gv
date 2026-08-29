@@ -1,0 +1,16 @@
+digraph G {
+"front_left_wheel_steering_link" -> "front_left_wheel"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"chassis" -> "front_left_wheel_steering_link"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"base_link" -> "chassis"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"front_right_wheel_steering_link" -> "front_right_wheel"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"chassis" -> "front_right_wheel_steering_link"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"chassis" -> "rear_left_wheel"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"chassis" -> "rear_right_wheel"[label=" Broadcaster: default_authority\nAverage rate: 19.429\nBuffer length: 5.044\nMost recent transform: 277.44\nOldest transform: 272.396\n"];
+"base_link" -> "front_camera_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"front_camera_link" -> "front_camera_optical_frame"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "imu_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1787834108.1777232"[ shape=plaintext ] ;
+}->"base_link";
+}
