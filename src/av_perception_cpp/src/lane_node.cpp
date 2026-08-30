@@ -2,19 +2,31 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-#include <fstream>
-
 #include "av_common/projection.hpp"
 #include "av_common/debug_tap.hpp"
 #include "av_common/geometry.hpp"
 #include "av_perception_cpp/img_access.hpp"
 #include "av_perception_cpp/ground_cal.hpp"
+
+#include <cstdint>
+#include <cstdio>
+#include <algorithm>
+#include <cmath>
+#include <deque>
+#include <map>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#include <fstream>
 
 // ---------------------------------------------------------------- namespace helpers
 namespace
@@ -30,6 +42,367 @@ namespace
         if (s <= 1e-3)
             return 1e9;   // row points above the horizon -- treat as "far"
         return cam_z / s; // solved for distance instead of pitch
+    }
+
+    struct ChainPt
+    {
+        double x, y;
+        bool yellow;
+    }; // one ego-frame point, color-tagged
+    using Chain = std::vector<ChainPt>; // one lane chain, in ego-frame coordinates
+
+    Chain grid_dedup(const Chain &pts, double cell_m) // grid-based deduplication of points, keeping only one point per cell
+    {
+        struct cell
+        {
+            double sx = 0, sy = 0;
+            int n = 0;
+            bool yellow = false;
+        };
+
+        std::unordered_map<uint64_t, cell> grid; // sparse grid of cells, keyed by packed (ix,iy)
+        auto key = [&](double x, double y) -> uint64_t
+        {
+            int32_t gx = static_cast<int32_t>(std::floor(x / cell_m));
+            int32_t gy = static_cast<int32_t>(std::floor(y / cell_m));
+            // pack both int32 cell indices into one 64-bit key. Cast through
+            // uint32_t first: shifting a negative signed value is UB before
+            // C++20, and this TU is built as C++17.
+            return (static_cast<uint64_t>(static_cast<uint32_t>(gx)) << 32) |
+                   static_cast<uint32_t>(gy);
+        };
+
+        for (const auto &pt : pts)
+        {
+            auto &c = grid[key(pt.x, pt.y)];
+            c.sx += pt.x;
+            c.sy += pt.y;
+            c.n++;
+            c.yellow = c.yellow || pt.yellow;
+        }
+
+        Chain out;
+        for (const auto &[k, c] : grid)
+        {
+            out.push_back({c.sx / c.n, c.sy / c.n, c.yellow}); // average of all points in the cell
+        }
+        return out;
+    }
+
+    struct StopLineHit
+    {
+        bool found = false;
+        double x = 0, y_center = 0; // where the bar sits, if any
+    };
+
+    StopLineHit detect_and_strip_stop_line(Chain &gridded, double x_max_m)
+    {
+        StopLineHit res;
+        std::map<int, std::pair<double, double>> y_range; // 0.5 m x-bin -> (ymin, ymax
+        std::map<int, int> counts;
+
+        for (const auto &p : gridded)
+        {
+            if (p.yellow || p.x > x_max_m || p.x < 0.0)
+                continue;
+            int b = static_cast<int>(std::floor(p.x / 0.5)); // which 0.5m x-bin this point falls in
+            auto it = y_range.find(b);
+
+            if (it == y_range.end())     // first point in this bin
+                y_range[b] = {p.y, p.y}; // min = max = p.y
+            else
+            {
+                it->second.first = std::min(it->second.first, p.y);   // widen the bin's y-min
+                it->second.second = std::max(it->second.second, p.y); // widen the bin's y-max
+            }
+            counts[b]++; // one more point in this bin
+        }
+
+        for (const auto &[b, yr] : y_range)
+        {
+            double span = yr.second - yr.first;
+            if (span >= 2.0 && yr.first < 0.3 && yr.second > -0.3 && counts[b] >= 6)
+            {
+                res = {true, (b + 0.5) * 0.5, (yr.first + yr.second) / 2.0};
+                break;
+            }
+        }
+
+        if (res.found)
+        {
+            gridded.erase(std::remove_if(gridded.begin(), gridded.end(),
+                                         [&](const ChainPt &p)
+                                         { return std::abs(p.x - res.x) < 0.35; }),
+                          gridded.end()); // strip the bar's points
+        }
+
+        return res;
+    }
+    std::vector<Chain> cluster_chains(Chain pts, double link_gap_m)
+    {
+        std::vector<Chain> chains;                 // compleleted Chains
+        std::vector<bool> used(pts.size(), false); // which points have already been claimed.
+        for (;;)
+        {
+            int seed = -1;
+            double best_d2 = 1e18;
+
+            for (size_t i = 0; i < pts.size(); i++)
+            {
+                if (used[i])
+                    continue;
+                double d2 = pts[i].x * pts[i].x + pts[i].y * pts[i].y;
+                if (d2 < best_d2)
+                {
+                    best_d2 = d2;
+                    seed = static_cast<int>(i);
+                }
+            }
+            if (seed < 0)
+                break;
+
+            Chain chain{pts[seed]}; // start a new chain
+            used[seed] = true;
+
+            for (;;)
+            {
+                const auto &tail = chain.back();
+                int best = -1;
+                double best_d2b = link_gap_m * link_gap_m;
+
+                for (size_t i = 0; i < pts.size(); i++)
+                {
+                    if (used[i])
+                        continue;
+                    double dx = pts[i].x - tail.x, dy = pts[i].y - tail.y;
+                    double d2 = dx * dx + dy * dy;
+                    if (d2 < best_d2b)
+                    {
+                        best_d2b = d2;
+                        best = static_cast<int>(i);
+                    }
+                }
+
+                if (best < 0)
+                    break;
+                chain.push_back(pts[best]);
+
+                used[best] = true;
+            }
+            chains.push_back(std::move(chain));
+        }
+
+        return chains;
+    }
+
+    void merge_collinear(std::vector<Chain> &chains, double gap_white_m,
+                         double gap_yellow_m, double angle_max_rad)
+    {
+        bool merged_any = true;
+
+        while (merged_any)
+        {
+            merged_any = false;
+            for (size_t i = 0; i < chains.size() && !merged_any; ++i)
+            {
+                for (size_t j = 0; j < chains.size() && !merged_any; ++j)
+                {
+                    if (i == j || chains[i].empty() || chains[j].empty())
+                        continue;
+                    const auto &a = chains[i];
+                    const auto &b = chains[j];
+                    if (a.size() < 2)
+                        continue;
+                    bool yellow = a.back().yellow || b.front().yellow;
+                    double gap_max = yellow ? gap_yellow_m : gap_white_m;
+                    double dx = b.front().x - a.back().x, dy = b.front().y - a.back().y;
+                    double gap = std::hypot(dx, dy);
+                    if (gap > gap_max || gap < 1e-6)
+                        continue;
+                    double h_chain = std::atan2(
+                        a.back().y - a[a.size() - 2].y,
+                        a.back().x - a[a.size() - 2].x);
+                    double h_join = std::atan2(dy, dx);
+                    if (std::abs(av::geom::wrap_angle(h_join - h_chain)) > angle_max_rad)
+                        continue;
+
+                    chains[i].insert(chains[i].end(), b.begin(), b.end()); // append b onto a
+                    chains[j].clear();
+                    merged_any = true;
+                }
+            }
+        }
+
+        chains.erase(std::remove_if(chains.begin(), chains.end(),
+                                    [](const Chain &c)
+                                    { return c.empty(); }),
+                     chains.end());
+    }
+
+    void drop_stray_chains(std::vector<Chain> &chains, int min_pts, double min_extent_m)
+    {
+        auto extent = [](const Chain &c)
+        { return std::hypot(c.back().x - c.front().x, c.back().y - c.front().y); };
+
+        std::vector<Chain> kept; // survivors of size/extent filter
+        for (Chain &c : chains)
+            if (static_cast<int>(c.size()) >= min_pts && extent(c) >= min_extent_m)
+                kept.push_back(std::move(c));
+        // NOTE: the fallback below only runs when kept is empty, i.e. when the
+        // loop above moved out of nothing -- so every chain here is still intact.
+        if (kept.empty() && !chains.empty()) // everything failed, but there WAS evidence
+        {
+            auto longest = std::max_element(chains.begin(), chains.end(),
+                                            [&](const Chain &a, const Chain &b)
+                                            { return extent(a) < extent(b); }); // find the least-bad chain
+            kept.push_back(std::move(*longest));                                // keep it anyway rather than publishing nothing
+        }
+
+        chains = std::move(kept);
+    }
+
+    Chain resample_chain_x(Chain c, double slice_m) // average per-pixel noise pts into per_slice estimate
+    {
+        if (c.size() < 2)
+            return c;
+
+        std::sort(c.begin(), c.end(), [](const ChainPt &a, const ChainPt &b)
+                  { return a.x < b.x; }); // x-monotonic order
+
+        Chain out;
+        double sx = 0, sy = 0;
+        double bin_start = c.front().x;
+        int n = 0;
+        bool yellow = false;
+
+        auto flush = [&]()
+        {
+            if (n > 0)
+            {
+                out.push_back({sx / n, sy / n, yellow});
+                sx = sy = 0;
+                n = 0;
+                yellow = false;
+            }
+        };
+
+        for (const auto &p : c)
+        {
+            if (p.x - bin_start >= slice_m) // slice closed, flush the average value, reset the slice bin start
+            {
+                flush();
+                bin_start = p.x;
+            }
+            sx += p.x; // accumulate during the slice
+            sy += p.y;
+            ++n;
+            yellow = yellow || p.yellow;
+        }
+
+        flush(); // emit the final still open slice
+        return out;
+    }
+
+    struct OffsetChain
+    {
+        Chain pts;
+    };
+
+    std::vector<OffsetChain> classify_and_offset(const std::vector<Chain> &chains,
+                                                 double lane_half_m, double lane_mem_y, bool have_lane_mem)
+    {
+        const Chain *yellow = nullptr;
+        for (const auto &c : chains)
+            if (!c.empty() && c.front().yellow)
+            {
+                yellow = &c;
+                break;
+            }
+        double yellow_near_y = yellow ? yellow->front().y : 0.0; // yellow's near-end y, the reference line
+
+        std::vector<OffsetChain> out;
+        for (const auto &c : chains)
+        {
+            if (c.empty())
+                continue;
+
+            Chain offset;
+            offset.reserve(c.size());
+
+            // Ego frame: +y is LEFT. Right-hand traffic (see
+            // scripts/generate_course_world.py): the ego drives the right lane,
+            // so the yellow centre line is to its LEFT (y > 0) and the ego
+            // lane's own white edge is to its RIGHT (y < 0). "Drop the far side"
+            // therefore means drop chains with the LARGER y, not the smaller.
+            if (c.front().yellow) // yellow IS the ego lane's left boundary -- offset right (toward -y)
+            {
+                for (auto p : c)
+                {
+                    p.y -= lane_half_m;
+                    offset.push_back(p);
+                }
+            }
+            else if (yellow) // a yellow chain exists this frame
+            {
+                if (c.front().y > yellow_near_y) // left of yellow -- oncoming lane's edge, drop
+                    continue;
+                for (auto p : c) // this is the ego lane's right edge -- offset left (toward +y)
+                {
+                    p.y += lane_half_m;
+                    offset.push_back(p);
+                }
+            }
+            else // no yellow this frame -- fall back to lane_mem_y_
+            {
+                if (have_lane_mem && c.front().y >= lane_mem_y) // left of remembered centre -- drop
+                    continue;
+                for (auto p : c) // presumed ego lane right edge -- offset left (toward +y)
+                {
+                    p.y += lane_half_m;
+                    offset.push_back(p);
+                }
+            }
+
+            if (!offset.empty())
+                out.push_back({std::move(offset)});
+        }
+        return out;
+    }
+
+    // x-bin merge: collapse to one centerline
+    av::geom::Polyline xbin_merge(const std::vector<OffsetChain> &offsets, double bin_m)
+    {
+        std::map<int, std::pair<double, int>> bins; // x-bin -> (sum of y, counts)
+        for (const auto &oc : offsets)
+        {
+            for (const auto &p : oc.pts)
+            {
+                auto &e = bins[static_cast<int>(std::floor(p.x / bin_m))]; // which bin this point votes to
+                e.first += p.y;
+                e.second += 1;
+            }
+        }
+        av::geom::Polyline out;
+        for (const auto &[b, e] : bins)
+            out.push_back({(b + 0.5) * bin_m, e.first / e.second}); // bin center x, bin average y
+
+        return out;
+    }
+
+    bool folds_back(const av::geom::Polyline &c)
+    {
+        if (c.size() < 3)
+            return false;
+        for (size_t i = 1; i + 1 < c.size(); ++i)
+        {
+            Eigen::Vector2d d1 = c[i] - c[i - 1], d2 = c[i + 1] - c[i];
+            if (d1.norm() < 1e-6 || d2.norm() < 1e-6)
+                continue;
+            if (d1.normalized().dot(d2.normalized()) < 0.0) // negative dot product = turn > 90 deg
+                return true;
+        }
+
+        return false;
     }
 }
 
@@ -53,9 +426,32 @@ private:
         int near_stride;
         std::string map_path;
         double map_origin_x, map_origin_y, map_origin_yaw;
+
         std::string dump_dir; // debug: image/cloud dump directory; empty = disabled
         int dump_every_n;     // dump 1 out of every N ticks (throttle -- images are heavy)
+
+        double chain_grid_m;             // B.1 grid-dedup cell size
+        double chain_stop_max_m;         // B.2 stop-line search range
+        double chain_link_gap_m;         // B.3 clustering link gap
+        double chain_merge_gap_white_m;  // B.4 white merge gap budget
+        double chain_merge_gap_yellow_m; // B.4 yellow merge gap budget (must clear the dash cycle)
+        double chain_merge_angle_rad;    // B.4 max join angle
+        int chain_min_pts;               // B.5 minimum chain point count
+        double chain_min_extent_m;       // B.5 minimum chain end-to-end length
+        double chain_resample_m;         // B.6 x-slice width
+        double lane_half_m;              // B.7 half lane width, the classification offset
+        double chain_merge_bin_m;        // B.8 x-bin merge width
+        int chain_min_center_pts;        // B.10 minimum published centerline points
+        double path_reuse_s;             // B.11 how long to republish the last good path
     };
+
+    struct ChainResult
+    {                                  // return type from chain_centerline()
+        av::geom::Polyline centerline; // ego frame -- tick() transforms to odom before publishing
+        bool valid = false;            // false on fold-back or too few points
+    };
+
+    ChainResult chain_centerline();
 
     void on_rgb(sensor_msgs::msg::Image::ConstSharedPtr msg);
     void on_depth(sensor_msgs::msg::Image::ConstSharedPtr msg);
@@ -64,6 +460,7 @@ private:
     av::proj::Pose2d pose_at(double stamp_sec) const; // nearst-timestamp pose from pose_hist_, or current_pose_ if none
     void ingest();
     void ingest_mask();
+    void publish_path(const av::geom::Polyline &path); // odom-frame nav_msgs/Path publisher
     void tick();
     void dump_debug_frame(const cv::Mat &white_raw, const cv::Mat &yellow_raw,
                           const cv::Mat &white_filtered, const cv::Mat &yellow_filtered,
@@ -98,7 +495,12 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr rgb_sub_, depth_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_; // /lane/path_odom
     av::DebugTap debug_tap_;
+
+    std::optional<Eigen::Vector2d> last_stop_line_ego_;
+    rclcpp::Time last_path_time_;  // when last_path_ was published
+    av::geom::Polyline last_path_; // last published odom-frame path, for the reuse window
 };
 
 LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructor
@@ -129,6 +531,20 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.map_origin_y = declare_parameter("map_origin_y", 0.0);     // spawn y
     params_.map_origin_yaw = declare_parameter("map_origin_yaw", 0.0); // spawn yaw
 
+    params_.chain_grid_m = declare_parameter("chain_grid_m", 0.15);                        // B.1
+    params_.chain_stop_max_m = declare_parameter("chain_stop_max_m", 12.0);                // B.2
+    params_.chain_link_gap_m = declare_parameter("chain_link_gap_m", 1.0);                 // B.3
+    params_.chain_merge_gap_white_m = declare_parameter("chain_merge_gap_white_m", 2.5);   // B.4
+    params_.chain_merge_gap_yellow_m = declare_parameter("chain_merge_gap_yellow_m", 6.0); // B.4
+    params_.chain_merge_angle_rad = declare_parameter("chain_merge_angle_rad", 0.7);       // B.4
+    params_.chain_min_pts = declare_parameter("chain_min_pts", 3);                         // B.5
+    params_.chain_min_extent_m = declare_parameter("chain_min_extent_m", 1.0);             // B.5
+    params_.chain_resample_m = declare_parameter("chain_resample_m", 0.75);                // B.6
+    params_.lane_half_m = declare_parameter("lane_half_m", 1.75);                          // B.7
+    params_.chain_merge_bin_m = declare_parameter("chain_merge_bin_m", 0.75);              // B.8
+    params_.chain_min_center_pts = declare_parameter("chain_min_center_pts", 5);           // B.10
+    params_.path_reuse_s = declare_parameter("path_reuse_s", 1.0);                         // B.11
+
     params_.dump_dir = declare_parameter("dump_dir", std::string()); // debug: set to enable ingest_mask() dumps
     params_.dump_every_n = declare_parameter("dump_every_n", 10);    // dump 1 out of every N ticks
 
@@ -145,6 +561,12 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
         "/camera/front/camera_info", qos, std::bind(&LaneNode::on_camera_info, this, std::placeholders::_1));
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom_ekf", 10, std::bind(&LaneNode::on_odom, this, std::placeholders::_1));
+    path_pub_ = create_publisher<nav_msgs::msg::Path>("/lane/path_odom", 10);
+
+    // Seed with the node clock so the reuse-window subtraction in tick() never
+    // mixes clock sources. A default-constructed rclcpp::Time is RCL_SYSTEM_TIME
+    // while this->now() is RCL_ROS_TIME, and subtracting the two throws.
+    last_path_time_ = this->now();
 }
 
 void LaneNode::on_rgb(sensor_msgs::msg::Image::ConstSharedPtr msg) // callback for RGB image
@@ -230,6 +652,17 @@ void LaneNode::ingest_mask()
                 cv::Scalar(180, params_.white_s_max, 255), white_mask); // full hue range, gated on S/V only
     cv::inRange(hsv, cv::Scalar(params_.yellow_h_min, params_.yellow_s_min, params_.yellow_v_min),
                 cv::Scalar(params_.yellow_h_max, 255, 255), yellow_mask); // narrow hue band + S/V floors
+
+    // The per-pixel loop below indexes the masks with depth_ row/col ranges;
+    // a size mismatch would be a silent out-of-bounds read. Skip the frame
+    // instead -- the cleared clouds make chain_centerline() fall back to reuse.
+    if (white_mask.size() != depth_.size())
+    {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                             "RGB mask %dx%d != depth %dx%d -- skipping frame",
+                             white_mask.cols, white_mask.rows, depth_.cols, depth_.rows);
+        return;
+    }
 
     cv::Mat white_mask_raw = white_mask.clone(); // keep the PRE-blob-drop version for the debug dump
     cv::Mat yellow_mask_raw = yellow_mask.clone();
@@ -318,6 +751,45 @@ void LaneNode::ingest_mask()
                          white_mask_cloud, yellow_mask_cloud); // white_mask/yellow_mask are the FILTERED versions here
 }
 
+LaneNode::ChainResult LaneNode::chain_centerline()
+{
+    ChainResult res;
+
+    Chain pts;
+    for (const auto &p : white_cloud_)
+        pts.push_back({p.x(), p.y(), false});
+    for (const auto &p : yellow_cloud_)
+        pts.push_back({p.x(), p.y(), true});
+
+    auto gridded = grid_dedup(pts, params_.chain_grid_m);
+    auto stop = detect_and_strip_stop_line(gridded, params_.chain_stop_max_m);
+    if (stop.found)
+        last_stop_line_ego_ = Eigen::Vector2d(stop.x, stop.y_center);
+
+    auto chains = cluster_chains(gridded, params_.chain_link_gap_m);
+    merge_collinear(chains, params_.chain_merge_gap_white_m,
+                    params_.chain_merge_gap_yellow_m, params_.chain_merge_angle_rad);
+    drop_stray_chains(chains, params_.chain_min_pts, params_.chain_min_extent_m);
+    for (auto &c : chains)
+        c = resample_chain_x(c, params_.chain_resample_m);
+
+    auto offsets = classify_and_offset(chains, params_.lane_half_m, lane_mem_y_, have_lane_mem_);
+    auto center = xbin_merge(offsets, params_.chain_merge_bin_m);
+
+    if (folds_back(center) || static_cast<int>(center.size()) < params_.chain_min_center_pts)
+    {
+        res.valid = false; // bad frame -- caller falls back to path reuse
+        return res;
+    }
+
+    lane_mem_y_ = have_lane_mem_ ? 0.5 * lane_mem_y_ + 0.5 * center.front().y() : center.front().y(); // update the fallback EMA
+    have_lane_mem_ = true;                                                                            // EMA now has at least one sample
+    res.centerline = std::move(center);                                                               // still in EGO frame -- tick() transforms to odom
+    res.valid = true;
+
+    return res;
+}
+
 // Writes one frame's raw RGB, both masks at every stage (raw color gate,
 // after horizon-blank+blob-drop, and the final image-space cloud masks),
 // plus the final white_cloud_/yellow_cloud_ JSON, into params_.dump_dir, for
@@ -368,11 +840,44 @@ void LaneNode::dump_debug_frame(const cv::Mat &white_raw, const cv::Mat &yellow_
                 tag, white_cloud_.size(), yellow_cloud_.size(), params_.dump_dir.c_str());
 }
 
+void LaneNode::publish_path(const av::geom::Polyline &path)
+{
+    nav_msgs::msg::Path msg;
+    msg.header.frame_id = "odom"; // every downstream consumer expects odom frame
+    msg.header.stamp = this->now();
+    for (const auto &p : path)
+    {
+        geometry_msgs::msg::PoseStamped ps;
+        ps.header = msg.header; // same stamp/frame on every pose in the path
+        ps.pose.position.x = p.x();
+        ps.pose.position.y = p.y();
+        msg.poses.push_back(ps);
+    }
+    path_pub_->publish(msg);
+}
+
 void LaneNode::tick()
 {
     ingest();      // wrap Mats, resolve frame_pose_, update pitch_ema_/T_base_cam_
     ingest_mask(); // build white_cloud_/yellow_cloud_ for THIS frame
     // Day 6 adds chain_centerline() + publish here.
+    auto chain = chain_centerline();
+    rclcpp::Time now = this->now();
+
+    if (chain.valid)
+    {
+        av::geom::Polyline odom_path;
+        for (const auto &p : chain.centerline)
+            odom_path.push_back(frame_pose_.odom_of(p));        // ego -> odom
+        odom_path = av::geom::resample_uniform(odom_path, 0.5); // even 0.5 m spacing for downstream consumers
+        last_path_ = odom_path;
+        last_path_time_ = now;
+        publish_path(odom_path);
+    }
+    else if (!last_path_.empty() && (now - last_path_time_).seconds() < params_.path_reuse_s)
+    {
+        publish_path(last_path_); // still inside the reuse window -- republish the last good path
+    }
 
     debug_tap_.flush();
 }
