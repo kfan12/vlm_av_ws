@@ -66,6 +66,11 @@ namespace av
         // local_planner's road-curvature assist (turns there are road geometry, not
         // intersections, so there are no turn splines to bridge them).
         geom::Polyline course_centerline;
+        // Course-style maps also carry a single road stop line (the painted bar
+        // near the course end). nullopt for grid maps. Transformed into the
+        // odom frame like everything else; lane_node fuses it 0.7/0.3 with its
+        // own vision detection on /lane/stop_line.
+        std::optional<Eigen::Vector2d> course_stop_line;
 
         // Loads the map and transforms every coordinate from WORLD frame into the
         // ODOM frame, which is zeroed at the spawn pose (ox, oy, oyaw). The
@@ -149,6 +154,9 @@ namespace av
                      j["course"].value("centerline", nlohmann::json::array()))
                     m.course_centerline.push_back(
                         tf(pt[0].get<double>(), pt[1].get<double>()));
+            if (j.contains("stop_line"))
+                m.course_stop_line = tf(j["stop_line"].value("x", 0.0),
+                                        j["stop_line"].value("y", 0.0));
             return m;
         }
 

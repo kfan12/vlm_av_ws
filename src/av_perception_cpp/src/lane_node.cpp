@@ -3,6 +3,8 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2/utils.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -12,12 +14,15 @@
 #include "av_common/projection.hpp"
 #include "av_common/debug_tap.hpp"
 #include "av_common/geometry.hpp"
+#include "av_common/json_io.hpp"
+#include "av_common/map_model.hpp"
 #include "av_perception_cpp/img_access.hpp"
 #include "av_perception_cpp/ground_cal.hpp"
 
 #include <cstdint>
 #include <cstdio>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <deque>
 #include <map>
@@ -98,34 +103,33 @@ namespace
     StopLineHit detect_and_strip_stop_line(Chain &gridded, double x_max_m)
     {
         StopLineHit res;
-        std::map<int, std::pair<double, double>> y_range; // 0.5 m x-bin -> (ymin, ymax
-        std::map<int, int> counts;
+        std::map<int, std::vector<double>> ybins; // 0.5 m x-bin -> the white y values in it
 
         for (const auto &p : gridded)
         {
             if (p.yellow || p.x > x_max_m || p.x < 0.0)
                 continue;
-            int b = static_cast<int>(std::floor(p.x / 0.5)); // which 0.5m x-bin this point falls in
-            auto it = y_range.find(b);
-
-            if (it == y_range.end())     // first point in this bin
-                y_range[b] = {p.y, p.y}; // min = max = p.y
-            else
-            {
-                it->second.first = std::min(it->second.first, p.y);   // widen the bin's y-min
-                it->second.second = std::max(it->second.second, p.y); // widen the bin's y-max
-            }
-            counts[b]++; // one more point in this bin
+            ybins[static_cast<int>(std::floor(p.x / 0.5))].push_back(p.y);
         }
 
-        for (const auto &[b, yr] : y_range)
+        for (auto &[b, ys] : ybins)
         {
-            double span = yr.second - yr.first;
-            if (span >= 2.0 && yr.first < 0.3 && yr.second > -0.3 && counts[b] >= 6)
-            {
-                res = {true, (b + 0.5) * 0.5, (yr.first + yr.second) / 2.0};
-                break;
-            }
+            if (ys.size() < 6)
+                continue;
+            std::sort(ys.begin(), ys.end());
+            double ymin = ys.front(), ymax = ys.back(), span = ymax - ymin;
+            if (span < 2.0 || ymin >= 0.3 || ymax <= -0.3) // wide enough, straddling the ego line
+                continue;
+            // Reject two parallel edge lines masquerading as a bar: a real bar
+            // FILLS the span, two thin lines leave the middle third empty.
+            double lo = ymin + span / 3.0, hi = ymax - span / 3.0;
+            size_t mid = std::count_if(ys.begin(), ys.end(),
+                                       [&](double y)
+                                       { return y > lo && y < hi; });
+            if (mid < ys.size() / 5) // < 20% of points in the middle third -> not a bar
+                continue;
+            res = {true, (b + 0.5) * 0.5, (ymin + ymax) / 2.0};
+            break;
         }
 
         if (res.found)
@@ -308,8 +312,80 @@ namespace
         Chain pts;
     };
 
-    std::vector<OffsetChain> classify_and_offset(const std::vector<Chain> &chains,
-                                                 double lane_half_m, double lane_mem_y, bool have_lane_mem)
+    // Forward-bin occupancy STRUCTURE of a lane boundary, for /lane/markings.
+    // Counting occupied bins alone can't tell "solid, only 13 m detected" from
+    // "dashed" -- both land near half. What separates them is the GAP pattern:
+    // a solid line never leaves a multi-bin hole; the 3 m-paint / 4.5 m-gap
+    // dash cycle always does.
+    struct MarkingStats
+    {
+        int n_bins = 0;         // occupied bins
+        double span_m = 0.0;    // first occupied bin to last
+        double max_gap_m = 0.0; // longest run of empty bins strictly inside the span
+    };
+
+    MarkingStats marking_stats(const std::vector<Chain> &chains, double d_max_m, double bin_m)
+    {
+        const size_t nbins = static_cast<size_t>(d_max_m / bin_m) + 1;
+        std::vector<char> hit(nbins, 0);
+        for (const auto &c : chains)
+            for (const auto &p : c)
+            {
+                if (p.x < 0.0)
+                    continue;
+                size_t b = static_cast<size_t>(p.x / bin_m);
+                if (b < nbins)
+                    hit[b] = 1;
+            }
+        MarkingStats s;
+        int first = -1, last = -1;
+        for (int i = 0; i < static_cast<int>(nbins); ++i)
+            if (hit[i])
+            {
+                if (first < 0)
+                    first = i;
+                last = i;
+                ++s.n_bins;
+            }
+        if (first < 0)
+            return s;
+        s.span_m = (last - first + 1) * bin_m;
+        int run = 0;
+        for (int i = first; i <= last; ++i)
+        {
+            if (hit[i])
+                run = 0;
+            else
+                s.max_gap_m = std::max(s.max_gap_m, ++run * bin_m);
+        }
+        return s;
+    }
+
+    // solid: a long contiguous run, at most a detection-dropout hole. dashed:
+    // a >=2 m empty run somewhere in the span (a solid line never has one; the
+    // centre dash cycle always does). none: too little to tell -- a lone dash
+    // or a stub reads "none" until the car moves and more comes into view.
+    std::string marking_type(const MarkingStats &s)
+    {
+        if (s.n_bins < 2 || s.span_m < 1.5)
+            return "none";
+        if (s.max_gap_m >= 2.0)
+            return "dashed";
+        if (s.n_bins >= 6 && s.max_gap_m < 1.5)
+            return "solid";
+        return "none";
+    }
+
+    struct ClassifyResult
+    {
+        std::vector<OffsetChain> offsets; // centreline candidates, ready for xbin_merge
+        MarkingStats right_edge;          // ego right-edge boundary structure
+        MarkingStats center_line;         // yellow centre-line structure
+    };
+
+    ClassifyResult classify_and_offset(const std::vector<Chain> &chains,
+                                       double lane_half_m, double lane_mem_y, bool have_lane_mem,
+                                       double occ_d_max_m, double occ_bin_m)
     {
         const Chain *yellow = nullptr;
         for (const auto &c : chains)
@@ -320,7 +396,8 @@ namespace
             }
         double yellow_near_y = yellow ? yellow->front().y : 0.0; // yellow's near-end y, the reference line
 
-        std::vector<OffsetChain> out;
+        std::vector<Chain> yellow_chains, right_chains; // for the occupancy counts below
+        ClassifyResult res;
         for (const auto &c : chains)
         {
             if (c.empty())
@@ -336,6 +413,7 @@ namespace
             // therefore means drop chains with the LARGER y, not the smaller.
             if (c.front().yellow) // yellow IS the ego lane's left boundary -- offset right (toward -y)
             {
+                yellow_chains.push_back(c);
                 for (auto p : c)
                 {
                     p.y -= lane_half_m;
@@ -346,6 +424,7 @@ namespace
             {
                 if (c.front().y > yellow_near_y) // left of yellow -- oncoming lane's edge, drop
                     continue;
+                right_chains.push_back(c);
                 for (auto p : c) // this is the ego lane's right edge -- offset left (toward +y)
                 {
                     p.y += lane_half_m;
@@ -356,6 +435,7 @@ namespace
             {
                 if (have_lane_mem && c.front().y >= lane_mem_y) // left of remembered centre -- drop
                     continue;
+                right_chains.push_back(c);
                 for (auto p : c) // presumed ego lane right edge -- offset left (toward +y)
                 {
                     p.y += lane_half_m;
@@ -364,9 +444,12 @@ namespace
             }
 
             if (!offset.empty())
-                out.push_back({std::move(offset)});
+                res.offsets.push_back({std::move(offset)});
         }
-        return out;
+
+        res.center_line = marking_stats(yellow_chains, occ_d_max_m, occ_bin_m);
+        res.right_edge = marking_stats(right_chains, occ_d_max_m, occ_bin_m);
+        return res;
     }
 
     // x-bin merge: collapse to one centerline
@@ -443,12 +526,18 @@ private:
         double chain_merge_bin_m;        // B.8 x-bin merge width
         int chain_min_center_pts;        // B.10 minimum published centerline points
         double path_reuse_s;             // B.11 how long to republish the last good path
+        double chain_d_max_m;            // trusted forward range for chain evidence + markings occupancy
+        int smooth_window;               // centreline moving-average window, in points
     };
 
     struct ChainResult
-    {                                  // return type from chain_centerline()
-        av::geom::Polyline centerline; // ego frame -- tick() transforms to odom before publishing
-        bool valid = false;            // false on fold-back or too few points
+    {                                                                        // return type from chain_centerline()
+        av::geom::Polyline centerline;                                       // ego frame -- tick() transforms to odom before publishing
+        bool valid = false;                                                  // false on fold-back or too few points
+        MarkingStats right_edge;                                             // /lane/markings: ego right-edge boundary structure
+        MarkingStats center_line;                                            // /lane/markings: yellow centre-line structure
+        std::optional<std::pair<Eigen::Vector2d, Eigen::Vector2d>> stop_seg; // ego-frame stop-bar span, if detected
+        std::optional<double> stop_x;                                        // ego-frame forward distance to the bar
     };
 
     ChainResult chain_centerline();
@@ -460,7 +549,13 @@ private:
     av::proj::Pose2d pose_at(double stamp_sec) const; // nearst-timestamp pose from pose_hist_, or current_pose_ if none
     void ingest();
     void ingest_mask();
-    void publish_path(const av::geom::Polyline &path); // odom-frame nav_msgs/Path publisher
+    void publish_path(const av::geom::Polyline &path);                     // odom-frame nav_msgs/Path publisher
+    void publish_markings(const ChainResult &chain);                       // /lane/markings JSON
+    void publish_stop_line(const ChainResult &chain);                      // /lane/stop_line JSON (vision + optional map prior)
+    double path_end_curvature(const av::geom::Polyline &ego_center) const; // wkappa tap/overlay field
+    void publish_debug_markers(const ChainResult &chain, double wkappa);   // /lane/debug_markers
+    void publish_debug_image(const ChainResult &chain, double wkappa);     // /lane/debug_image
+    void dump_lane_cloud_jsonl(const ChainResult &chain, double wkappa);   // per-tick lane_cloud.jsonl
     void tick();
     void dump_debug_frame(const cv::Mat &white_raw, const cv::Mat &yellow_raw,
                           const cv::Mat &white_filtered, const cv::Mat &yellow_filtered,
@@ -495,8 +590,16 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr rgb_sub_, depth_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_; // /lane/path_odom
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;                         // /lane/path_odom
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr markings_pub_;                   // /lane/markings
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stop_line_pub_;                  // /lane/stop_line
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dbg_markers_pub_; // /lane/debug_markers
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr dbg_image_pub_;                // /lane/debug_image
     av::DebugTap debug_tap_;
+
+    bool debug_markers_ = false, debug_image_ = false; // gate the two heavy debug surfaces
+    std::optional<av::MapModel> map_;                  // loaded iff map_path is set; stop-line prior only
+    std::ofstream lane_cloud_jsonl_;                   // per-tick cloud dump, opened lazily
 
     std::optional<Eigen::Vector2d> last_stop_line_ego_;
     rclcpp::Time last_path_time_;  // when last_path_ was published
@@ -509,8 +612,8 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.cam_z = declare_parameter("cam_z", 1.4);          // URDF mount z, also ground height post-fix
     params_.cam_pitch = declare_parameter("cam_pitch", 0.06); // URDF mount pitch, now the true value (Day 2 fix)
     params_.hfov = declare_parameter("camera_hfov", 1.6);     // must match the URDF's rgbd_camera hfov
-    params_.img_w = declare_parameter("camera_width", 640);   // must match the URDF's image width
-    params_.img_h = declare_parameter("camera_height", 360);  // must match the URDF's image height
+    params_.img_w = declare_parameter("camera_width", 424);   // must match the URDF's image width (sedan.urdf.xacro)
+    params_.img_h = declare_parameter("camera_height", 240);  // must match the URDF's image height
 
     params_.white_s_max = declare_parameter("white_s_max", 60);           // white: S must stay below this
     params_.white_v_min = declare_parameter("white_v_min", 150);          // white: V must stay above this
@@ -518,7 +621,7 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.yellow_h_max = declare_parameter("yellow_h_max", 38);         // yellow hue band, upper bound
     params_.yellow_s_min = declare_parameter("yellow_s_min", 80);         // yellow: S floor
     params_.yellow_v_min = declare_parameter("yellow_v_min", 120);        // yellow: V floor
-    params_.line_area_min_px = declare_parameter("line_area_min_px", 50); // drop blobs smaller than this
+    params_.line_area_min_px = declare_parameter("line_area_min_px", 22); // drop blobs smaller than this (scaled from 50 @ 640x360 to 424x240)
 
     params_.z_gate = declare_parameter("z_gate", 0.15);                      // |z| tolerance around the ground plane
     params_.x_min = declare_parameter("depth_x_min", 0.5);                   // reject points closer than this (self-occlusion)
@@ -527,8 +630,8 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.near_stride = declare_parameter("near_stride", 4);               // pixel stride used for near (dense-paint) rows
 
     params_.map_path = declare_parameter("map_path", std::string());   // MapModel::load() input
-    params_.map_origin_x = declare_parameter("map_origin_x", 0.0);     // spawn x, zeroes map frame into odom
-    params_.map_origin_y = declare_parameter("map_origin_y", 0.0);     // spawn y
+    params_.map_origin_x = declare_parameter("map_origin_x", 3.0);     // spawn x, zeroes map frame into odom
+    params_.map_origin_y = declare_parameter("map_origin_y", -1.75);   // spawn y
     params_.map_origin_yaw = declare_parameter("map_origin_yaw", 0.0); // spawn yaw
 
     params_.chain_grid_m = declare_parameter("chain_grid_m", 0.15);                        // B.1
@@ -541,12 +644,16 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.chain_min_extent_m = declare_parameter("chain_min_extent_m", 1.0);             // B.5
     params_.chain_resample_m = declare_parameter("chain_resample_m", 0.75);                // B.6
     params_.lane_half_m = declare_parameter("lane_half_m", 1.75);                          // B.7
-    params_.chain_merge_bin_m = declare_parameter("chain_merge_bin_m", 0.75);              // B.8
+    params_.chain_merge_bin_m = declare_parameter("chain_merge_bin_m", 1.5);               // B.8 -- 2x chain_resample_m so the merge genuinely averages, not re-bins the same grid
     params_.chain_min_center_pts = declare_parameter("chain_min_center_pts", 5);           // B.10
     params_.path_reuse_s = declare_parameter("path_reuse_s", 1.0);                         // B.11
+    params_.chain_d_max_m = declare_parameter("chain_d_max_m", 20.0);                      // Day 6 pitfall: far depth noise
+    params_.smooth_window = declare_parameter("smooth_window", 9);                         // ~6 m at 0.75 m spacing
 
     params_.dump_dir = declare_parameter("dump_dir", std::string()); // debug: set to enable ingest_mask() dumps
     params_.dump_every_n = declare_parameter("dump_every_n", 10);    // dump 1 out of every N ticks
+    debug_markers_ = declare_parameter("debug_markers", false);      // /lane/debug_markers, publisher created below only if set
+    debug_image_ = declare_parameter("debug_image", false);          // /lane/debug_image, same
 
     pin_ = av::percep::pinhole_from_config(params_.img_w, params_.img_h, params_.hfov);            // derived, not from camera_info
     T_base_cam_ = av::proj::make_T_base_cam(params_.cam_x, 0.0, params_.cam_z, params_.cam_pitch); // initial extrinsic
@@ -562,6 +669,36 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom_ekf", 10, std::bind(&LaneNode::on_odom, this, std::placeholders::_1));
     path_pub_ = create_publisher<nav_msgs::msg::Path>("/lane/path_odom", 10);
+    markings_pub_ = create_publisher<std_msgs::msg::String>("/lane/markings", 10);
+    stop_line_pub_ = create_publisher<std_msgs::msg::String>("/lane/stop_line", 10);
+    if (debug_markers_)
+        // best-effort for the same reason as debug_image below -- a slow RViz
+        // must not back the publisher up into tick(). Markers carry a 0.5 s
+        // lifetime so a dropped update self-clears.
+        dbg_markers_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
+            "/lane/debug_markers", rclcpp::QoS(1).best_effort());
+    if (debug_image_)
+        // BEST_EFFORT, depth 1: a full-frame image every tick on a RELIABLE
+        // publisher will BLOCK tick() once a slow reliable subscriber (RViz
+        // that can't keep up) stops acking and the history fills -- that was
+        // the "lane_node stops publishing after a while" bug. A debug view may
+        // drop frames; it must never stall the node. In RViz set the Image
+        // display's Reliability Policy to "Best Effort" (or use rqt_image_view).
+        dbg_image_pub_ = create_publisher<sensor_msgs::msg::Image>(
+            "/lane/debug_image", rclcpp::QoS(1).best_effort());
+
+    if (!params_.map_path.empty())
+    {
+        try
+        {
+            map_ = av::MapModel::load(params_.map_path, params_.map_origin_x,
+                                      params_.map_origin_y, params_.map_origin_yaw);
+        }
+        catch (const std::exception &e)
+        {
+            RCLCPP_WARN(get_logger(), "map load failed (%s) -- /lane/stop_line will be vision-only", e.what());
+        }
+    }
 
     // Seed with the node clock so the reuse-window subtraction in tick() never
     // mixes clock sources. A default-constructed rclcpp::Time is RCL_SYSTEM_TIME
@@ -628,7 +765,11 @@ void LaneNode::ingest()
     if (p)
     {
         pitch_ema_ = have_pitch_ ? 0.9 * pitch_ema_ + 0.1 * *p : *p; // EMA filter
-        RCLCPP_INFO(get_logger(), "Estimated pitch: %.4f rad, EMA: %.4f rad", *p, pitch_ema_);
+        // Throttled: this fires every frame otherwise, and a per-frame write to
+        // a stalled terminal (Ctrl-S, or a slow console) blocks the whole spin
+        // loop. The live value is on the debug tap as pitch_est.
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+                             "estimated pitch %.4f rad (EMA %.4f)", *p, pitch_ema_);
         have_pitch_ = true;
 
         // bypass estimation, use the known true pitch from URDF mount, for Day 5 accept check
@@ -741,9 +882,11 @@ void LaneNode::ingest_mask()
             ++added;
         }
     }
-    debug_tap_.put("added", added);         // Day 5 accept check: thousands on a straight
-    debug_tap_.put("rej_depth", rej_depth); // should be bounded, not dominant
-    debug_tap_.put("rej_zgate", rej_zgate); // should be bounded, not dominant
+    debug_tap_.put("added", added);                                         // Day 5 accept check: thousands on a straight
+    debug_tap_.put("rej_depth", rej_depth);                                 // should be bounded, not dominant
+    debug_tap_.put("rej_zgate", rej_zgate);                                 // should be bounded, not dominant
+    debug_tap_.put("cloud_white", static_cast<int>(white_cloud_.size()));   // split so /lane/markings occ can be traced back
+    debug_tap_.put("cloud_yellow", static_cast<int>(yellow_cloud_.size())); // to detection (this) vs classification (occ_right)
 
     ++ingest_tick_count_;
     if (!params_.dump_dir.empty() && ingest_tick_count_ % params_.dump_every_n == 0)
@@ -755,26 +898,73 @@ LaneNode::ChainResult LaneNode::chain_centerline()
 {
     ChainResult res;
 
-    Chain pts;
+    // Cluster white and yellow SEPARATELY. On one mixed list, cluster_chains
+    // (colour-blind nearest-neighbour) and merge_collinear (colour only sets
+    // the gap budget) stitch the yellow centre dash onto the parallel white
+    // right edge -- the merged chain then carries the yellow flag and is
+    // offset the wrong way. Keeping the two colours apart until classification
+    // is what the world's geometry requires.
+    Chain wpts, ypts;
     for (const auto &p : white_cloud_)
-        pts.push_back({p.x(), p.y(), false});
+        if (p.x() <= params_.chain_d_max_m) // trust bound for centreline geometry (Day 6 pitfall)
+            wpts.push_back({p.x(), p.y(), false});
     for (const auto &p : yellow_cloud_)
-        pts.push_back({p.x(), p.y(), true});
+        if (p.x() <= params_.chain_d_max_m)
+            ypts.push_back({p.x(), p.y(), true});
 
-    auto gridded = grid_dedup(pts, params_.chain_grid_m);
-    auto stop = detect_and_strip_stop_line(gridded, params_.chain_stop_max_m);
+    wpts = grid_dedup(wpts, params_.chain_grid_m);
+    ypts = grid_dedup(ypts, params_.chain_grid_m);
+
+    auto stop = detect_and_strip_stop_line(wpts, params_.chain_stop_max_m); // white points only
     if (stop.found)
+    {
         last_stop_line_ego_ = Eigen::Vector2d(stop.x, stop.y_center);
+        res.stop_x = stop.x;
+        // A short lateral span centred on the bar, for the RViz / FPV overlay.
+        res.stop_seg = std::make_pair(Eigen::Vector2d(stop.x, stop.y_center - params_.lane_half_m),
+                                      Eigen::Vector2d(stop.x, stop.y_center + params_.lane_half_m));
+    }
 
-    auto chains = cluster_chains(gridded, params_.chain_link_gap_m);
-    merge_collinear(chains, params_.chain_merge_gap_white_m,
+    auto wchains = cluster_chains(wpts, params_.chain_link_gap_m);
+    merge_collinear(wchains, params_.chain_merge_gap_white_m,
                     params_.chain_merge_gap_yellow_m, params_.chain_merge_angle_rad);
+    auto ychains = cluster_chains(ypts, params_.chain_link_gap_m);
+    merge_collinear(ychains, params_.chain_merge_gap_white_m,
+                    params_.chain_merge_gap_yellow_m, params_.chain_merge_angle_rad);
+
+    std::vector<Chain> chains;
+    chains.reserve(wchains.size() + ychains.size());
+    for (auto &c : wchains)
+        chains.push_back(std::move(c));
+    for (auto &c : ychains)
+        chains.push_back(std::move(c));
+
     drop_stray_chains(chains, params_.chain_min_pts, params_.chain_min_extent_m);
     for (auto &c : chains)
         c = resample_chain_x(c, params_.chain_resample_m);
 
-    auto offsets = classify_and_offset(chains, params_.lane_half_m, lane_mem_y_, have_lane_mem_);
-    auto center = xbin_merge(offsets, params_.chain_merge_bin_m);
+    if (debug_tap_.enabled())
+    {
+        std::string s;
+        for (const auto &c : chains)
+        {
+            if (c.empty())
+                continue;
+            char b[96];
+            std::snprintf(b, sizeof(b), "[n=%zu %s f(%.1f,%.2f) b(%.1f,%.2f)] ",
+                          c.size(), c.front().yellow ? "Y" : "W",
+                          c.front().x, c.front().y, c.back().x, c.back().y);
+            s += b;
+        }
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 3000, "chains: %s", s.c_str());
+    }
+
+    auto cls = classify_and_offset(chains, params_.lane_half_m, lane_mem_y_, have_lane_mem_,
+                                   params_.chain_d_max_m, params_.chain_resample_m);
+    res.right_edge = cls.right_edge;   // reported even on an otherwise-invalid frame
+    res.center_line = cls.center_line; // so /lane/markings keeps updating through dropouts
+
+    auto center = xbin_merge(cls.offsets, params_.chain_merge_bin_m);
 
     if (folds_back(center) || static_cast<int>(center.size()) < params_.chain_min_center_pts)
     {
@@ -856,20 +1046,290 @@ void LaneNode::publish_path(const av::geom::Polyline &path)
     path_pub_->publish(msg);
 }
 
-void LaneNode::tick()
+// /lane/markings: per-side boundary type from forward-bin occupancy. A solid
+// line covers nearly every bin out to chain_d_max_m; the dashed centre line
+// covers roughly a third (3 m paint in a 7.5 m cycle); no line, almost none.
+void LaneNode::publish_markings(const ChainResult &chain)
 {
+    // quality: fraction of the observed span that is actually painted (~1.0
+    // solid, ~0.4 dashed). type: from the gap STRUCTURE, not the raw ratio --
+    // see marking_type().
+    const double bin_m = params_.chain_resample_m;
+    auto quality = [bin_m](const MarkingStats &s)
+    {
+        return s.span_m > 1e-6 ? s.n_bins / (s.span_m / bin_m) : 0.0;
+    };
+    av::json j = {
+        {"stamp", this->now().seconds()},
+        {"left", {{"type", marking_type(chain.center_line)}, {"quality", quality(chain.center_line)}}},
+        {"right", {{"type", marking_type(chain.right_edge)}, {"quality", quality(chain.right_edge)}}},
+        {"in_intersection", false}, // no intersections on the course world; kept for schema parity
+    };
+    markings_pub_->publish(av::to_msg(j));
+}
+
+// /lane/stop_line: vision distance from detect_and_strip_stop_line, optionally
+// fused 0.7/0.3 with the map's course stop line once the two agree within 3 m.
+void LaneNode::publish_stop_line(const ChainResult &chain)
+{
+    std::optional<double> vision_x = chain.stop_x; // ego-frame forward distance
+
+    std::optional<double> map_x;
+    std::string map_id;
+    if (map_ && map_->course_stop_line)
+    {
+        Eigen::Vector2d sl = current_pose_.base_of(*map_->course_stop_line);
+        if (sl.x() > 0.5 && sl.x() < 40.0 && std::abs(sl.y()) < 4.0)
+        {
+            map_x = sl.x();
+            map_id = "course_stop";
+        }
+    }
+
+    if (!vision_x && !map_x)
+        return; // nothing to say -- stay silent until the bar is in view
+
+    double dist;
+    std::string source;
+    if (vision_x && map_x && std::abs(*vision_x - *map_x) < 3.0)
+    {
+        dist = 0.7 * *vision_x + 0.3 * *map_x;
+        source = "fused";
+    }
+    else if (vision_x)
+    {
+        dist = *vision_x;
+        source = "vision";
+    }
+    else
+    {
+        dist = *map_x;
+        source = "map";
+    }
+    av::json j = {{"stamp", this->now().seconds()}, {"distance", dist}, {"source", source}, {"map_id", map_id}};
+    stop_line_pub_->publish(av::to_msg(j));
+}
+
+// Curvature of the last ~4 m of the ego centreline -- the honest chains-mode
+// equivalent of the HTML plan's voxelwalk "wkappa": it says whether the frame
+// captured a curve or only a straight stub.
+double LaneNode::path_end_curvature(const av::geom::Polyline &c) const
+{
+    if (c.size() < 5)
+        return 0.0;
+    const size_t n = c.size();
+    return av::geom::curvature_menger(c[n - 5], c[n - 3], c[n - 1]);
+}
+
+// RViz overlay (debug_markers param), everything in the odom frame,
+// transformed with the CAPTURE-time pose so the markers line up with
+// /lane/path_odom. No gate boxes -- that is a voxelwalk concept.
+void LaneNode::publish_debug_markers(const ChainResult &chain, double wkappa)
+{
+    using Marker = visualization_msgs::msg::Marker;
+    visualization_msgs::msg::MarkerArray arr;
+    const auto stamp = this->now();
+
+    auto base = [&](const char *ns, int id, int type)
+    {
+        Marker m;
+        m.header.stamp = stamp;
+        m.header.frame_id = "odom";
+        m.ns = ns;
+        m.id = id;
+        m.type = type;
+        m.action = Marker::ADD;
+        m.pose.orientation.w = 1.0;
+        m.lifetime = rclcpp::Duration::from_seconds(0.5); // self-clear if the node stalls
+        return m;
+    };
+    auto pt = [](const Eigen::Vector2d &p, double z)
+    {
+        geometry_msgs::msg::Point q;
+        q.x = p.x();
+        q.y = p.y();
+        q.z = z;
+        return q;
+    };
+    auto rgba = [](float r, float g, float b, float a)
+    {
+        std_msgs::msg::ColorRGBA col;
+        col.r = r;
+        col.g = g;
+        col.b = b;
+        col.a = a;
+        return col;
+    };
+
+    Marker mw = base("cloud_white", 0, Marker::POINTS);
+    mw.scale.x = mw.scale.y = 0.12;
+    mw.color = rgba(0.95f, 0.95f, 0.95f, 0.8f);
+    for (const auto &p : white_cloud_)
+        mw.points.push_back(pt(frame_pose_.odom_of(p), 0.02));
+    if (mw.points.empty())
+        mw.action = Marker::DELETE;
+    arr.markers.push_back(mw);
+
+    Marker my = base("cloud_yellow", 1, Marker::POINTS);
+    my.scale.x = my.scale.y = 0.12;
+    my.color = rgba(1.0f, 0.85f, 0.1f, 0.9f);
+    for (const auto &p : yellow_cloud_)
+        my.points.push_back(pt(frame_pose_.odom_of(p), 0.02));
+    if (my.points.empty())
+        my.action = Marker::DELETE;
+    arr.markers.push_back(my);
+
+    Marker mc = base("centerline", 2, Marker::LINE_STRIP);
+    mc.scale.x = 0.08;
+    mc.color = rgba(0.1f, 1.0f, 0.3f, 1.0f);
+    // smoothed, like /lane/path_odom -- smoothing is rigid-frame-invariant so
+    // smoothing the ego centreline then transforming == what tick() publishes.
+    for (const auto &p : av::geom::smooth_moving_avg(chain.centerline, params_.smooth_window))
+        mc.points.push_back(pt(frame_pose_.odom_of(p), 0.05));
+    if (mc.points.size() < 2)
+        mc.action = Marker::DELETE;
+    arr.markers.push_back(mc);
+
+    Marker ms = base("stop_line", 3, Marker::LINE_LIST);
+    ms.scale.x = 0.15;
+    ms.color = rgba(1.0f, 0.15f, 0.15f, 1.0f);
+    if (chain.stop_seg)
+    {
+        ms.points.push_back(pt(frame_pose_.odom_of(chain.stop_seg->first), 0.05));
+        ms.points.push_back(pt(frame_pose_.odom_of(chain.stop_seg->second), 0.05));
+    }
+    else
+        ms.action = Marker::DELETE;
+    arr.markers.push_back(ms);
+
+    Marker mx = base("state", 4, Marker::TEXT_VIEW_FACING);
+    mx.scale.z = 0.6;
+    mx.color = chain.valid ? rgba(1.0f, 1.0f, 1.0f, 0.9f) : rgba(1.0f, 0.3f, 0.3f, 0.9f);
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "pts %zu  wk %+.3f  %s",
+                  chain.centerline.size(), wkappa, chain.valid ? "valid" : "INVALID");
+    mx.text = buf;
+    mx.pose.position.x = current_pose_.x;
+    mx.pose.position.y = current_pose_.y;
+    mx.pose.position.z = 2.5;
+    arr.markers.push_back(mx);
+
+    dbg_markers_pub_->publish(arr);
+}
+
+// FPV overlay (debug_image param): the current camera frame with the ego cloud
+// and centreline projected back through the pinhole. Hand-encoded rgb8 (no
+// cv_bridge). Colour scalars are in RGB order because the output is rgb8.
+void LaneNode::publish_debug_image(const ChainResult &chain, double wkappa)
+{
+    cv::Mat img = rgb_.clone(); // rgb8
+
+    auto px = [&](const Eigen::Vector2d &p) -> std::optional<cv::Point>
+    {
+        auto uv = av::proj::base_to_pixel(pin_, T_base_cam_, {p.x(), p.y(), 0.0});
+        if (!uv || uv->x() < -50 || uv->x() > img.cols + 50 || uv->y() < -50 || uv->y() > img.rows + 50)
+            return std::nullopt;
+        return cv::Point(static_cast<int>(uv->x()), static_cast<int>(uv->y()));
+    };
+
+    const cv::Scalar col_white(0, 255, 255), col_yellow(255, 200, 25),
+        col_center(30, 255, 90), col_stop(255, 40, 40);
+
+    for (const auto &p : white_cloud_)
+        if (auto q = px(p))
+            cv::circle(img, *q, 2, col_white, cv::FILLED);
+    for (const auto &p : yellow_cloud_)
+        if (auto q = px(p))
+            cv::circle(img, *q, 2, col_yellow, cv::FILLED);
+
+    std::optional<cv::Point> prev;
+    for (const auto &p : av::geom::smooth_moving_avg(chain.centerline, params_.smooth_window)) // as published
+    {
+        auto q = px(p);
+        if (q && prev)
+            cv::line(img, *prev, *q, col_center, 3, cv::LINE_AA);
+        if (q)
+            cv::circle(img, *q, 4, col_center, cv::FILLED);
+        prev = q;
+    }
+
+    if (chain.stop_seg)
+    {
+        auto a = px(chain.stop_seg->first), b = px(chain.stop_seg->second);
+        if (a && b)
+            cv::line(img, *a, *b, col_stop, 4, cv::LINE_AA);
+    }
+
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "pts %zu  wk %+.3f  %s",
+                  chain.centerline.size(), wkappa, chain.valid ? "valid" : "INVALID");
+    cv::putText(img, buf, {8, 22}, cv::FONT_HERSHEY_SIMPLEX, 0.55,
+                chain.valid ? cv::Scalar(255, 255, 255) : col_stop, 1, cv::LINE_AA);
+
+    sensor_msgs::msg::Image out;
+    out.header.stamp = this->now();
+    out.header.frame_id = rgb_msg_->header.frame_id;
+    out.height = img.rows;
+    out.width = img.cols;
+    out.encoding = "rgb8";
+    out.is_bigendian = 0;
+    out.step = img.cols * 3;
+    out.data.assign(img.data, img.data + out.step * img.rows);
+    dbg_image_pub_->publish(out);
+}
+
+// Per-tick JSONL for offline replay: ego cloud snapshot + centreline + pose.
+// Distinct from dump_debug_frame's per-N mask PNGs -- cheap enough every tick.
+void LaneNode::dump_lane_cloud_jsonl(const ChainResult &chain, double wkappa)
+{
+    if (params_.dump_dir.empty())
+        return;
+    if (!lane_cloud_jsonl_.is_open())
+        lane_cloud_jsonl_.open(params_.dump_dir + "/lane_cloud.jsonl", std::ios::app);
+    if (!lane_cloud_jsonl_.is_open())
+        return; // directory missing -- dump_debug_frame already logs that loudly
+
+    auto r2 = [](double v)
+    { return std::round(v * 100.0) / 100.0; };
+    av::json pj = av::json::array();
+    for (const auto &p : white_cloud_)
+        pj.push_back({r2(p.x()), r2(p.y()), 0});
+    for (const auto &p : yellow_cloud_)
+        pj.push_back({r2(p.x()), r2(p.y()), 1});
+    av::json wj = av::json::array();
+    for (const auto &p : chain.centerline)
+        wj.push_back({r2(p.x()), r2(p.y())});
+
+    av::json line = {
+        {"t", this->now().seconds()},
+        {"pose", {frame_pose_.x, frame_pose_.y, frame_pose_.yaw}},
+        {"wkappa", wkappa},
+        {"valid", chain.valid},
+        {"pts", pj},
+        {"center", wj},
+    };
+    lane_cloud_jsonl_ << line.dump() << "\n";
+}
+
+void LaneNode::tick()
+try
+{
+    const auto t_start = std::chrono::steady_clock::now(); // tick_ms on the tap: is the node or the camera the rate limit?
+
     ingest();      // wrap Mats, resolve frame_pose_, update pitch_ema_/T_base_cam_
     ingest_mask(); // build white_cloud_/yellow_cloud_ for THIS frame
-    // Day 6 adds chain_centerline() + publish here.
-    auto chain = chain_centerline();
+
+    ChainResult chain = chain_centerline();
+    const double wkappa = path_end_curvature(chain.centerline);
     rclcpp::Time now = this->now();
 
     if (chain.valid)
     {
         av::geom::Polyline odom_path;
         for (const auto &p : chain.centerline)
-            odom_path.push_back(frame_pose_.odom_of(p));        // ego -> odom
-        odom_path = av::geom::resample_uniform(odom_path, 0.5); // even 0.5 m spacing for downstream consumers
+            odom_path.push_back(frame_pose_.odom_of(p));                           // ego -> odom
+        odom_path = av::geom::smooth_moving_avg(odom_path, params_.smooth_window); // kill x-bin jitter
+        odom_path = av::geom::resample_uniform(odom_path, 0.5);                    // even 0.5 m spacing for downstream consumers
         last_path_ = odom_path;
         last_path_time_ = now;
         publish_path(odom_path);
@@ -879,7 +1339,32 @@ void LaneNode::tick()
         publish_path(last_path_); // still inside the reuse window -- republish the last good path
     }
 
+    publish_markings(chain);  // always -- occupancy is live even on an invalid frame
+    publish_stop_line(chain); // silent unless a bar (or a map prior) is in view
+
+    if (debug_markers_)
+        publish_debug_markers(chain, wkappa);
+    if (debug_image_)
+        publish_debug_image(chain, wkappa);
+    dump_lane_cloud_jsonl(chain, wkappa);
+
+    debug_tap_.put("cloud", static_cast<int>(white_cloud_.size() + yellow_cloud_.size()));
+    debug_tap_.put("occ_right", chain.right_edge.n_bins);
+    debug_tap_.put("occ_center", chain.center_line.n_bins);
+    debug_tap_.put("right_gap_m", chain.right_edge.max_gap_m);
+    debug_tap_.put("center_gap_m", chain.center_line.max_gap_m);
+    debug_tap_.put("wkappa", wkappa);
+    debug_tap_.put("valid", chain.valid);
+    debug_tap_.put("tick_ms", std::chrono::duration<double, std::milli>(
+                                  std::chrono::steady_clock::now() - t_start)
+                                  .count());
     debug_tap_.flush();
+}
+catch (const std::exception &e)
+{
+    // A single bad frame (OpenCV assertion, projection blow-up, ...) must not
+    // std::terminate the whole node -- log it, drop the frame, keep spinning.
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "tick(): %s", e.what());
 }
 
 // ---------------------------------------------------------------- main

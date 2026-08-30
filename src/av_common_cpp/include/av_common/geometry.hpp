@@ -2,6 +2,7 @@
 // Polyline math shared by lane_node / local_planner / behavior /MPC -v2.
 // All polylines are 2-D odom-frame point lists.
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -59,6 +60,32 @@ namespace av::geom
         // last point is always included
         resampled.push_back(p.back());
         return resampled;
+    }
+
+    // Centred moving average over a fixed window (points, not metres). The
+    // window shrinks toward the ends so the first and last points move only
+    // slightly. window < 2 or a polyline no longer than the window is
+    // returned unchanged.
+    inline Polyline smooth_moving_avg(const Polyline &p, int window)
+    {
+        const int n = static_cast<int>(p.size());
+        if (window < 2 || n <= window)
+            return p;
+        const int h = window / 2;
+        Polyline out;
+        out.reserve(n);
+        for (int i = 0; i < n; ++i)
+        {
+            Eigen::Vector2d acc = Eigen::Vector2d::Zero();
+            int cnt = 0;
+            for (int k = std::max(0, i - h); k <= std::min(n - 1, i + h); ++k)
+            {
+                acc += p[k];
+                ++cnt;
+            }
+            out.push_back(acc / cnt);
+        }
+        return out;
     }
 
     // Menger curvature through three consecutive points (1/m).

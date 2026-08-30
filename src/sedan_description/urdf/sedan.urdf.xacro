@@ -339,8 +339,14 @@
             <camera>
                 <horizontal_fov>1.6</horizontal_fov>
                 <image>
-                    <width>640</width>
-                    <height>360</height>
+                    <!-- 424x240 (was 640x360): the WSL software-GL renderer
+                         can't sustain 10 Hz RGBD at 640x360 (stalled to ~3-4 Hz
+                         with 1.6 s gaps); 320x180 was too coarse and starved
+                         the far paint blobs. 16:9 kept, so the derived pinhole
+                         geometry is unchanged (fx/fy just scale). If the far
+                         field still matters, line_area_min_px scales with it. -->
+                    <width>424</width>
+                    <height>240</height>
                     <format>R8G8B8</format>
                 </image>
                 <clip>

@@ -156,6 +156,9 @@ def ribbon(vis, tag, pts, lateral, width, z, thick, rgba,
         if dash is not None:
             period = dash[0] + dash[1]
             if (s % period) >= dash[0]:
+                if run:  # close the box at the paint-interval edge, not at the
+                    px, py = left_of(x, y, h, lateral)  # last in-paint SAMPLE
+                    run.append((s, px, py, h))          # (~ds short otherwise)
                 flush()
                 continue
         px, py = left_of(x, y, h, lateral)
@@ -163,7 +166,9 @@ def ribbon(vis, tag, pts, lateral, width, z, thick, rgba,
             dh = abs(math.atan2(math.sin(h - run[0][3]), math.cos(h - run[0][3])))
             seg = s - run[0][0]
             if dh > bend_tol or seg > max_run_m:
-                flush()
+                seam = run[-1]  # carry the last point into the next box so
+                flush()         # consecutive chords ABUT -- otherwise every
+                run.append(seam)  # flush drops one ds segment (dashed look on curves)
         run.append((s, px, py, h))
     flush()
     return n
@@ -256,9 +261,11 @@ def main():
     # solid white edge lines at +-LW
     ribbon(road_vis, "edge_l", pts, +LW, 0.15, 0.010, 0.010, "0.85 0.85 0.85 1")
     ribbon(road_vis, "edge_r", pts, -LW, 0.15, 0.010, 0.010, "0.85 0.85 0.85 1")
-    # dashed yellow center line: 3 m paint / 4.5 m gap
+    # dashed yellow center line: 4.5 m paint / 3.0 m gap (paint-dominant so it
+    # reads clearly as a centre line from the FPV; max_run_m must exceed the
+    # paint length or each dash splits into two boxes on the straights)
     ribbon(road_vis, "dash_c", pts, 0.0, 0.15, 0.010, 0.010, "0.85 0.75 0.1 1",
-           dash=(3.0, 4.5), max_run_m=3.2)
+           dash=(4.5, 3.0), max_run_m=5.0)
 
     # stop line across the OUTBOUND (right-hand) lane near the road end
     s_stop = total_len - STOP_LINE_FROM_END_M
