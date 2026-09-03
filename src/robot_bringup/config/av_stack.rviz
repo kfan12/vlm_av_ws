@@ -77,8 +77,8 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Color: 25; 255; 0
-      Alpha: 1
+      Color: 170; 0; 0
+      Alpha: 0.7
       Buffer Length: 1
       Line Style: Billboards
       Line Width: 0.5
@@ -101,9 +101,32 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Color: 0; 200; 255
-      Alpha: 1
+      Alpha: 0.5
       Buffer Length: 1
       Line Style: Billboards
+      Line Width: 0.2
+      Head Diameter: 0
+      Head Length: 0
+      Shaft Diameter: 0
+      Shaft Length: 0
+      Pose Style: None
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+    - Class: rviz_default_plugins/Path
+      Name: reference_path_odom
+      Enabled: true
+      Topic:
+        Value: /mpc_reference_path
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Color: 0; 255; 0
+      Alpha: 1
+      Buffer Length: 1
+      Line Style: Lines
       Line Width: 0.5
       Head Diameter: 0
       Head Length: 0
@@ -124,7 +147,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Shape: Arrow
-      Color: 255; 140; 0
+      Color: 255; 25; 0
       Alpha: 1
       Shaft Length: 1
       Shaft Radius: 0.05
@@ -145,7 +168,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Shape: Arrow
-      Color: 255; 255; 255
+      Color: 0; 255; 0
       Alpha: 1
       Shaft Length: 1
       Shaft Radius: 0.05
