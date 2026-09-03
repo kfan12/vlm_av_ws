@@ -15,6 +15,9 @@
     <exec_depend>xacro</exec_depend>
     <exec_depend>sedan_description</exec_depend>
     <exec_depend>urban_gazebo</exec_depend>
+    <exec_depend>robot_localization</exec_depend>
+    <exec_depend>robotcar_localization</exec_depend>
+    <exec_depend>rviz2</exec_depend>
 
     <export>
         <build_type>ament_cmake</build_type>

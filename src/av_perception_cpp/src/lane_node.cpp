@@ -652,8 +652,8 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
 
     params_.dump_dir = declare_parameter("dump_dir", std::string()); // debug: set to enable ingest_mask() dumps
     params_.dump_every_n = declare_parameter("dump_every_n", 10);    // dump 1 out of every N ticks
-    debug_markers_ = declare_parameter("debug_markers", false);      // /lane/debug_markers, publisher created below only if set
-    debug_image_ = declare_parameter("debug_image", false);          // /lane/debug_image, same
+    debug_markers_ = declare_parameter("debug_markers", true);       // /lane/debug_markers, publisher created below only if set
+    debug_image_ = declare_parameter("debug_image", true);           // /lane/debug_image, same
 
     pin_ = av::percep::pinhole_from_config(params_.img_w, params_.img_h, params_.hfov);            // derived, not from camera_info
     T_base_cam_ = av::proj::make_T_base_cam(params_.cam_x, 0.0, params_.cam_z, params_.cam_pitch); // initial extrinsic

@@ -1,8 +1,10 @@
-"""urban_world.launch.py — gazebo (urban world) + sedan spawn + bridge.
+"""urban_world.launch.py — gazebo (urban world) + sedan spawn + bridge + EKF + RViz.
 v1 launches untouched.
 
   ros2 launch robot_bringup urban_world.launch.py            # urban_course
   ros2 launch robot_bringup urban_world.launch.py world:=urban_2x2
+  ros2 launch robot_bringup urban_world.launch.py rviz:=false # headless
+  ros2 launch robot_bringup urban_world.launch.py ekf:=false  # no odom TF (run your own)
 """
 import json
 import os
@@ -10,7 +12,8 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, TimerAction
-from launch.substitutions import Command
+from launch.conditions import IfCondition
+from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -23,10 +26,13 @@ def setup(context):
     pkg_sedan = get_package_share_directory('sedan_description')
     pkg_urban = get_package_share_directory('urban_gazebo')
     pkg_bringup = get_package_share_directory('robot_bringup')
+    pkg_loc = get_package_share_directory('robotcar_localization')
 
     world_file = os.path.join(pkg_urban, 'worlds', f'{world}.world.sdf')
     urdf_file = os.path.join(pkg_sedan, 'urdf', 'sedan.urdf.xacro')
     bridge_cfg = os.path.join(pkg_bringup, 'config', 'bridge_sedan.yaml')
+    rviz_cfg = os.path.join(pkg_bringup, 'config', 'av_stack.rviz')
+    ekf_cfg = os.path.join(pkg_loc, 'config', 'ekf_sedan.yaml')
 
     # spawn pose from the map (generator emits it)
     spawn = {'x': 10.0, 'y': -1.75, 'yaw': 0.0}
@@ -91,11 +97,45 @@ def setup(context):
                             '-x', str(spawn['x']), '-y', str(spawn['y']),
                             '-z', '0.45', '-Y', str(spawn['yaw'])],
                  output='screen')]),
+
+        # 5. EKF (robot_localization) — the ONLY publisher of the odom -> base_link
+        # TF. Without it RViz's `odom` fixed frame has no transform and nothing
+        # renders. Fuses /odom (wheel twist) + /imu from the bridge; publishes
+        # /odom_ekf (remapped from odometry/filtered) for lane_node / local_planner.
+        # Started at 9 s: ign gazebo's /clock stutters (jumps back) for the first
+        # several seconds of world init, and robot_localization spams "jump back
+        # in time / clearing TF buffer" and drops updates if it comes up into
+        # that. By 9 s the sim clock is monotonic and the sedan (spawn at 6 s) is
+        # already publishing /odom.
+        TimerAction(period=9.0, actions=[
+            Node(package='robot_localization', executable='ekf_node',
+                 name='ekf_filter_node', output='screen',
+                 parameters=[ekf_cfg, {'use_sim_time': True}],
+                 remappings=[('odometry/filtered', '/odom_ekf')],
+                 condition=IfCondition(LaunchConfiguration('ekf')))]),
+
+        # 6. RViz — last, so robot_description (latched), the odom TF, and the
+        # sensor topics are all up by the time it subscribes. /lane/debug_image
+        # and /lane/debug_markers are BEST_EFFORT (see lane_node.cpp); the shipped
+        # config sets those two displays to Best Effort so they actually render.
+        # The config also carries Odometry displays for /odom_ekf (orange, the
+        # fused estimate) and /odom_truth (white, the Gazebo ground truth) so the
+        # EKF drift is visible at a glance.
+        TimerAction(period=13.0, actions=[
+            Node(package='rviz2', executable='rviz2', name='rviz2',
+                 arguments=['-d', rviz_cfg],
+                 parameters=[{'use_sim_time': True}],
+                 condition=IfCondition(LaunchConfiguration('rviz')),
+                 output='screen')]),
     ]
 
 
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('world', default_value='urban_course'),
+        DeclareLaunchArgument('rviz', default_value='true',
+                              description='launch RViz2 with the av_stack config'),
+        DeclareLaunchArgument('ekf', default_value='true',
+                              description='launch the robot_localization EKF (odom->base_link TF, /odom_ekf)'),
         OpaqueFunction(function=setup),
     ])
