@@ -34,7 +34,7 @@ public:
         spline_tail_extend_m_ = declare_parameter("spline_tail_extend_m", 45.0);
         crossfade_m_ = declare_parameter("path_crossfade_m", 4.0);
         // road-curvature assist (course-style maps, see build_course_lane)
-        curve_splice_enable_ = declare_parameter("curve_splice_enable", true);
+        curve_splice_enable_ = declare_parameter("curve_splice_enable", false);
         curve_kappa_min_ = declare_parameter("curve_kappa_min", 0.02);
         curve_entry_lead_m_ = declare_parameter("curve_entry_lead_m", 2.0);
         curve_exit_extend_m_ = declare_parameter("curve_exit_extend_m", 8.0);

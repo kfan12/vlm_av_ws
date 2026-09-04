@@ -74,4 +74,6 @@ install(TARGETS mpc_tracker_v2
 install(TARGETS local_planner
   DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+
 ament_package()

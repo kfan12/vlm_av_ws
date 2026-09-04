@@ -20,9 +20,9 @@
     weight_heading_error: 3.0  # cost weight on heading error e_head
     weight_speed_error: 1.0    # cost weight on speed error e_speed
     weight_accel: 0.2          # cost weight on acceleration effort a
-    weight_steer: 3.0          # cost weight on steering effort delta
+    weight_steer: 6.0          # cost weight on steering effort delta
     weight_accel_rate: 0.4     # cost weight on accel change, smoothness
-    weight_steer_rate: 6.0     # cost weight on steer change, damps wobble
+    weight_steer_rate: 8.0     # cost weight on steer change, damps wobble
 
     heading_lookahead_m: 5.0        # heading-reference lookahead on straights [m]
     heading_lookahead_turn_m: 5.0   # heading-reference lookahead in turns [m]
