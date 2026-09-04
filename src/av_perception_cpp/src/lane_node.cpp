@@ -630,9 +630,13 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.near_stride = declare_parameter("near_stride", 4);               // pixel stride used for near (dense-paint) rows
 
     params_.map_path = declare_parameter("map_path", std::string());   // MapModel::load() input
-    params_.map_origin_x = declare_parameter("map_origin_x", 3.0);     // spawn x, zeroes map frame into odom
-    params_.map_origin_y = declare_parameter("map_origin_y", -1.75);   // spawn y
-    params_.map_origin_yaw = declare_parameter("map_origin_yaw", 0.0); // spawn yaw
+    // Origin of the odom frame in world coords = the map spawn pose. The launch
+    // (av_stack / urban_world) reads it from maps/<world>.json and passes it in;
+    // default 0.0 so a missing param is visibly wrong rather than silently
+    // hardcoding one map's spawn (local_planner uses the same 0.0 default).
+    params_.map_origin_x = declare_parameter("map_origin_x", 0.0);
+    params_.map_origin_y = declare_parameter("map_origin_y", 0.0);
+    params_.map_origin_yaw = declare_parameter("map_origin_yaw", 0.0);
 
     params_.chain_grid_m = declare_parameter("chain_grid_m", 0.15);                        // B.1
     params_.chain_stop_max_m = declare_parameter("chain_stop_max_m", 12.0);                // B.2

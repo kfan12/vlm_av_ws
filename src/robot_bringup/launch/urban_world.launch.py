@@ -34,11 +34,12 @@ def setup(context):
     rviz_cfg = os.path.join(pkg_bringup, 'config', 'av_stack.rviz')
     ekf_cfg = os.path.join(pkg_loc, 'config', 'ekf_sedan.yaml')
 
-    # spawn pose from the map (generator emits it)
+    # spawn pose from the map (generator emits it). This is also the origin of
+    # the odom frame (map_origin_* for every map consumer, and odom_compare).
     spawn = {'x': 10.0, 'y': -1.75, 'yaw': 0.0}
     try:
         with open(map_path) as f:
-            spawn = json.load(f).get('spawn', spawn)
+            spawn = {**spawn, **json.load(f).get('spawn', {})}
     except OSError:
         pass
 
@@ -113,6 +114,20 @@ def setup(context):
                  parameters=[ekf_cfg, {'use_sim_time': True}],
                  remappings=[('odometry/filtered', '/odom_ekf')],
                  condition=IfCondition(LaunchConfiguration('ekf')))]),
+
+        # 5b. odom_compare — /odom_truth from the Gazebo ground-truth plugin is in
+        # ABSOLUTE world coords (it starts at the spawn pose, not the origin)
+        # while /odom_ekf and /odom (wheel) are spawn-zeroed. This node applies
+        # the same world->odom shift the map gets (map_origin_* = spawn) and
+        # publishes /odom_truth_spawn, so RViz can overlay all three. Viz only —
+        # nothing controls off it.
+        TimerAction(period=10.0, actions=[
+            Node(package='robot_bringup', executable='odom_compare',
+                 name='odom_compare', output='screen',
+                 parameters=[{'use_sim_time': True,
+                              'map_origin_x': float(spawn['x']),
+                              'map_origin_y': float(spawn['y']),
+                              'map_origin_yaw': float(spawn['yaw'])}])]),
 
         # 6. RViz — last, so robot_description (latched), the odom TF, and the
         # sensor topics are all up by the time it subscribes. /lane/debug_image

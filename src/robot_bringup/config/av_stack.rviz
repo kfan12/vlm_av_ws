@@ -137,6 +137,13 @@ Visualization Manager:
         X: 0
         Y: 0
         Z: 0
+    # The three Odometry displays keep a long arrow history so the tracks can be
+    # compared over a full drive: Keep 2000 arrows at a 0.15 m Position Tolerance
+    # ~= 300 m of trail. Arrows are small so the dense trail still reads as a
+    # heading ribbon. Needs Fixed Frame = odom (a body-fixed frame collapses
+    # every trail onto the car). /odom_ekf and /odom (wheel) are already in the
+    # odom frame; /odom_truth_spawn is /odom_truth shifted by the spawn pose
+    # (odom_compare node) so all three share an origin.
     - Class: rviz_default_plugins/Odometry
       Name: odom_ekf
       Enabled: true
@@ -147,22 +154,22 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
       Shape: Arrow
-      Color: 255; 25; 0
+      Color: 0; 0; 255
       Alpha: 1
-      Shaft Length: 1
-      Shaft Radius: 0.05
-      Head Length: 0.3
-      Head Radius: 0.1
-      Position Tolerance: 0.1
+      Shaft Length: 0.3
+      Shaft Radius: 0.03
+      Head Length: 0.12
+      Head Radius: 0.05
+      Position Tolerance: 0.15
       Angle Tolerance: 0.1
-      Keep: 100
+      Keep: 2000
       Covariance:
         Value: false
     - Class: rviz_default_plugins/Odometry
       Name: odom_truth
       Enabled: true
       Topic:
-        Value: /odom_truth
+        Value: /odom_truth_spawn
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
@@ -170,17 +177,42 @@ Visualization Manager:
       Shape: Arrow
       Color: 0; 255; 0
       Alpha: 1
-      Shaft Length: 1
-      Shaft Radius: 0.05
-      Head Length: 0.3
-      Head Radius: 0.1
-      Position Tolerance: 0.1
+      Shaft Length: 0.3
+      Shaft Radius: 0.03
+      Head Length: 0.12
+      Head Radius: 0.05
+      Position Tolerance: 0.15
       Angle Tolerance: 0.1
-      Keep: 100
+      Keep: 2000
+      Covariance:
+        Value: false
+    - Class: rviz_default_plugins/Odometry
+      Name: odom_wheel
+      Enabled: true
+      Topic:
+        Value: /odom
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Shape: Arrow
+      Color: 255; 0; 0
+      Alpha: 1
+      Shaft Length: 0.3
+      Shaft Radius: 0.03
+      Head Length: 0.12
+      Head Radius: 0.05
+      Position Tolerance: 0.15
+      Angle Tolerance: 0.1
+      Keep: 2000
       Covariance:
         Value: false
   Global Options:
     Background Color: 48; 48; 48
+    # odom -> world-fixed: each /compare/* source leaves a breadcrumb trail along
+    # the path it drove, so EKF / ground truth / wheel odom can be compared over
+    # the whole course. (base_link instead pins the car at the origin and each
+    # arrow becomes that estimator's live error vector, but the trails collapse.)
     Fixed Frame: odom
     Frame Rate: 30
   Name: root

@@ -1,0 +1,39 @@
+# mpc_tracker_v2 tuning. Values match the node's built-in defaults
+# (mpc_tracker_v2_node.cpp) - this file exists so a tuning pass can edit and
+# rerun without touching code or CLI args. Copy it (e.g. mpc_params_aggressive.yaml)
+# for an alternate tune and select it with:
+#   ros2 launch robot_bringup av_stack.launch.py mpc_config:=/path/to/file.yaml
+# or standalone:
+#   ros2 run av_behavior_cpp mpc_tracker_v2 --ros-args --params-file <this file>
+/**:
+  ros__parameters:
+    control_rate_hz: 30.0      # control loop frequency [Hz]
+    horizon_steps: 25          # MPC prediction horizon length [steps]
+    dt: 0.12                   # MPC step time [s]
+    wheelbase_m: 2.7           # front-to-rear axle distance [m]
+    max_speed_mps: 3.0         # speed cap fed to the solver [m/s]
+    max_accel_mps2: 1.2        # max forward acceleration [m/s^2]
+    max_decel_mps2: -1.2       # max braking, negative [m/s^2]
+    max_steer_rad: 0.75        # steering angle limit [rad]
+
+    weight_lateral_error: 6.0  # cost weight on cross-track error e_lat
+    weight_heading_error: 3.0  # cost weight on heading error e_head
+    weight_speed_error: 1.0    # cost weight on speed error e_speed
+    weight_accel: 0.2          # cost weight on acceleration effort a
+    weight_steer: 3.0          # cost weight on steering effort delta
+    weight_accel_rate: 0.4     # cost weight on accel change, smoothness
+    weight_steer_rate: 6.0     # cost weight on steer change, damps wobble
+
+    heading_lookahead_m: 5.0        # heading-reference lookahead on straights [m]
+    heading_lookahead_turn_m: 5.0   # heading-reference lookahead in turns [m]
+    heading_lookahead_time_s: 3.2   # lookahead as time headway, dist = v * this [s]
+    heading_lookahead_min_m: 5.0    # lower clamp on the computed lookahead [m]
+    heading_lookahead_max_m: 14.0   # upper clamp on the computed lookahead [m]
+    steer_slew_rps: 2.0             # max steering-command slew rate [rad/s]
+
+    path_timeout_sec: 2.0                  # path considered stale after this [s]
+    hold_without_maneuver: true            # hold speed if no /maneuver/target_speed
+    closest_point_search_radius_m: 3.0      # window for locating ego on the path [m]
+    goal_tolerance_m: 0.5                   # distance counted as "reached goal" [m]
+    target_speed_accel_rate_mps2: 1.5       # target-speed ramp up rate [m/s^2]
+    target_speed_decel_rate_mps2: 6.0       # target-speed ramp down rate [m/s^2]
