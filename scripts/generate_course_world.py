@@ -226,7 +226,20 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", default="urban_course")
     ap.add_argument("--buildings", type=int, default=20)
+    ap.add_argument("--turn-radius-m", type=float, default=None,
+                     help="override the two 90-deg turn radii (default 15.0, "
+                          "baked into COURSE) to load the front tires enough "
+                          "for wheel-odom slip to show up. The sedan's min "
+                          "turn radius is wheelbase/tan(steering_limit) = "
+                          "2.7/tan(0.50) ~= 4.9 m - stay above that with margin "
+                          "(e.g. 6-8 m). Leaves the 18 m winding-S arcs alone.")
     args = ap.parse_args()
+
+    if args.turn_radius_m is not None:
+        global COURSE
+        COURSE = [("arc", args.turn_radius_m, seg[2])
+                  if seg[0] == "arc" and abs(seg[1] - 15.0) < 1e-6 else seg
+                  for seg in COURSE]
 
     LW = args.lane_width
     lane = LW / 2

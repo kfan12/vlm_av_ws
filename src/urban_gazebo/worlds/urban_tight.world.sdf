@@ -1,0 +1,3011 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <world name="urban_tight">
+    <physics type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="libignition-gazebo-physics-system.so"
+            name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="libignition-gazebo-user-commands-system.so"
+            name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="libignition-gazebo-scene-broadcaster-system.so"
+            name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="libignition-gazebo-sensors-system.so"
+            name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="libignition-gazebo-imu-system.so"
+            name="ignition::gazebo::systems::Imu"/>
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.55 0.7 0.9 1</background>
+      <shadows>false</shadows>
+    </scene>
+    <light type="directional" name="sun">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 30 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+
+    <model name="ground"><static>true</static>
+      <pose>59.5 -50.0 0 0 0 0</pose>
+      <link name="l">
+        <collision name="c"><geometry><plane><normal>0 0 1</normal>
+          <size>179 160</size></plane></geometry></collision>
+        <visual name="v"><geometry><plane><normal>0 0 1</normal>
+          <size>179 160</size></plane></geometry>
+          <material><ambient>0.16 0.16 0.17 1</ambient><diffuse>0.16 0.16 0.17 1</diffuse></material>
+        </visual></link></model>
+    <model name="road"><static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="l">
+      <visual name="asfalt_0001">
+        <pose>5.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0002">
+        <pose>15.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0003">
+        <pose>25.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0004">
+        <pose>35.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0005">
+        <pose>45.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0006">
+        <pose>55.000 0.000 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0007">
+        <pose>60.250 -0.009 0.003 0 0 -0.0357</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0008">
+        <pose>60.748 -0.045 0.003 0 0 -0.1071</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0009">
+        <pose>61.242 -0.116 0.003 0 0 -0.1785</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0010">
+        <pose>61.730 -0.222 0.003 0 0 -0.2499</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0011">
+        <pose>62.209 -0.362 0.003 0 0 -0.3213</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0012">
+        <pose>62.677 -0.537 0.003 0 0 -0.3927</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0013">
+        <pose>63.131 -0.744 0.003 0 0 -0.4641</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0014">
+        <pose>63.570 -0.984 0.003 0 0 -0.5355</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0015">
+        <pose>63.990 -1.254 0.003 0 0 -0.6069</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0016">
+        <pose>64.389 -1.553 0.003 0 0 -0.6783</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0017">
+        <pose>64.767 -1.880 0.003 0 0 -0.7497</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0018">
+        <pose>65.120 -2.233 0.003 0 0 -0.8211</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0019">
+        <pose>65.447 -2.611 0.003 0 0 -0.8925</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0020">
+        <pose>65.746 -3.010 0.003 0 0 -0.9639</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0021">
+        <pose>66.016 -3.430 0.003 0 0 -1.0353</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0022">
+        <pose>66.256 -3.869 0.003 0 0 -1.1067</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0023">
+        <pose>66.463 -4.323 0.003 0 0 -1.1781</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0024">
+        <pose>66.638 -4.791 0.003 0 0 -1.2495</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0025">
+        <pose>66.778 -5.270 0.003 0 0 -1.3209</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0026">
+        <pose>66.884 -5.758 0.003 0 0 -1.3923</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0027">
+        <pose>66.955 -6.252 0.003 0 0 -1.4637</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0028">
+        <pose>66.991 -6.750 0.003 0 0 -1.5351</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0029">
+        <pose>67.000 -12.000 0.003 0 0 -1.5708</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0030">
+        <pose>67.000 -22.000 0.003 0 0 -1.5708</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0031">
+        <pose>67.014 -27.505 0.003 0 0 -1.5427</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0032">
+        <pose>67.071 -28.512 0.003 0 0 -1.4866</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0033">
+        <pose>67.184 -29.515 0.003 0 0 -1.4305</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0034">
+        <pose>67.353 -30.510 0.003 0 0 -1.3744</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0035">
+        <pose>67.577 -31.494 0.003 0 0 -1.3183</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0036">
+        <pose>67.857 -32.464 0.003 0 0 -1.2622</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0037">
+        <pose>68.190 -33.417 0.003 0 0 -1.2061</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0038">
+        <pose>68.576 -34.349 0.003 0 0 -1.1500</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0039">
+        <pose>69.014 -35.258 0.003 0 0 -1.0939</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0040">
+        <pose>69.502 -36.142 0.003 0 0 -1.0378</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0041">
+        <pose>70.039 -36.996 0.003 0 0 -0.9817</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0042">
+        <pose>70.623 -37.819 0.003 0 0 -0.9256</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0043">
+        <pose>71.253 -38.609 0.003 0 0 -0.8695</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0044">
+        <pose>72.587 -40.100 0.003 0 0 -0.8314</pose>
+        <geometry><box><size>3.053 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0045">
+        <pose>73.894 -41.601 0.003 0 0 -0.9232</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0046">
+        <pose>74.470 -42.408 0.003 0 0 -0.9783</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0047">
+        <pose>75.001 -43.245 0.003 0 0 -1.0334</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0048">
+        <pose>75.485 -44.111 0.003 0 0 -1.0885</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0049">
+        <pose>75.921 -45.002 0.003 0 0 -1.1436</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0050">
+        <pose>76.306 -45.915 0.003 0 0 -1.1988</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0051">
+        <pose>76.641 -46.849 0.003 0 0 -1.2539</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0052">
+        <pose>76.924 -47.799 0.003 0 0 -1.3090</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0053">
+        <pose>77.154 -48.763 0.003 0 0 -1.3641</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0054">
+        <pose>77.331 -49.739 0.003 0 0 -1.4192</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0055">
+        <pose>77.454 -50.723 0.003 0 0 -1.4743</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0056">
+        <pose>77.522 -51.712 0.003 0 0 -1.5295</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0057">
+        <pose>77.536 -52.704 0.003 0 0 -1.5846</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0058">
+        <pose>77.495 -53.694 0.003 0 0 -1.6397</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0059">
+        <pose>77.399 -54.681 0.003 0 0 -1.6948</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0060">
+        <pose>77.249 -55.662 0.003 0 0 -1.7499</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0061">
+        <pose>77.046 -56.632 0.003 0 0 -1.8050</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0062">
+        <pose>76.789 -57.590 0.003 0 0 -1.8602</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0063">
+        <pose>76.480 -58.532 0.003 0 0 -1.9153</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0064">
+        <pose>76.120 -59.456 0.003 0 0 -1.9704</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0065">
+        <pose>75.709 -60.358 0.003 0 0 -2.0255</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0066">
+        <pose>75.249 -61.237 0.003 0 0 -2.0806</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0067">
+        <pose>74.742 -62.089 0.003 0 0 -2.1357</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0068">
+        <pose>74.188 -62.911 0.003 0 0 -2.1908</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0069">
+        <pose>73.590 -63.702 0.003 0 0 -2.2460</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0070">
+        <pose>72.949 -64.459 0.003 0 0 -2.3011</pose>
+        <geometry><box><size>1.052 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0071">
+        <pose>71.933 -65.563 0.003 0 0 -2.3211</pose>
+        <geometry><box><size>2.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0072">
+        <pose>70.933 -66.693 0.003 0 0 -2.2440</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0073">
+        <pose>70.326 -67.500 0.003 0 0 -2.1879</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0074">
+        <pose>69.765 -68.339 0.003 0 0 -2.1318</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0075">
+        <pose>69.252 -69.208 0.003 0 0 -2.0757</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0076">
+        <pose>68.789 -70.105 0.003 0 0 -2.0196</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0077">
+        <pose>68.377 -71.026 0.003 0 0 -1.9635</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0078">
+        <pose>68.017 -71.969 0.003 0 0 -1.9074</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0079">
+        <pose>67.710 -72.931 0.003 0 0 -1.8513</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0080">
+        <pose>67.458 -73.908 0.003 0 0 -1.7952</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0081">
+        <pose>67.261 -74.898 0.003 0 0 -1.7391</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0082">
+        <pose>67.120 -75.897 0.003 0 0 -1.6830</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0083">
+        <pose>67.035 -76.903 0.003 0 0 -1.6269</pose>
+        <geometry><box><size>1.070 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0084">
+        <pose>67.004 -82.159 0.003 0 0 -1.5715</pose>
+        <geometry><box><size>9.565 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0085">
+        <pose>67.000 -89.912 0.003 0 0 -1.5708</pose>
+        <geometry><box><size>6.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0086">
+        <pose>67.009 -93.161 0.003 0 0 -1.5351</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0087">
+        <pose>67.045 -93.659 0.003 0 0 -1.4637</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0088">
+        <pose>67.116 -94.154 0.003 0 0 -1.3923</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0089">
+        <pose>67.222 -94.642 0.003 0 0 -1.3209</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0090">
+        <pose>67.362 -95.121 0.003 0 0 -1.2495</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0091">
+        <pose>67.537 -95.589 0.003 0 0 -1.1781</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0092">
+        <pose>67.744 -96.043 0.003 0 0 -1.1067</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0093">
+        <pose>67.984 -96.481 0.003 0 0 -1.0353</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0094">
+        <pose>68.254 -96.901 0.003 0 0 -0.9639</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0095">
+        <pose>68.553 -97.301 0.003 0 0 -0.8925</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0096">
+        <pose>68.880 -97.679 0.003 0 0 -0.8211</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0097">
+        <pose>69.233 -98.032 0.003 0 0 -0.7497</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0098">
+        <pose>69.611 -98.359 0.003 0 0 -0.6783</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0099">
+        <pose>70.010 -98.658 0.003 0 0 -0.6069</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0100">
+        <pose>70.430 -98.928 0.003 0 0 -0.5355</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0101">
+        <pose>70.869 -99.167 0.003 0 0 -0.4641</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0102">
+        <pose>71.323 -99.375 0.003 0 0 -0.3927</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0103">
+        <pose>71.791 -99.549 0.003 0 0 -0.3213</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0104">
+        <pose>72.270 -99.690 0.003 0 0 -0.2499</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0105">
+        <pose>72.758 -99.796 0.003 0 0 -0.1785</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0106">
+        <pose>73.252 -99.867 0.003 0 0 -0.1071</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0107">
+        <pose>73.750 -99.903 0.003 0 0 -0.0357</pose>
+        <geometry><box><size>0.560 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0108">
+        <pose>79.000 -99.912 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0109">
+        <pose>89.000 -99.912 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0110">
+        <pose>99.000 -99.912 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0111">
+        <pose>109.000 -99.912 0.003 0 0 0.0000</pose>
+        <geometry><box><size>10.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="asfalt_0112">
+        <pose>116.500 -99.912 0.003 0 0 0.0000</pose>
+        <geometry><box><size>5.060 7.600 0.006</size></box></geometry>
+        <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0001">
+        <pose>4.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0002">
+        <pose>12.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0003">
+        <pose>20.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0004">
+        <pose>28.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0005">
+        <pose>36.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0006">
+        <pose>44.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0007">
+        <pose>52.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0008">
+        <pose>58.000 3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0009">
+        <pose>60.375 3.487 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0010">
+        <pose>61.122 3.433 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0011">
+        <pose>61.863 3.327 0.010 0 0 -0.1785</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0012">
+        <pose>62.595 3.167 0.010 0 0 -0.2499</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0013">
+        <pose>63.314 2.956 0.010 0 0 -0.3213</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0014">
+        <pose>64.016 2.695 0.010 0 0 -0.3927</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0015">
+        <pose>64.697 2.383 0.010 0 0 -0.4641</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0016">
+        <pose>65.354 2.024 0.010 0 0 -0.5355</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0017">
+        <pose>65.985 1.619 0.010 0 0 -0.6069</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0018">
+        <pose>66.584 1.171 0.010 0 0 -0.6783</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0019">
+        <pose>67.150 0.680 0.010 0 0 -0.7497</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0020">
+        <pose>67.680 0.150 0.010 0 0 -0.8211</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0021">
+        <pose>68.171 -0.416 0.010 0 0 -0.8925</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0022">
+        <pose>68.619 -1.015 0.010 0 0 -0.9639</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0023">
+        <pose>69.024 -1.646 0.010 0 0 -1.0353</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0024">
+        <pose>69.383 -2.303 0.010 0 0 -1.1067</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0025">
+        <pose>69.695 -2.984 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0026">
+        <pose>69.956 -3.686 0.010 0 0 -1.2495</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0027">
+        <pose>70.167 -4.405 0.010 0 0 -1.3209</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0028">
+        <pose>70.327 -5.137 0.010 0 0 -1.3923</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0029">
+        <pose>70.433 -5.878 0.010 0 0 -1.4637</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0030">
+        <pose>70.487 -6.625 0.010 0 0 -1.5351</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0031">
+        <pose>70.500 -11.000 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0032">
+        <pose>70.500 -19.000 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0033">
+        <pose>70.503 -25.203 0.010 0 0 -1.5695</pose>
+        <geometry><box><size>4.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0034">
+        <pose>70.514 -27.610 0.010 0 0 -1.5287</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0035">
+        <pose>70.537 -28.016 0.010 0 0 -1.5007</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0036">
+        <pose>70.571 -28.421 0.010 0 0 -1.4726</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0037">
+        <pose>70.617 -28.825 0.010 0 0 -1.4446</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0038">
+        <pose>70.674 -29.228 0.010 0 0 -1.4165</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0039">
+        <pose>70.742 -29.629 0.010 0 0 -1.3885</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0040">
+        <pose>70.821 -30.028 0.010 0 0 -1.3604</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0041">
+        <pose>70.912 -30.424 0.010 0 0 -1.3324</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0042">
+        <pose>71.013 -30.818 0.010 0 0 -1.3043</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0043">
+        <pose>71.126 -31.209 0.010 0 0 -1.2763</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0044">
+        <pose>71.249 -31.596 0.010 0 0 -1.2482</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0045">
+        <pose>71.384 -31.980 0.010 0 0 -1.2202</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0046">
+        <pose>71.529 -32.360 0.010 0 0 -1.1921</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0047">
+        <pose>71.684 -32.736 0.010 0 0 -1.1641</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0048">
+        <pose>71.850 -33.107 0.010 0 0 -1.1360</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0049">
+        <pose>72.027 -33.473 0.010 0 0 -1.1080</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0050">
+        <pose>72.213 -33.835 0.010 0 0 -1.0799</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0051">
+        <pose>72.410 -34.191 0.010 0 0 -1.0519</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0052">
+        <pose>72.617 -34.541 0.010 0 0 -1.0238</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0053">
+        <pose>72.833 -34.885 0.010 0 0 -0.9958</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0054">
+        <pose>73.059 -35.223 0.010 0 0 -0.9677</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0055">
+        <pose>73.294 -35.555 0.010 0 0 -0.9397</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0056">
+        <pose>73.539 -35.880 0.010 0 0 -0.9116</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0057">
+        <pose>73.792 -36.198 0.010 0 0 -0.8836</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0058">
+        <pose>74.055 -36.509 0.010 0 0 -0.8555</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0059">
+        <pose>74.326 -36.812 0.010 0 0 -0.8275</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0060">
+        <pose>75.012 -37.538 0.010 0 0 -0.8095</pose>
+        <geometry><box><size>1.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0061">
+        <pose>75.756 -38.337 0.010 0 0 -0.8543</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0062">
+        <pose>76.139 -38.789 0.010 0 0 -0.8819</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0063">
+        <pose>76.509 -39.252 0.010 0 0 -0.9094</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0064">
+        <pose>76.866 -39.724 0.010 0 0 -0.9370</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0065">
+        <pose>77.211 -40.206 0.010 0 0 -0.9645</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0066">
+        <pose>77.542 -40.698 0.010 0 0 -0.9921</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0067">
+        <pose>77.859 -41.198 0.010 0 0 -1.0196</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0068">
+        <pose>78.162 -41.707 0.010 0 0 -1.0472</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0069">
+        <pose>78.451 -42.224 0.010 0 0 -1.0748</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0070">
+        <pose>78.726 -42.749 0.010 0 0 -1.1023</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0071">
+        <pose>78.986 -43.281 0.010 0 0 -1.1299</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0072">
+        <pose>79.231 -43.820 0.010 0 0 -1.1574</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0073">
+        <pose>79.462 -44.366 0.010 0 0 -1.1850</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0074">
+        <pose>79.677 -44.918 0.010 0 0 -1.2125</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0075">
+        <pose>79.877 -45.475 0.010 0 0 -1.2401</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0076">
+        <pose>80.062 -46.038 0.010 0 0 -1.2677</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0077">
+        <pose>80.231 -46.606 0.010 0 0 -1.2952</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0078">
+        <pose>80.384 -47.178 0.010 0 0 -1.3228</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0079">
+        <pose>80.522 -47.755 0.010 0 0 -1.3503</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0080">
+        <pose>80.643 -48.334 0.010 0 0 -1.3779</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0081">
+        <pose>80.749 -48.917 0.010 0 0 -1.4054</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0082">
+        <pose>80.838 -49.503 0.010 0 0 -1.4330</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0083">
+        <pose>80.912 -50.091 0.010 0 0 -1.4606</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0084">
+        <pose>80.969 -50.681 0.010 0 0 -1.4881</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0085">
+        <pose>81.009 -51.272 0.010 0 0 -1.5157</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0086">
+        <pose>81.034 -51.863 0.010 0 0 -1.5432</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0087">
+        <pose>81.042 -52.456 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0088">
+        <pose>81.034 -53.048 0.010 0 0 -1.5984</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0089">
+        <pose>81.009 -53.640 0.010 0 0 -1.6259</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0090">
+        <pose>80.969 -54.231 0.010 0 0 -1.6535</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0091">
+        <pose>80.912 -54.821 0.010 0 0 -1.6810</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0092">
+        <pose>80.838 -55.409 0.010 0 0 -1.7086</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0093">
+        <pose>80.749 -55.994 0.010 0 0 -1.7361</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0094">
+        <pose>80.643 -56.577 0.010 0 0 -1.7637</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0095">
+        <pose>80.522 -57.157 0.010 0 0 -1.7913</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0096">
+        <pose>80.384 -57.733 0.010 0 0 -1.8188</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0097">
+        <pose>80.231 -58.306 0.010 0 0 -1.8464</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0098">
+        <pose>80.062 -58.873 0.010 0 0 -1.8739</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0099">
+        <pose>79.877 -59.436 0.010 0 0 -1.9015</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0100">
+        <pose>79.677 -59.994 0.010 0 0 -1.9290</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0101">
+        <pose>79.462 -60.546 0.010 0 0 -1.9566</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0102">
+        <pose>79.231 -61.091 0.010 0 0 -1.9842</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0103">
+        <pose>78.986 -61.631 0.010 0 0 -2.0117</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0104">
+        <pose>78.726 -62.163 0.010 0 0 -2.0393</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0105">
+        <pose>78.451 -62.688 0.010 0 0 -2.0668</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0106">
+        <pose>78.162 -63.205 0.010 0 0 -2.0944</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0107">
+        <pose>77.859 -63.714 0.010 0 0 -2.1220</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0108">
+        <pose>77.542 -64.214 0.010 0 0 -2.1495</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0109">
+        <pose>77.211 -64.706 0.010 0 0 -2.1771</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0110">
+        <pose>76.866 -65.188 0.010 0 0 -2.2046</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0111">
+        <pose>76.509 -65.660 0.010 0 0 -2.2322</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0112">
+        <pose>76.139 -66.123 0.010 0 0 -2.2597</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0113">
+        <pose>75.756 -66.575 0.010 0 0 -2.2873</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0114">
+        <pose>75.361 -67.016 0.010 0 0 -2.3149</pose>
+        <geometry><box><size>0.652 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0115">
+        <pose>74.674 -67.742 0.010 0 0 -2.3342</pose>
+        <geometry><box><size>1.466 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0116">
+        <pose>74.055 -68.403 0.010 0 0 -2.2861</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0117">
+        <pose>73.792 -68.714 0.010 0 0 -2.2580</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0118">
+        <pose>73.539 -69.032 0.010 0 0 -2.2300</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0119">
+        <pose>73.294 -69.357 0.010 0 0 -2.2019</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0120">
+        <pose>73.059 -69.688 0.010 0 0 -2.1739</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0121">
+        <pose>72.833 -70.027 0.010 0 0 -2.1458</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0122">
+        <pose>72.617 -70.371 0.010 0 0 -2.1178</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0123">
+        <pose>72.410 -70.721 0.010 0 0 -2.0897</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0124">
+        <pose>72.213 -71.077 0.010 0 0 -2.0617</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0125">
+        <pose>72.027 -71.438 0.010 0 0 -2.0336</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0126">
+        <pose>71.850 -71.805 0.010 0 0 -2.0056</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0127">
+        <pose>71.684 -72.176 0.010 0 0 -1.9775</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0128">
+        <pose>71.529 -72.552 0.010 0 0 -1.9495</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0129">
+        <pose>71.384 -72.932 0.010 0 0 -1.9214</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0130">
+        <pose>71.249 -73.316 0.010 0 0 -1.8934</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0131">
+        <pose>71.126 -73.703 0.010 0 0 -1.8653</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0132">
+        <pose>71.013 -74.094 0.010 0 0 -1.8373</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0133">
+        <pose>70.912 -74.488 0.010 0 0 -1.8092</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0134">
+        <pose>70.821 -74.884 0.010 0 0 -1.7812</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0135">
+        <pose>70.742 -75.283 0.010 0 0 -1.7531</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0136">
+        <pose>70.674 -75.684 0.010 0 0 -1.7251</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0137">
+        <pose>70.617 -76.086 0.010 0 0 -1.6970</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0138">
+        <pose>70.571 -76.491 0.010 0 0 -1.6690</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0139">
+        <pose>70.537 -76.896 0.010 0 0 -1.6409</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0140">
+        <pose>70.514 -77.302 0.010 0 0 -1.6129</pose>
+        <geometry><box><size>0.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0141">
+        <pose>70.503 -81.208 0.010 0 0 -1.5716</pose>
+        <geometry><box><size>7.467 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0142">
+        <pose>70.500 -88.912 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0143">
+        <pose>70.504 -93.037 0.010 0 0 -1.5351</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0144">
+        <pose>70.522 -93.286 0.010 0 0 -1.4637</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0145">
+        <pose>70.558 -93.533 0.010 0 0 -1.3923</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0146">
+        <pose>70.611 -93.777 0.010 0 0 -1.3209</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0147">
+        <pose>70.681 -94.016 0.010 0 0 -1.2495</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0148">
+        <pose>70.768 -94.250 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0149">
+        <pose>70.872 -94.477 0.010 0 0 -1.1067</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0150">
+        <pose>70.992 -94.696 0.010 0 0 -1.0353</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0151">
+        <pose>71.127 -94.907 0.010 0 0 -0.9639</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0152">
+        <pose>71.276 -95.106 0.010 0 0 -0.8925</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0153">
+        <pose>71.440 -95.295 0.010 0 0 -0.8211</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0154">
+        <pose>71.617 -95.472 0.010 0 0 -0.7497</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0155">
+        <pose>71.805 -95.635 0.010 0 0 -0.6783</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0156">
+        <pose>72.005 -95.785 0.010 0 0 -0.6069</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0157">
+        <pose>72.215 -95.920 0.010 0 0 -0.5355</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0158">
+        <pose>72.434 -96.039 0.010 0 0 -0.4641</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0159">
+        <pose>72.661 -96.143 0.010 0 0 -0.3927</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0160">
+        <pose>72.895 -96.230 0.010 0 0 -0.3213</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0161">
+        <pose>73.135 -96.301 0.010 0 0 -0.2499</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0162">
+        <pose>73.379 -96.354 0.010 0 0 -0.1785</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0163">
+        <pose>73.626 -96.389 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0164">
+        <pose>73.875 -96.407 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0165">
+        <pose>78.000 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0166">
+        <pose>86.000 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0167">
+        <pose>94.000 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0168">
+        <pose>102.000 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0169">
+        <pose>110.000 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_l_0170">
+        <pose>116.500 -96.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>5.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0001">
+        <pose>4.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0002">
+        <pose>12.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0003">
+        <pose>20.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0004">
+        <pose>28.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0005">
+        <pose>36.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0006">
+        <pose>44.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0007">
+        <pose>52.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0008">
+        <pose>58.000 -3.500 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0009">
+        <pose>60.125 -3.504 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0010">
+        <pose>60.374 -3.522 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0011">
+        <pose>60.621 -3.558 0.010 0 0 -0.1785</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0012">
+        <pose>60.865 -3.611 0.010 0 0 -0.2499</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0013">
+        <pose>61.105 -3.681 0.010 0 0 -0.3213</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0014">
+        <pose>61.339 -3.768 0.010 0 0 -0.3927</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0015">
+        <pose>61.566 -3.872 0.010 0 0 -0.4641</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0016">
+        <pose>61.785 -3.992 0.010 0 0 -0.5355</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0017">
+        <pose>61.995 -4.127 0.010 0 0 -0.6069</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0018">
+        <pose>62.195 -4.276 0.010 0 0 -0.6783</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0019">
+        <pose>62.383 -4.440 0.010 0 0 -0.7497</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0020">
+        <pose>62.560 -4.617 0.010 0 0 -0.8211</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0021">
+        <pose>62.724 -4.805 0.010 0 0 -0.8925</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0022">
+        <pose>62.873 -5.005 0.010 0 0 -0.9639</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0023">
+        <pose>63.008 -5.215 0.010 0 0 -1.0353</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0024">
+        <pose>63.128 -5.434 0.010 0 0 -1.1067</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0025">
+        <pose>63.232 -5.661 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0026">
+        <pose>63.319 -5.895 0.010 0 0 -1.2495</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0027">
+        <pose>63.389 -6.135 0.010 0 0 -1.3209</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0028">
+        <pose>63.442 -6.379 0.010 0 0 -1.3923</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0029">
+        <pose>63.478 -6.626 0.010 0 0 -1.4637</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0030">
+        <pose>63.496 -6.875 0.010 0 0 -1.5351</pose>
+        <geometry><box><size>0.310 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0031">
+        <pose>63.500 -11.000 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0032">
+        <pose>63.500 -19.000 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0033">
+        <pose>63.504 -25.301 0.010 0 0 -1.5690</pose>
+        <geometry><box><size>4.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0034">
+        <pose>63.521 -27.904 0.010 0 0 -1.5287</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0035">
+        <pose>63.555 -28.506 0.010 0 0 -1.5007</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0036">
+        <pose>63.606 -29.107 0.010 0 0 -1.4726</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0037">
+        <pose>63.673 -29.706 0.010 0 0 -1.4446</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0038">
+        <pose>63.757 -30.303 0.010 0 0 -1.4165</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0039">
+        <pose>63.858 -30.898 0.010 0 0 -1.3885</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0040">
+        <pose>63.976 -31.489 0.010 0 0 -1.3604</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0041">
+        <pose>64.110 -32.077 0.010 0 0 -1.3324</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0042">
+        <pose>64.261 -32.661 0.010 0 0 -1.3043</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0043">
+        <pose>64.428 -33.241 0.010 0 0 -1.2763</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0044">
+        <pose>64.611 -33.815 0.010 0 0 -1.2482</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0045">
+        <pose>64.810 -34.384 0.010 0 0 -1.2202</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0046">
+        <pose>65.025 -34.948 0.010 0 0 -1.1921</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0047">
+        <pose>65.256 -35.505 0.010 0 0 -1.1641</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0048">
+        <pose>65.502 -36.055 0.010 0 0 -1.1360</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0049">
+        <pose>65.764 -36.598 0.010 0 0 -1.1080</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0050">
+        <pose>66.041 -37.134 0.010 0 0 -1.0799</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0051">
+        <pose>66.332 -37.662 0.010 0 0 -1.0519</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0052">
+        <pose>66.639 -38.181 0.010 0 0 -1.0238</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0053">
+        <pose>66.959 -38.692 0.010 0 0 -0.9958</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0054">
+        <pose>67.294 -39.193 0.010 0 0 -0.9677</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0055">
+        <pose>67.643 -39.685 0.010 0 0 -0.9397</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0056">
+        <pose>68.006 -40.167 0.010 0 0 -0.9116</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0057">
+        <pose>68.382 -40.638 0.010 0 0 -0.8836</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0058">
+        <pose>68.771 -41.099 0.010 0 0 -0.8555</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0059">
+        <pose>69.173 -41.548 0.010 0 0 -0.8275</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0060">
+        <pose>69.862 -42.277 0.010 0 0 -0.8071</pose>
+        <geometry><box><size>1.462 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0061">
+        <pose>70.478 -42.934 0.010 0 0 -0.8543</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0062">
+        <pose>70.736 -43.239 0.010 0 0 -0.8819</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0063">
+        <pose>70.986 -43.551 0.010 0 0 -0.9094</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0064">
+        <pose>71.227 -43.869 0.010 0 0 -0.9370</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0065">
+        <pose>71.459 -44.194 0.010 0 0 -0.9645</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0066">
+        <pose>71.682 -44.526 0.010 0 0 -0.9921</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0067">
+        <pose>71.896 -44.863 0.010 0 0 -1.0196</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0068">
+        <pose>72.100 -45.207 0.010 0 0 -1.0472</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0069">
+        <pose>72.295 -45.555 0.010 0 0 -1.0748</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0070">
+        <pose>72.481 -45.909 0.010 0 0 -1.1023</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0071">
+        <pose>72.656 -46.268 0.010 0 0 -1.1299</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0072">
+        <pose>72.822 -46.632 0.010 0 0 -1.1574</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0073">
+        <pose>72.977 -47.000 0.010 0 0 -1.1850</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0074">
+        <pose>73.122 -47.372 0.010 0 0 -1.2125</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0075">
+        <pose>73.257 -47.748 0.010 0 0 -1.2401</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0076">
+        <pose>73.382 -48.128 0.010 0 0 -1.2677</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0077">
+        <pose>73.496 -48.511 0.010 0 0 -1.2952</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0078">
+        <pose>73.599 -48.897 0.010 0 0 -1.3228</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0079">
+        <pose>73.692 -49.285 0.010 0 0 -1.3503</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0080">
+        <pose>73.774 -49.676 0.010 0 0 -1.3779</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0081">
+        <pose>73.845 -50.069 0.010 0 0 -1.4054</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0082">
+        <pose>73.905 -50.464 0.010 0 0 -1.4330</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0083">
+        <pose>73.955 -50.861 0.010 0 0 -1.4606</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0084">
+        <pose>73.993 -51.259 0.010 0 0 -1.4881</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0085">
+        <pose>74.021 -51.657 0.010 0 0 -1.5157</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0086">
+        <pose>74.037 -52.056 0.010 0 0 -1.5432</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0087">
+        <pose>74.043 -52.456 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0088">
+        <pose>74.037 -52.855 0.010 0 0 -1.5984</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0089">
+        <pose>74.021 -53.255 0.010 0 0 -1.6259</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0090">
+        <pose>73.993 -53.653 0.010 0 0 -1.6535</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0091">
+        <pose>73.955 -54.051 0.010 0 0 -1.6810</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0092">
+        <pose>73.905 -54.447 0.010 0 0 -1.7086</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0093">
+        <pose>73.845 -54.842 0.010 0 0 -1.7361</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0094">
+        <pose>73.774 -55.235 0.010 0 0 -1.7637</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0095">
+        <pose>73.692 -55.626 0.010 0 0 -1.7913</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0096">
+        <pose>73.599 -56.015 0.010 0 0 -1.8188</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0097">
+        <pose>73.496 -56.401 0.010 0 0 -1.8464</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0098">
+        <pose>73.382 -56.784 0.010 0 0 -1.8739</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0099">
+        <pose>73.257 -57.164 0.010 0 0 -1.9015</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0100">
+        <pose>73.122 -57.540 0.010 0 0 -1.9290</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0101">
+        <pose>72.977 -57.912 0.010 0 0 -1.9566</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0102">
+        <pose>72.822 -58.280 0.010 0 0 -1.9842</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0103">
+        <pose>72.656 -58.644 0.010 0 0 -2.0117</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0104">
+        <pose>72.481 -59.002 0.010 0 0 -2.0393</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0105">
+        <pose>72.295 -59.356 0.010 0 0 -2.0668</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0106">
+        <pose>72.100 -59.705 0.010 0 0 -2.0944</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0107">
+        <pose>71.896 -60.048 0.010 0 0 -2.1220</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0108">
+        <pose>71.682 -60.386 0.010 0 0 -2.1495</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0109">
+        <pose>71.459 -60.717 0.010 0 0 -2.1771</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0110">
+        <pose>71.227 -61.042 0.010 0 0 -2.2046</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0111">
+        <pose>70.986 -61.361 0.010 0 0 -2.2322</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0112">
+        <pose>70.736 -61.673 0.010 0 0 -2.2597</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0113">
+        <pose>70.478 -61.978 0.010 0 0 -2.2873</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0114">
+        <pose>70.211 -62.275 0.010 0 0 -2.3149</pose>
+        <geometry><box><size>0.460 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0115">
+        <pose>69.522 -63.004 0.010 0 0 -2.3317</pose>
+        <geometry><box><size>1.666 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0116">
+        <pose>68.771 -63.813 0.010 0 0 -2.2861</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0117">
+        <pose>68.382 -64.274 0.010 0 0 -2.2580</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0118">
+        <pose>68.006 -64.745 0.010 0 0 -2.2300</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0119">
+        <pose>67.643 -65.227 0.010 0 0 -2.2019</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0120">
+        <pose>67.294 -65.719 0.010 0 0 -2.1739</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0121">
+        <pose>66.959 -66.220 0.010 0 0 -2.1458</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0122">
+        <pose>66.639 -66.731 0.010 0 0 -2.1178</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0123">
+        <pose>66.332 -67.250 0.010 0 0 -2.0897</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0124">
+        <pose>66.041 -67.778 0.010 0 0 -2.0617</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0125">
+        <pose>65.764 -68.313 0.010 0 0 -2.0336</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0126">
+        <pose>65.502 -68.857 0.010 0 0 -2.0056</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0127">
+        <pose>65.256 -69.407 0.010 0 0 -1.9775</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0128">
+        <pose>65.025 -69.964 0.010 0 0 -1.9495</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0129">
+        <pose>64.810 -70.528 0.010 0 0 -1.9214</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0130">
+        <pose>64.611 -71.097 0.010 0 0 -1.8934</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0131">
+        <pose>64.428 -71.671 0.010 0 0 -1.8653</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0132">
+        <pose>64.261 -72.251 0.010 0 0 -1.8373</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0133">
+        <pose>64.110 -72.834 0.010 0 0 -1.8092</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0134">
+        <pose>63.976 -73.422 0.010 0 0 -1.7812</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0135">
+        <pose>63.858 -74.014 0.010 0 0 -1.7531</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0136">
+        <pose>63.757 -74.608 0.010 0 0 -1.7251</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0137">
+        <pose>63.673 -75.205 0.010 0 0 -1.6970</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0138">
+        <pose>63.606 -75.805 0.010 0 0 -1.6690</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0139">
+        <pose>63.555 -76.405 0.010 0 0 -1.6409</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0140">
+        <pose>63.521 -77.007 0.010 0 0 -1.6129</pose>
+        <geometry><box><size>0.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0141">
+        <pose>63.504 -81.110 0.010 0 0 -1.5719</pose>
+        <geometry><box><size>7.663 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0142">
+        <pose>63.500 -88.912 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0143">
+        <pose>63.513 -93.286 0.010 0 0 -1.5351</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0144">
+        <pose>63.567 -94.033 0.010 0 0 -1.4637</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0145">
+        <pose>63.673 -94.775 0.010 0 0 -1.3923</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0146">
+        <pose>63.833 -95.507 0.010 0 0 -1.3209</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0147">
+        <pose>64.044 -96.225 0.010 0 0 -1.2495</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0148">
+        <pose>64.305 -96.927 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0149">
+        <pose>64.617 -97.609 0.010 0 0 -1.1067</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0150">
+        <pose>64.976 -98.266 0.010 0 0 -1.0353</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0151">
+        <pose>65.381 -98.896 0.010 0 0 -0.9639</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0152">
+        <pose>65.829 -99.496 0.010 0 0 -0.8925</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0153">
+        <pose>66.320 -100.062 0.010 0 0 -0.8211</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0154">
+        <pose>66.850 -100.592 0.010 0 0 -0.7497</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0155">
+        <pose>67.416 -101.082 0.010 0 0 -0.6783</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0156">
+        <pose>68.015 -101.531 0.010 0 0 -0.6069</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0157">
+        <pose>68.646 -101.936 0.010 0 0 -0.5355</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0158">
+        <pose>69.303 -102.295 0.010 0 0 -0.4641</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0159">
+        <pose>69.984 -102.606 0.010 0 0 -0.3927</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0160">
+        <pose>70.686 -102.868 0.010 0 0 -0.3213</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0161">
+        <pose>71.405 -103.079 0.010 0 0 -0.2499</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0162">
+        <pose>72.137 -103.238 0.010 0 0 -0.1785</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0163">
+        <pose>72.878 -103.345 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0164">
+        <pose>73.625 -103.398 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.810 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0165">
+        <pose>78.000 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0166">
+        <pose>86.000 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0167">
+        <pose>94.000 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0168">
+        <pose>102.000 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0169">
+        <pose>110.000 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>8.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="edge_r_0170">
+        <pose>116.500 -103.412 0.010 0 0 0.0000</pose>
+        <geometry><box><size>5.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0001">
+        <pose>2.250 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0002">
+        <pose>9.750 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0003">
+        <pose>17.250 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0004">
+        <pose>24.750 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0005">
+        <pose>32.250 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0006">
+        <pose>39.750 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0007">
+        <pose>47.250 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0008">
+        <pose>54.750 0.000 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0009">
+        <pose>60.250 -0.009 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0010">
+        <pose>60.748 -0.045 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0011">
+        <pose>61.242 -0.116 0.010 0 0 -0.1785</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0012">
+        <pose>61.730 -0.222 0.010 0 0 -0.2499</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0013">
+        <pose>62.209 -0.362 0.010 0 0 -0.3213</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0014">
+        <pose>62.677 -0.537 0.010 0 0 -0.3927</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0015">
+        <pose>63.131 -0.744 0.010 0 0 -0.4641</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0016">
+        <pose>63.570 -0.984 0.010 0 0 -0.5355</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0017">
+        <pose>64.184 -1.410 0.010 0 0 -0.6426</pose>
+        <geometry><box><size>1.059 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0018">
+        <pose>66.463 -4.323 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0019">
+        <pose>66.638 -4.791 0.010 0 0 -1.2495</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0020">
+        <pose>66.778 -5.270 0.010 0 0 -1.3209</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0021">
+        <pose>66.884 -5.758 0.010 0 0 -1.3923</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0022">
+        <pose>66.955 -6.252 0.010 0 0 -1.4637</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0023">
+        <pose>66.991 -6.750 0.010 0 0 -1.5351</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0024">
+        <pose>67.000 -7.750 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>1.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0025">
+        <pose>67.000 -13.750 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0026">
+        <pose>67.000 -21.250 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0027">
+        <pose>67.004 -27.002 0.010 0 0 -1.5637</pose>
+        <geometry><box><size>1.065 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0028">
+        <pose>67.018 -27.757 0.010 0 0 -1.5287</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0029">
+        <pose>67.046 -28.261 0.010 0 0 -1.5007</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0030">
+        <pose>67.088 -28.764 0.010 0 0 -1.4726</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0031">
+        <pose>67.145 -29.266 0.010 0 0 -1.4446</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0032">
+        <pose>67.261 -30.014 0.010 0 0 -1.4025</pose>
+        <geometry><box><size>1.070 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0033">
+        <pose>68.277 -33.654 0.010 0 0 -1.1921</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0034">
+        <pose>68.470 -34.120 0.010 0 0 -1.1641</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0035">
+        <pose>68.676 -34.581 0.010 0 0 -1.1360</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0036">
+        <pose>68.895 -35.036 0.010 0 0 -1.1080</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0037">
+        <pose>69.127 -35.484 0.010 0 0 -1.0799</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0038">
+        <pose>69.371 -35.926 0.010 0 0 -1.0519</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0039">
+        <pose>69.628 -36.361 0.010 0 0 -1.0238</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0040">
+        <pose>70.039 -36.996 0.010 0 0 -0.9817</pose>
+        <geometry><box><size>1.070 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0041">
+        <pose>72.445 -39.906 0.010 0 0 -0.7992</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0042">
+        <pose>72.786 -40.266 0.010 0 0 -0.8267</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0043">
+        <pose>73.117 -40.635 0.010 0 0 -0.8543</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0044">
+        <pose>73.437 -41.014 0.010 0 0 -0.8819</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0045">
+        <pose>73.747 -41.401 0.010 0 0 -0.9094</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0046">
+        <pose>74.047 -41.797 0.010 0 0 -0.9370</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0047">
+        <pose>74.335 -42.200 0.010 0 0 -0.9645</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0048">
+        <pose>74.742 -42.823 0.010 0 0 -1.0059</pose>
+        <geometry><box><size>1.052 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0049">
+        <pose>76.400 -46.145 0.010 0 0 -1.2125</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0050">
+        <pose>76.567 -46.612 0.010 0 0 -1.2401</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0051">
+        <pose>76.722 -47.083 0.010 0 0 -1.2677</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0052">
+        <pose>76.863 -47.558 0.010 0 0 -1.2952</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0053">
+        <pose>76.992 -48.038 0.010 0 0 -1.3228</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0054">
+        <pose>77.107 -48.520 0.010 0 0 -1.3503</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0055">
+        <pose>77.209 -49.005 0.010 0 0 -1.3779</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0056">
+        <pose>77.331 -49.739 0.010 0 0 -1.4192</pose>
+        <geometry><box><size>1.052 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0057">
+        <pose>77.515 -53.447 0.010 0 0 -1.6259</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0058">
+        <pose>77.481 -53.942 0.010 0 0 -1.6535</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0059">
+        <pose>77.433 -54.436 0.010 0 0 -1.6810</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0060">
+        <pose>77.372 -54.928 0.010 0 0 -1.7086</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0061">
+        <pose>77.297 -55.418 0.010 0 0 -1.7361</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0062">
+        <pose>77.209 -55.906 0.010 0 0 -1.7637</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0063">
+        <pose>77.107 -56.392 0.010 0 0 -1.7913</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0064">
+        <pose>76.992 -56.874 0.010 0 0 -1.8188</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0065">
+        <pose>76.789 -57.590 0.010 0 0 -1.8602</pose>
+        <geometry><box><size>1.052 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0066">
+        <pose>75.373 -61.022 0.010 0 0 -2.0668</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0067">
+        <pose>75.131 -61.455 0.010 0 0 -2.0944</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0068">
+        <pose>74.877 -61.881 0.010 0 0 -2.1220</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0069">
+        <pose>74.612 -62.300 0.010 0 0 -2.1495</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0070">
+        <pose>74.335 -62.711 0.010 0 0 -2.1771</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0071">
+        <pose>74.047 -63.115 0.010 0 0 -2.2046</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0072">
+        <pose>73.747 -63.511 0.010 0 0 -2.2322</pose>
+        <geometry><box><size>0.556 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0073">
+        <pose>73.274 -64.085 0.010 0 0 -2.2735</pose>
+        <geometry><box><size>1.052 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0074">
+        <pose>70.772 -66.888 0.010 0 0 -2.2300</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0075">
+        <pose>70.469 -67.292 0.010 0 0 -2.2019</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0076">
+        <pose>70.177 -67.704 0.010 0 0 -2.1739</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0077">
+        <pose>69.896 -68.123 0.010 0 0 -2.1458</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0078">
+        <pose>69.628 -68.551 0.010 0 0 -2.1178</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0079">
+        <pose>69.371 -68.986 0.010 0 0 -2.0897</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0080">
+        <pose>69.127 -69.427 0.010 0 0 -2.0617</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0081">
+        <pose>68.789 -70.105 0.010 0 0 -2.0196</pose>
+        <geometry><box><size>1.070 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0082">
+        <pose>67.511 -73.661 0.010 0 0 -1.8092</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0083">
+        <pose>67.399 -74.153 0.010 0 0 -1.7812</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0084">
+        <pose>67.300 -74.648 0.010 0 0 -1.7531</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0085">
+        <pose>67.216 -75.146 0.010 0 0 -1.7251</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0086">
+        <pose>67.145 -75.646 0.010 0 0 -1.6970</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0087">
+        <pose>67.088 -76.148 0.010 0 0 -1.6690</pose>
+        <geometry><box><size>0.565 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0088">
+        <pose>67.035 -76.903 0.010 0 0 -1.6269</pose>
+        <geometry><box><size>1.070 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0089">
+        <pose>67.000 -82.662 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0090">
+        <pose>67.000 -90.162 0.010 0 0 -1.5708</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0091">
+        <pose>67.537 -95.589 0.010 0 0 -1.1781</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0092">
+        <pose>67.744 -96.043 0.010 0 0 -1.1067</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0093">
+        <pose>67.984 -96.481 0.010 0 0 -1.0353</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0094">
+        <pose>68.254 -96.901 0.010 0 0 -0.9639</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0095">
+        <pose>68.553 -97.301 0.010 0 0 -0.8925</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0096">
+        <pose>68.880 -97.679 0.010 0 0 -0.8211</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0097">
+        <pose>69.233 -98.032 0.010 0 0 -0.7497</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0098">
+        <pose>69.816 -98.501 0.010 0 0 -0.6426</pose>
+        <geometry><box><size>1.059 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0099">
+        <pose>73.252 -99.867 0.010 0 0 -0.1071</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0100">
+        <pose>73.750 -99.903 0.010 0 0 -0.0357</pose>
+        <geometry><box><size>0.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0101">
+        <pose>75.750 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>3.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0102">
+        <pose>82.750 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0103">
+        <pose>90.250 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0104">
+        <pose>97.750 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0105">
+        <pose>105.250 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0106">
+        <pose>112.750 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>4.560 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="dash_c_0107">
+        <pose>118.500 -99.912 0.010 0 0 0.0000</pose>
+        <geometry><box><size>1.060 0.150 0.010</size></box></geometry>
+        <material><ambient>0.85 0.75 0.1 1</ambient><diffuse>0.85 0.75 0.1 1</diffuse></material>
+      </visual>
+      <visual name="stop_line">
+        <pose>111.000 -101.662 0.010 0 0 0.0000</pose>
+        <geometry><box><size>0.400 3.500 0.010</size></box></geometry>
+        <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+      </visual>
+      </link></model>
+    <include>
+      <name>sign_right</name>
+      <uri>model://sign_right_urban</uri>
+      <pose>42.000 -5.100 0 0 0 3.1416</pose>
+    </include>
+    <include>
+      <name>sign_winding</name>
+      <uri>model://sign_winding_urban</uri>
+      <pose>61.900 -9.000 0 0 0 1.5708</pose>
+    </include>
+    <include>
+      <name>sign_left</name>
+      <uri>model://sign_left_urban</uri>
+      <pose>62.220 -74.080 0 0 0 1.4041</pose>
+    </include>
+    <include>
+      <name>sign_stop</name>
+      <uri>model://sign_stop_urban</uri>
+      <pose>111.000 -105.012 0 0 0 3.1416</pose>
+    </include>
+    <model name="bldg_01"><static>true</static>
+      <pose>56.527 -61.947 3.128 0 0 -2.0818</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>12.449 9.469 6.256</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>12.449 9.469 6.256</size></box></geometry>
+        <material><ambient>0.52 0.52 0.50 1</ambient><diffuse>0.52 0.52 0.50 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_02"><static>true</static>
+      <pose>23.130 16.189 3.547 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>8.191 8.562 7.094</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>8.191 8.562 7.094</size></box></geometry>
+        <material><ambient>0.47 0.47 0.44 1</ambient><diffuse>0.47 0.47 0.44 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_03"><static>true</static>
+      <pose>82.497 -76.883 6.142 0 0 -1.9607</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>9.323 11.536 12.285</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>9.323 11.536 12.285</size></box></geometry>
+        <material><ambient>0.54 0.54 0.51 1</ambient><diffuse>0.54 0.54 0.51 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_04"><static>true</static>
+      <pose>83.753 -27.149 4.015 0 0 -1.4521</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>8.933 13.743 8.029</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>8.933 13.743 8.029</size></box></geometry>
+        <material><ambient>0.30 0.31 0.33 1</ambient><diffuse>0.30 0.31 0.33 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_05"><static>true</static>
+      <pose>94.030 -54.090 2.706 0 0 -1.6182</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>11.464 12.227 5.412</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>11.464 12.227 5.412</size></box></geometry>
+        <material><ambient>0.39 0.37 0.35 1</ambient><diffuse>0.39 0.37 0.35 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_06"><static>true</static>
+      <pose>83.828 -115.423 6.253 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>10.281 10.720 12.507</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>10.281 10.720 12.507</size></box></geometry>
+        <material><ambient>0.41 0.41 0.39 1</ambient><diffuse>0.41 0.41 0.39 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_07"><static>true</static>
+      <pose>50.055 -20.136 5.992 0 0 -1.5708</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>12.108 13.057 11.984</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>12.108 13.057 11.984</size></box></geometry>
+        <material><ambient>0.28 0.29 0.31 1</ambient><diffuse>0.28 0.29 0.31 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_08"><static>true</static>
+      <pose>113.442 -114.123 2.712 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>11.057 8.545 5.424</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>11.057 8.545 5.424</size></box></geometry>
+        <material><ambient>0.49 0.49 0.46 1</ambient><diffuse>0.49 0.49 0.46 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_09"><static>true</static>
+      <pose>110.939 -85.374 5.053 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>9.437 9.445 10.106</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>9.437 9.445 10.106</size></box></geometry>
+        <material><ambient>0.52 0.49 0.47 1</ambient><diffuse>0.52 0.49 0.47 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_10"><static>true</static>
+      <pose>30.234 -15.917 4.993 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>8.384 8.126 9.985</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>8.384 8.126 9.985</size></box></geometry>
+        <material><ambient>0.30 0.30 0.29 1</ambient><diffuse>0.30 0.30 0.29 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_11"><static>true</static>
+      <pose>69.854 13.980 6.710 0 0 -0.4391</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>9.285 8.794 13.420</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>9.285 8.794 13.420</size></box></geometry>
+        <material><ambient>0.40 0.42 0.44 1</ambient><diffuse>0.40 0.42 0.44 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_12"><static>true</static>
+      <pose>41.922 19.433 3.995 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>8.149 12.419 7.990</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>8.149 12.419 7.990</size></box></geometry>
+        <material><ambient>0.54 0.54 0.51 1</ambient><diffuse>0.54 0.54 0.51 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_13"><static>true</static>
+      <pose>52.596 -91.383 4.966 0 0 -1.5708</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>11.693 9.806 9.931</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>11.693 9.806 9.931</size></box></geometry>
+        <material><ambient>0.35 0.37 0.39 1</ambient><diffuse>0.35 0.37 0.39 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_14"><static>true</static>
+      <pose>65.693 -115.224 4.168 0 0 -0.3564</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>10.083 10.570 8.335</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>10.083 10.570 8.335</size></box></geometry>
+        <material><ambient>0.36 0.38 0.40 1</ambient><diffuse>0.36 0.38 0.40 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_15"><static>true</static>
+      <pose>82.025 -9.988 3.043 0 0 -1.5708</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>9.625 9.508 6.086</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>9.625 9.508 6.086</size></box></geometry>
+        <material><ambient>0.34 0.34 0.32 1</ambient><diffuse>0.34 0.34 0.32 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_16"><static>true</static>
+      <pose>7.903 -17.857 5.526 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>10.729 12.037 11.051</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>10.729 12.037 11.051</size></box></geometry>
+        <material><ambient>0.49 0.52 0.55 1</ambient><diffuse>0.49 0.52 0.55 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_17"><static>true</static>
+      <pose>6.906 17.820 5.500 0 0 0.0000</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>10.239 11.707 11.001</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>10.239 11.707 11.001</size></box></geometry>
+        <material><ambient>0.40 0.42 0.44 1</ambient><diffuse>0.40 0.42 0.44 1</diffuse></material>
+      </visual></link></model>
+    <model name="bldg_18"><static>true</static>
+      <pose>51.524 -42.856 4.443 0 0 -1.1285</pose>
+      <link name="l">
+        <collision name="c"><geometry><box><size>10.135 13.647 8.887</size></box></geometry></collision>
+        <visual name="v">
+        <geometry><box><size>10.135 13.647 8.887</size></box></geometry>
+        <material><ambient>0.50 0.47 0.45 1</ambient><diffuse>0.50 0.47 0.45 1</diffuse></material>
+      </visual></link></model>
+  </world>
+</sdf>

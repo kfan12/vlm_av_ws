@@ -15,7 +15,12 @@
   gz_type_name:   "gz.msgs.Twist"
   direction: ROS_TO_GZ
 
-- ros_topic_name: "/odom"
+# pristine wheel odometry, straight from the AckermannSteering plugin's
+# no-slip kinematic model. odom_noise relays this to /odom (the topic the
+# EKF/RViz/odom_compare expect) with Gaussian noise overlaid on the twist -
+# see src/odom_noise.cpp. Point RViz/tools at /odom_wheel_raw directly to see
+# the pre-noise signal.
+- ros_topic_name: "/odom_wheel_raw"
   gz_topic_name:  "/model/sedan/odometry"
   ros_type_name:  "nav_msgs/msg/Odometry"
   gz_type_name:   "gz.msgs.Odometry"

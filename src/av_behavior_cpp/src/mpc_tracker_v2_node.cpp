@@ -44,6 +44,7 @@ public:
         mp.w_steer = declare_parameter("weight_steer", 3.0);             // cost weight on steering effort delta
         mp.w_accel_change = declare_parameter("weight_accel_rate", 0.4); // cost weight on accel change, smoothness
         mp.w_steer_change = declare_parameter("weight_steer_rate", 6.0); // cost weight on steer change, damps wobble
+        mp.w_prev_track = declare_parameter("weight_prev_track", 0.0);  // cross-solve consistency vs the previous horizon; 0 = off (see mpc_solver.hpp)
         mp.lookahead_m = declare_parameter("heading_lookahead_m", 5.0);  // heading-reference lookahead on straights [m]
         look_turn_ = declare_parameter("heading_lookahead_turn_m", 5.0); // heading-reference lookahead in turns [m]
         look_time_ = declare_parameter("heading_lookahead_time_s", 3.2); // lookahead as time headway, dist = v * this [s]
@@ -108,6 +109,13 @@ public:
         dbg_vref_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/v_ref_ramped", 10);
         dbg_accel_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/cmd_accel", 10);
         dbg_steer_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/cmd_steer", 10);
+        // turn-exit settling diagnostics (see mpc/README.md discussion): foot-point
+        // error at solve time, plus the lookahead actually used this tick, so a
+        // slow post-turn settle can be told apart from an oscillating one and
+        // correlated against the lookahead value in effect.
+        dbg_elat_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/e_lat", 10);
+        dbg_ehead_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/e_head", 10);
+        dbg_lookahead_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/lookahead_used", 10);
 
         auto period = std::chrono::duration<double>(1.0 / rate_hz_);
 
@@ -224,10 +232,16 @@ private:
         // only counts when it is fresh.
         bool turning_fresh = state_time_.nanoseconds() > 0 &&
                              (now() - state_time_).seconds() < 1.0;
-        solver_->set_lookahead(
+        double lookahead_used =
             (turning_ && turning_fresh)
                 ? look_turn_
-                : std::clamp(state.v * look_time_, look_min_, look_max_));
+                : std::clamp(state.v * look_time_, look_min_, look_max_);
+        solver_->set_lookahead(lookahead_used);
+        {
+            std_msgs::msg::Float64 m;
+            m.data = lookahead_used;
+            dbg_lookahead_pub_->publish(m);
+        }
 
         double ds = std::max(state.v * dt_, 0.3);
         auto ref = resample_path(pts, closest, N_ + 1, ds);
@@ -275,6 +289,13 @@ private:
         cmd.angular.z = angular_z;
         cmd_pub_->publish(cmd);
         publish_debug(v_ref_cmd_, result.accel, steer_cmd_);
+        {
+            std_msgs::msg::Float64 m;
+            m.data = result.e_lat;
+            dbg_elat_pub_->publish(m);
+            m.data = result.e_head;
+            dbg_ehead_pub_->publish(m);
+        }
 
         nav_msgs::msg::Path pred;
         pred.header.stamp = now();
@@ -319,7 +340,8 @@ private:
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_state_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pred_pub_, ref_pub_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr dbg_vref_pub_, dbg_accel_pub_, dbg_steer_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr dbg_vref_pub_, dbg_accel_pub_, dbg_steer_pub_,
+        dbg_elat_pub_, dbg_ehead_pub_, dbg_lookahead_pub_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };

@@ -29,25 +29,41 @@ std::vector<PathPoint> path_msg_to_points(const nav_msgs::msg::Path &path)
     return points;
 }
 
-// find the index of the closest point on the path to current vehicle state
+// find the index of the closest point on the path to current vehicle state.
+// Prefers a point within search_radius (keeps the search local/robust on
+// self-intersecting paths), but if the vehicle has drifted farther than
+// search_radius from EVERY point - large e_lat mid-turn, off-course - falls
+// back to the true globally nearest point rather than silently returning
+// index 0. Returning 0 here used to hand the solver a foot point unrelated
+// to the vehicle's actual position, computing e_lat/e_head/kappa against the
+// wrong part of the path and commanding a bogus correction: exactly the
+// runaway divergence a large cross-track error should recover from, not
+// trigger (2026-09-04 turn-settling diagnosis).
 size_t find_closest_point(const std::vector<PathPoint> &path, const VehicleState &state, double search_radius)
 {
     size_t closest_idx = 0;
-    double min_dist = std::numeric_limits<double>::max(); // Initialize to a large value
+    double min_dist = std::numeric_limits<double>::max(); // best within search_radius
+    size_t best_idx = 0;
+    double best_dist = std::numeric_limits<double>::max(); // best overall
 
-    for (const auto &pt : path)
+    for (size_t i = 0; i < path.size(); ++i)
     {
-        double dx = pt.x - state.x;
-        double dy = pt.y - state.y;
+        double dx = path[i].x - state.x;
+        double dy = path[i].y - state.y;
         double dist = std::hypot(dx, dy);
+        if (dist < best_dist)
+        {
+            best_dist = dist;
+            best_idx = i;
+        }
         if (dist < min_dist && dist <= search_radius)
         {
             min_dist = dist;
-            closest_idx = &pt - &path[0]; // Get the index of the closest point
+            closest_idx = i;
         }
     }
 
-    return closest_idx;
+    return (min_dist <= search_radius) ? closest_idx : best_idx;
 }
 
 // resample a path uniformally along arc length, using linear interpolation, starting from start_idx

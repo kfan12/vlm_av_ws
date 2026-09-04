@@ -88,7 +88,15 @@ def setup(context):
             Node(package='ros_gz_bridge', executable='parameter_bridge',
                  name='gz_ros_bridge',
                  parameters=[{'config_file': bridge_cfg}],
-                 output='screen')]),
+                 output='screen'),
+
+            # odom_noise: relays the bridge's pristine /odom_wheel_raw to /odom
+            # (what the EKF/RViz/odom_compare expect) with Gaussian noise
+            # overlaid on the twist - the EKF-vs-wheel-odom noise experiment,
+            # independent of sedan.urdf.xacro's slip1/slip2 (see odom_noise.cpp).
+            Node(package='robot_bringup', executable='odom_noise',
+                 name='odom_noise', output='screen',
+                 parameters=[{'use_sim_time': True}])]),
 
         # 4. spawn sedan (world name explicit — multi-world gotcha)
         TimerAction(period=6.0, actions=[

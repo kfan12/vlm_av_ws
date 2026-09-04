@@ -184,6 +184,29 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         Ptr.emplace_back(si(i), si(i + 1), -w_ds);    // s{i}*s{i+1}
     }
 
+    // cross-solve consistency (u_i - u_prev_shifted_i)^2: keeps this horizon
+    // close to what the PREVIOUS solve planned for the same future points, one
+    // control period on (index i+1 of the previous trajectory; the previous
+    // trajectory's last point is held for i = N-1, past its own end). Separate
+    // from the (u_0 - last applied command)^2 anchor above - that one tracks
+    // what was actually DRIVEN, this one tracks what was previously PLANNED.
+    // Off by default (w_prev_track = 0); skipped for one tick after a
+    // proportional-fallback tick, when there is no previous horizon to track.
+    if (has_prev_traj_ && mp_.w_prev_track > 0.0 &&
+        static_cast<int>(prev_accels_.size()) == N &&
+        static_cast<int>(prev_steers_.size()) == N)
+    {
+        const double w_pt = mp_.w_prev_track;
+        for (int i = 0; i < N; ++i)
+        {
+            const int shifted = std::min(i + 1, N - 1);
+            Ptr.emplace_back(ai(i), ai(i), w_pt);
+            Ptr.emplace_back(si(i), si(i), w_pt);
+            q[ai(i)] += -w_pt * prev_accels_[shifted];
+            q[si(i)] += -w_pt * prev_steers_[shifted];
+        }
+    }
+
     Eigen::SparseMatrix<double> P(n_vars, n_vars);
     P.setFromTriplets(Ptr.begin(), Ptr.end());
     P.makeCompressed(); // OSQP requires compressed sparse column format
@@ -276,7 +299,8 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         !solver.data()->setLowerBound(l) ||              // lower bounds
         !solver.data()->setUpperBound(u) ||              // higher bounds
         !solver.initSolver())
-    { // fall back to proportional control
+    { // fall back to proportional control - no horizon to hand back
+        has_prev_traj_ = false;
         return solve_proportional(current_state, reference_path, previous_accel, previous_steer);
     }
 
@@ -290,13 +314,18 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     if (exit_flag != OsqpEigen::ErrorExitFlag::NoError ||
         (status != OsqpEigen::Status::Solved &&
          status != OsqpEigen::Status::SolvedInaccurate))
+    {
+        has_prev_traj_ = false; // no horizon to hand back
         return solve_proportional(current_state, reference_path, previous_accel, previous_steer);
+    }
 
     Eigen::VectorXd z = solver.getSolution();
 
     // Extract first control input (a_0, delta_0) and predicted states
     result.accel = std::clamp(z[(N + 1) * n_state + 0], vp_.max_decel, vp_.max_accel);
     result.steer = std::clamp(z[(N + 1) * n_state + 1], -vp_.max_steer, vp_.max_steer);
+    result.e_lat = e_lat0;
+    result.e_head = e_head0;
     result.success = true;
 
     // Predicted preview: roll the NONLINEAR model out under the QP's control
@@ -309,7 +338,14 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
                           std::clamp(z[ui + 1], -vp_.max_steer, vp_.max_steer)};
         s = integrate_kinematic(s, uc, vp_, dt);
         result.predicted_states.push_back(s);
+        result.accels.push_back(uc.a);
+        result.steers.push_back(uc.delta);
     }
+
+    // hand this horizon to the NEXT call's w_prev_track term
+    prev_accels_ = result.accels;
+    prev_steers_ = result.steers;
+    has_prev_traj_ = true;
 
     return result;
 }
@@ -404,6 +440,8 @@ MpcResult MpcSolver::solve_proportional(const VehicleState &current_state,
 
     result.accel = best_accel;
     result.steer = best_steer;
+    result.e_lat = e_lat;
+    result.e_head = e_head;
     result.success = true;
 
     // Constant-control rollout for the /mpc_predicted_path preview.

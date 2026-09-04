@@ -137,13 +137,14 @@ Visualization Manager:
         X: 0
         Y: 0
         Z: 0
-    # The three Odometry displays keep a long arrow history so the tracks can be
+    # The four Odometry displays keep a long arrow history so the tracks can be
     # compared over a full drive: Keep 2000 arrows at a 0.15 m Position Tolerance
     # ~= 300 m of trail. Arrows are small so the dense trail still reads as a
     # heading ribbon. Needs Fixed Frame = odom (a body-fixed frame collapses
-    # every trail onto the car). /odom_ekf and /odom (wheel) are already in the
-    # odom frame; /odom_truth_spawn is /odom_truth shifted by the spawn pose
-    # (odom_compare node) so all three share an origin.
+    # every trail onto the car). /odom_ekf, /odom (noisy wheel) and
+    # /odom_wheel_raw (pristine wheel, pre-odom_noise) are already in the odom
+    # frame; /odom_truth_spawn is /odom_truth shifted by the spawn pose
+    # (odom_compare node) so all four share an origin.
     - Class: rviz_default_plugins/Odometry
       Name: odom_ekf
       Enabled: true
@@ -153,16 +154,19 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Shape: Arrow
-      Color: 0; 0; 255
-      Alpha: 1
-      Shaft Length: 0.3
-      Shaft Radius: 0.03
-      Head Length: 0.12
-      Head Radius: 0.05
       Position Tolerance: 0.15
       Angle Tolerance: 0.1
       Keep: 2000
+      Shape:
+        Value: Arrow
+        Color: 0; 0; 255
+        Alpha: 1
+        Shaft Length: 0.6
+        Shaft Radius: 0.06
+        Head Length: 0.22
+        Head Radius: 0.1
+        Axes Length: 1
+        Axes Radius: 0.1
       Covariance:
         Value: false
     - Class: rviz_default_plugins/Odometry
@@ -174,20 +178,23 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Shape: Arrow
-      Color: 0; 255; 0
-      Alpha: 1
-      Shaft Length: 0.3
-      Shaft Radius: 0.03
-      Head Length: 0.12
-      Head Radius: 0.05
       Position Tolerance: 0.15
       Angle Tolerance: 0.1
       Keep: 2000
+      Shape:
+        Value: Arrow
+        Color: 0; 255; 0
+        Alpha: 1
+        Shaft Length: 0.6
+        Shaft Radius: 0.06
+        Head Length: 0.22
+        Head Radius: 0.1
+        Axes Length: 1
+        Axes Radius: 0.1
       Covariance:
         Value: false
     - Class: rviz_default_plugins/Odometry
-      Name: odom_wheel
+      Name: odom_wheel_noisy
       Enabled: true
       Topic:
         Value: /odom
@@ -195,16 +202,43 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-      Shape: Arrow
-      Color: 255; 0; 0
-      Alpha: 1
-      Shaft Length: 0.3
-      Shaft Radius: 0.03
-      Head Length: 0.12
-      Head Radius: 0.05
       Position Tolerance: 0.15
       Angle Tolerance: 0.1
       Keep: 2000
+      Shape:
+        Value: Arrow
+        Color: 255; 0; 0
+        Alpha: 1
+        Shaft Length: 0.6
+        Shaft Radius: 0.06
+        Head Length: 0.22
+        Head Radius: 0.1
+        Axes Length: 1
+        Axes Radius: 0.1
+      Covariance:
+        Value: false
+    - Class: rviz_default_plugins/Odometry
+      Name: odom_wheel_raw
+      Enabled: true
+      Topic:
+        Value: /odom_wheel_raw
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Position Tolerance: 0.15
+      Angle Tolerance: 0.1
+      Keep: 2000
+      Shape:
+        Value: Arrow
+        Color: 255; 170; 0
+        Alpha: 1
+        Shaft Length: 0.6
+        Shaft Radius: 0.06
+        Head Length: 0.22
+        Head Radius: 0.1
+        Axes Length: 1
+        Axes Radius: 0.1
       Covariance:
         Value: false
   Global Options:

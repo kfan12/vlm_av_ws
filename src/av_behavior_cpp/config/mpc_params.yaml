@@ -8,28 +8,61 @@
 /**:
   ros__parameters:
     control_rate_hz: 30.0      # control loop frequency [Hz]
-    horizon_steps: 25          # MPC prediction horizon length [steps]
+    horizon_steps: 50          # MPC prediction horizon length [steps] - 25->50
+                                # (2026-09-04): at dt=0.12 this is a 3.0s->6.0s
+                                # horizon, ~4.5-9m->9-18m of road at 1.5-3 m/s
+                                # cruise. The observed vision-only wobble spans
+                                # ~10-25m (see turn-settling logs), well beyond
+                                # what a 3s/short horizon can "see" coming -
+                                # longer horizon lets the solver average over
+                                # more noisy waypoints and plan ahead of a
+                                # curve instead of reacting late. QP var count
+                                # scales as 5*N+3 (128->253), still small for
+                                # OSQP; watch solve time doesn't blow the 30 Hz
+                                # (33 ms) control_rate_hz budget - back off if
+                                # it does.
     dt: 0.12                   # MPC step time [s]
     wheelbase_m: 2.7           # front-to-rear axle distance [m]
     max_speed_mps: 3.0         # speed cap fed to the solver [m/s]
     max_accel_mps2: 1.2        # max forward acceleration [m/s^2]
     max_decel_mps2: -1.2       # max braking, negative [m/s^2]
-    max_steer_rad: 0.75        # steering angle limit [rad]
+    max_steer_rad: 0.6      # steering angle limit [rad] - MUST stay under the
+                                # Gazebo AckermannSteering plugin's <steering_limit>
+                                # (sedan.urdf.xacro), raised 0.50 -> 0.65 rad on
+                                # 2026-09-04 for urban_tight's tighter bends
+                                # (~2.7/tan(0.65) = 3.55 m turn radius). Keep this
+                                # value a safety margin (0.05 rad) below whatever
+                                # steering_limit is currently set to - above it the
+                                # QP plans against authority the plant physically
+                                # doesn't have and silently gets a fraction of the
+                                # commanded turn back (see turn-settling diagnosis,
+                                # 2026-09-04: measured ~13m achieved radius against
+                                # a commanded ~1.7-2m radius when this margin was
+                                # violated at 0.75-0.9 rad vs a 0.50 rad plant).
 
     weight_lateral_error: 6.0  # cost weight on cross-track error e_lat
     weight_heading_error: 3.0  # cost weight on heading error e_head
     weight_speed_error: 1.0    # cost weight on speed error e_speed
     weight_accel: 0.2          # cost weight on acceleration effort a
-    weight_steer: 6.0          # cost weight on steering effort delta
+    weight_steer: 3.0          # cost weight on steering effort delta
     weight_accel_rate: 0.4     # cost weight on accel change, smoothness
     weight_steer_rate: 8.0     # cost weight on steer change, damps wobble
+    weight_prev_track: 0.0     # cross-solve consistency vs the previous horizon's
+                                # plan for the same future points (shifted by one
+                                # step); damps tick-to-tick re-plan disagreement
+                                # that weight_steer_rate alone can't reach (it only
+                                # anchors u_0 to the last APPLIED command + smooths
+                                # within one horizon). 0 = off; sweep upward (e.g.
+                                # 0.5, 1, 2, 5...) on the same stretch and compare
+                                # /mpc/cmd_steer if the bang-bang persists with a
+                                # clean pose (/odom_ekf remapped to /odom_truth_spawn).
 
     heading_lookahead_m: 5.0        # heading-reference lookahead on straights [m]
     heading_lookahead_turn_m: 5.0   # heading-reference lookahead in turns [m]
-    heading_lookahead_time_s: 3.2   # lookahead as time headway, dist = v * this [s]
+    heading_lookahead_time_s: 5.0   # lookahead as time headway, dist = v * this [s]
     heading_lookahead_min_m: 5.0    # lower clamp on the computed lookahead [m]
     heading_lookahead_max_m: 14.0   # upper clamp on the computed lookahead [m]
-    steer_slew_rps: 2.0             # max steering-command slew rate [rad/s]
+    steer_slew_rps: 4.0             # max steering-command slew rate [rad/s]
 
     path_timeout_sec: 2.0                  # path considered stale after this [s]
     hold_without_maneuver: true            # hold speed if no /maneuver/target_speed
