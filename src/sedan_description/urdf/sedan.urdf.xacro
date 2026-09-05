@@ -31,14 +31,20 @@
     <xacro:property name="wheel_mass" value="15.0" />
 
     <!-- camera mount (day-03 memo: 1.4 m height buys ~25-35 m lane visibility).
-       cam_x 1.9->1.2 (2026-09-05): 1.9m put the mount near the front bumper;
-       1.2m is closer to a realistic windshield-area dashcam position for
-       this wheelbase, and directly shrinks the near-field blind zone (the
-       closest visible ground row, ~2.2m from the camera at cam_z=1.4/
-       pitch=0.06/424-wide-image geometry - see expected_ground_distance in
-       lane_node.cpp) by the same 0.7m, since it's a pure translation with
-       no effect on the pitch-driven near/far FOV tradeoff. -->
-    <xacro:property name="cam_x" value="1.2" />
+       cam_x 1.9->1.2->2.2 (2026-09-05): 1.2m shrank the near-field blind
+       zone (good) but put the camera far enough BEHIND the chassis's own
+       front edge (chassis spans +/-2.25m around base_link) that the car's
+       own hood intruded into the bottom of the frame once the vertical FOV
+       was also widened (height 240->300) - confirmed visually in
+       /lane/debug_image. At the ORIGINAL 1.9m the hood was never visible
+       (even before the height change), so 2.2m - close to the chassis's
+       own front edge - is chosen for real margin against hood self-
+       occlusion at the wider vertical FOV, at the cost of reopening part of
+       the near-field blind-zone gain (net still forward of the original
+       1.9m). If the hood still shows up at this value, cam_z (height) is
+       the other lever - it looks over the hood at a steeper angle instead
+       of moving past it horizontally. -->
+    <xacro:property name="cam_x" value="2.2" />
     <xacro:property name="cam_z" value="1.4" />
     <xacro:property name="cam_pitch" value="0.06" />
 
@@ -228,15 +234,20 @@
        Values are a first guess, not derived - tune empirically against the
        odom_truth_spawn vs /odom vs /odom_ekf divergence in a tight turn
        (generate_course_world.py's turn radius flag).
-       Default slip is 0.0 (disabled) as of the 2026-09-04 turn-settling
+       Default slip was 0.0 (disabled) from the 2026-09-04 turn-settling
        diagnosis: with slip at 0.02 the MPC's no-slip bicycle model
        (mpc_solver's integrate_kinematic) was seeing ~1.5x less cornering
        authority than commanded, on top of a since-fixed max_steer_rad/
-       steering_limit mismatch. Re-enable (pass slip="0.02" at the call
-       sites below) once ready to resume the /odom_ekf-beats-/odom
-       experiment, ideally with the truth-vs-EKF yaw rate check run first
-       to confirm how much of that deficit is real slip vs. estimator lag. -->
-    <xacro:macro name="wheel_friction" params="link slip:=0.0">
+       steering_limit mismatch.
+       Re-enabled at a small 0.01 (2026-09-05, half the old 0.02) now that
+       the steering_limit mismatch, steer-rate hard constraint, and
+       curvature-relative steering margin are all in place - a smaller
+       first step to resume the /odom_ekf-beats-/odom experiment without
+       repeating the same cornering-authority deficit. Raise toward 0.02
+       once this is confirmed not to reopen it; ideally with the
+       truth-vs-EKF yaw rate check run first to isolate real slip from
+       estimator lag. -->
+    <xacro:macro name="wheel_friction" params="link slip:=0.01">
         <gazebo reference="${link}">
             <collision>
                 <surface>
@@ -420,26 +431,40 @@
             <always_on>true</always_on>
             <update_rate>10</update_rate>
             <camera>
-                <horizontal_fov>1.6</horizontal_fov>
+                <!-- horizontal_fov 1.6->1.9 (2026-09-05): pinhole_from_config
+                     (ground_cal.hpp) derives fx=fy=(w/2)/tan(hfov/2), and
+                     expected_ground_distance's near-ground-row term
+                     ((v-cy)/fy) is the dominant factor in how close the
+                     visible ground gets (far more leverage than cam_pitch -
+                     a 0.06->0.30 rad pitch sweep only moved the near limit
+                     ~8%, this hfov change alone moves it ~30%). Raising hfov
+                     lowers fx=fy at the same width, which widens the
+                     VERTICAL fov too (same mechanism as the width/height
+                     notes below) and pulls the near-field ground limit
+                     forward. Left cam_pitch untouched deliberately: tilting
+                     down further is the OTHER way to gain near coverage but
+                     it eats into the cam_x=2.2 hood-clearance margin;
+                     widening hfov does not. 1.9 rad = ~109 deg total, wide
+                     but plausible for a low-mounted ADAS-style lane camera. -->
+                <horizontal_fov>1.9</horizontal_fov>
                 <image>
                     <!-- 424x240 (was 640x360): the WSL software-GL renderer
                          can't sustain 10 Hz RGBD at 640x360 (stalled to ~3-4 Hz
                          with 1.6 s gaps); 320x180 was too coarse and starved
                          the far paint blobs.
-                         height 240->300 (2026-09-05): width/horizontal_fov
-                         unchanged, so horizontal detail and far-field lateral
-                         resolution are untouched, but pinhole_from_config
-                         (ground_cal.hpp) sets fy=fx from width/hfov alone, so
-                         a taller image is a wider VERTICAL fov at the same
-                         fx - the near AND far ground-visibility limits both
-                         extend (see expected_ground_distance), instead of
-                         trading one for the other via cam_pitch alone. 424x300
-                         is ~25% more pixels than 424x240 (vs 640x360's 2.3x) -
-                         cheaper on the WSL software renderer than the earlier
-                         full-width bump that broke framerate. line_area_min_px
-                         (lane_node.cpp) scales with total pixel area, so it
-                         needs revisiting if this is kept (currently sized for
-                         424x240). -->
+                         width/height churned 424x240 -> 500x400 -> 400x400
+                         (2026-09-05) chasing near-field ground coverage by
+                         widening the vertical FOV (pinhole_from_config sets
+                         fy=fx from width/hfov, so a taller image at the same
+                         fx is a wider vertical FOV - see expected_ground_
+                         distance); settled back to 424x300 (101376 px,
+                         ~1.0x the original baseline, well clear of 640x360's
+                         2.26x that broke framerate) once horizontal_fov
+                         (1.6->1.9, see above) took over as the near-field
+                         lever instead - it gets the same fy reduction
+                         without spending extra pixels on it.
+                         line_area_min_px (lane_node.cpp) scales with total
+                         pixel area - updated for 424x300 alongside this. -->
                     <width>424</width>
                     <height>300</height>
                     <format>R8G8B8</format>

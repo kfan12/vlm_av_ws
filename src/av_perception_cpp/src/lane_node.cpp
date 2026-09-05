@@ -216,20 +216,35 @@ namespace
                         continue;
                     const auto &a = chains[i];
                     const auto &b = chains[j];
-                    if (a.size() < 2)
-                        continue;
                     bool yellow = a.back().yellow || b.front().yellow;
                     double gap_max = yellow ? gap_yellow_m : gap_white_m;
                     double dx = b.front().x - a.back().x, dy = b.front().y - a.back().y;
                     double gap = std::hypot(dx, dy);
                     if (gap > gap_max || gap < 1e-6)
                         continue;
-                    double h_chain = std::atan2(
-                        a.back().y - a[a.size() - 2].y,
-                        a.back().x - a[a.size() - 2].x);
-                    double h_join = std::atan2(dy, dx);
-                    if (std::abs(av::geom::wrap_angle(h_join - h_chain)) > angle_max_rad)
-                        continue;
+                    // A chain with < 2 points has no heading to check - this is
+                    // exactly the case for a thin near-field fragment (e.g. a
+                    // single detected point in the sliver just past the hood,
+                    // separated from the main dash chain by more than
+                    // chain_link_gap_m). Skipping it outright here used to
+                    // strand these fragments: they can never be `a` (no
+                    // heading), and can never be picked up as `b` either since
+                    // every other chain grows AWAY from the camera, not back
+                    // toward it - so a real, unbroken dash line could get its
+                    // nearest fragment permanently orphaned and then dropped by
+                    // chain_min_pts, despite chain_merge_gap_yellow_m being
+                    // generously larger than the dash period. Fall back to a
+                    // gap-only test (no angle check - there's no direction to
+                    // check against) instead of refusing the merge.
+                    if (a.size() >= 2)
+                    {
+                        double h_chain = std::atan2(
+                            a.back().y - a[a.size() - 2].y,
+                            a.back().x - a[a.size() - 2].x);
+                        double h_join = std::atan2(dy, dx);
+                        if (std::abs(av::geom::wrap_angle(h_join - h_chain)) > angle_max_rad)
+                            continue;
+                    }
 
                     chains[i].insert(chains[i].end(), b.begin(), b.end()); // append b onto a
                     chains[j].clear();
@@ -616,12 +631,12 @@ private:
 
 LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructor
 {
-    params_.cam_x = declare_parameter("cam_x", 1.2);          // URDF mount x (Day 2; 1.9->1.2 2026-09-05, must match sedan.urdf.xacro)
+    params_.cam_x = declare_parameter("cam_x", 2.2);          // URDF mount x (Day 2; 1.9->1.2->2.2 2026-09-05 to clear hood self-occlusion, must match sedan.urdf.xacro)
     params_.cam_z = declare_parameter("cam_z", 1.4);          // URDF mount z, also ground height post-fix
     params_.cam_pitch = declare_parameter("cam_pitch", 0.06); // URDF mount pitch, now the true value (Day 2 fix)
-    params_.hfov = declare_parameter("camera_hfov", 1.6);     // must match the URDF's rgbd_camera hfov
-    params_.img_w = declare_parameter("camera_width", 424);   // must match the URDF's image width (sedan.urdf.xacro)
-    params_.img_h = declare_parameter("camera_height", 300);  // must match the URDF's image height (240->300 2026-09-05, wider vertical FOV)
+    params_.hfov = declare_parameter("camera_hfov", 1.9);     // must match the URDF's rgbd_camera hfov (1.6->1.9 2026-09-05: lowers fx=fy, widens vertical FOV, pulls the near-field ground limit forward - see sedan.urdf.xacro)
+    params_.img_w = declare_parameter("camera_width", 424);   // must match the URDF's image width (424->500->400->424 2026-09-05: back to baseline, near coverage now comes from hfov instead of extra pixels)
+    params_.img_h = declare_parameter("camera_height", 300);  // must match the URDF's image height (240->300->400->300 2026-09-05: back to baseline, ~1.0x the original 424x240 pixel-area baseline)
 
     params_.white_s_max = declare_parameter("white_s_max", 60);           // white: S must stay below this
     params_.white_v_min = declare_parameter("white_v_min", 150);          // white: V must stay above this
@@ -629,7 +644,7 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.yellow_h_max = declare_parameter("yellow_h_max", 38);         // yellow hue band, upper bound
     params_.yellow_s_min = declare_parameter("yellow_s_min", 80);         // yellow: S floor
     params_.yellow_v_min = declare_parameter("yellow_v_min", 120);        // yellow: V floor
-    params_.line_area_min_px = declare_parameter("line_area_min_px", 28); // drop blobs smaller than this (scaled from 50 @ 640x360; 22->28 2026-09-05 for 424x300, same area-scaling ratio: 50*(424*300)/(640*360))
+    params_.line_area_min_px = declare_parameter("line_area_min_px", 28); // drop blobs smaller than this (scaled from 50 @ 640x360; 22->28->33->43->35->28 2026-09-05 for 424x300, same area-scaling ratio: 50*(424*300)/(640*360))
 
     params_.z_gate = declare_parameter("z_gate", 0.15);                      // |z| tolerance around the ground plane
     params_.x_min = declare_parameter("depth_x_min", 0.5);                   // reject points closer than this (self-occlusion)
