@@ -138,7 +138,7 @@
            commands, so the plugin should always bind first. Raising one
            without the other reproduces the max_steer_rad-vs-steering_limit
            mismatch bug (2026-09-04 turn-settling diagnosis) one level down. -->
-            <limit lower="-0.70" upper="0.70" effort="400.0" velocity="4.0" />
+            <limit lower="-0.80" upper="0.80" effort="400.0" velocity="4.0" />
             <dynamics damping="0.0" />
         </joint>
 

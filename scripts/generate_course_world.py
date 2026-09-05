@@ -8,8 +8,10 @@ right shoulder before each feature; the AV reads them and adjusts speed
 (v1 principle: direction lives in the path, signs only set speed).
 
 Visual language matches generate_urban_world.py so lane_node's HSV gates work
-unchanged: dark ground, 0.85-white solid edge lines at +-LW, 3 m / 4.5 m yellow
-center dash on the road centerline, right-hand traffic (lane centers +-LW/2).
+unchanged: dark ground, 0.85-white solid edge lines at +-LW, 4.5 m / 1.0 m
+yellow center dash (widened + gap tightened 2026-09-05 for far-field lane
+detection - see line/dash width below) on the road centerline, right-hand
+traffic (lane centers +-LW/2).
 All road paint + asphalt ribbons are VISUALS OF ONE STATIC MODEL ("road") to
 keep the model count low (grid world: 154 models -> 6.9 FPS, KB issue #5).
 
@@ -271,14 +273,24 @@ def main():
     # asphalt slab (slightly lighter than ground, below the paint)
     ribbon(road_vis, "asfalt", pts, 0.0, 2 * LW + 0.6, 0.003, 0.006,
            "0.21 0.21 0.22 1", max_run_m=10.0, bend_tol=0.06)
-    # solid white edge lines at +-LW
-    ribbon(road_vis, "edge_l", pts, +LW, 0.15, 0.010, 0.010, "0.85 0.85 0.85 1")
-    ribbon(road_vis, "edge_r", pts, -LW, 0.15, 0.010, 0.010, "0.85 0.85 0.85 1")
-    # dashed yellow center line: 4.5 m paint / 3.0 m gap (paint-dominant so it
-    # reads clearly as a centre line from the FPV; max_run_m must exceed the
-    # paint length or each dash splits into two boxes on the straights)
-    ribbon(road_vis, "dash_c", pts, 0.0, 0.15, 0.010, 0.010, "0.85 0.75 0.1 1",
-           dash=(4.5, 3.0), max_run_m=5.0)
+    # solid white edge lines at +-LW. Width 0.15->0.25 m (2026-09-05): real
+    # lane paint is ~0.10-0.15 m, but wider paint projects to more pixels at
+    # range, which is what actually limits far-field detection reliability
+    # (line_area_min_px in lane_node.cpp, plus discrete pixel-quantization
+    # loss on thin far blobs at the sim's 424x240 camera resolution - see the
+    # turn-settling / far-detection-range discussion). Traded a bit of visual
+    # realism for detection range, deliberately.
+    ribbon(road_vis, "edge_l", pts, +LW, 0.25, 0.010, 0.010, "0.85 0.85 0.85 1")
+    ribbon(road_vis, "edge_r", pts, -LW, 0.25, 0.010, 0.010, "0.85 0.85 0.85 1")
+    # dashed yellow center line: 4.5 m paint / 1.0 m gap (gap 3.0->1.0 m,
+    # 2026-09-05: a near-continuous line is much easier for the chain-
+    # building/gap-bridging logic in lane_node.cpp to carry through reliably,
+    # especially at range where a real 3 m gap could span several already-
+    # sparse far detections). Width 0.15->0.25 m, same reasoning as the edge
+    # lines above. max_run_m must exceed the paint length or each dash splits
+    # into two boxes on the straights.
+    ribbon(road_vis, "dash_c", pts, 0.0, 0.25, 0.010, 0.010, "0.85 0.75 0.1 1",
+           dash=(4.5, 1.0), max_run_m=5.0)
 
     # stop line across the OUTBOUND (right-hand) lane near the road end
     s_stop = total_len - STOP_LINE_FROM_END_M

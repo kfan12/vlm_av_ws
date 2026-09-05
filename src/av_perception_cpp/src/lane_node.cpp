@@ -3,6 +3,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2/utils.h>
@@ -590,6 +591,13 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr rgb_sub_, depth_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr info_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    // debug-only: latest steering command, purely for the /lane/debug_image
+    // overlay so the commanded steer can be eyeballed against the detected
+    // lane in the same frame. lane_node has no other reason to know about
+    // mpc_tracker_v2 - this is a visualization convenience, not a control
+    // dependency (nothing here feeds back into perception).
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr cmd_steer_sub_;
+    double last_cmd_steer_ = 0.0;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;                         // /lane/path_odom
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr markings_pub_;                   // /lane/markings
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr stop_line_pub_;                  // /lane/stop_line
@@ -672,6 +680,10 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
         "/camera/front/camera_info", qos, std::bind(&LaneNode::on_camera_info, this, std::placeholders::_1));
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "/odom_ekf", 10, std::bind(&LaneNode::on_odom, this, std::placeholders::_1));
+    cmd_steer_sub_ = create_subscription<std_msgs::msg::Float64>(
+        "/mpc/cmd_steer", 10,
+        [this](std_msgs::msg::Float64::ConstSharedPtr m)
+        { last_cmd_steer_ = m->data; });
     path_pub_ = create_publisher<nav_msgs::msg::Path>("/lane/path_odom", 10);
     markings_pub_ = create_publisher<std_msgs::msg::String>("/lane/markings", 10);
     stop_line_pub_ = create_publisher<std_msgs::msg::String>("/lane/stop_line", 10);
@@ -1269,6 +1281,13 @@ void LaneNode::publish_debug_image(const ChainResult &chain, double wkappa)
                   chain.centerline.size(), wkappa, chain.valid ? "valid" : "INVALID");
     cv::putText(img, buf, {8, 22}, cv::FONT_HERSHEY_SIMPLEX, 0.55,
                 chain.valid ? cv::Scalar(255, 255, 255) : col_stop, 1, cv::LINE_AA);
+
+    // latest /mpc/cmd_steer, purely for eyeballing the commanded steer
+    // against the detected lane in the same frame (see cmd_steer_sub_).
+    char steer_buf[48];
+    std::snprintf(steer_buf, sizeof(steer_buf), "steer %+.3f rad", last_cmd_steer_);
+    cv::putText(img, steer_buf, {8, 44}, cv::FONT_HERSHEY_SIMPLEX, 0.55,
+                cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
 
     sensor_msgs::msg::Image out;
     out.header.stamp = this->now();

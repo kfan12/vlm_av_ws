@@ -7,8 +7,8 @@
 #   ros2 run av_behavior_cpp mpc_tracker_v2 --ros-args --params-file <this file>
 /**:
   ros__parameters:
-    control_rate_hz: 30.0      # control loop frequency [Hz]
-    horizon_steps: 50          # MPC prediction horizon length [steps] - 25->50
+    control_rate_hz: 50.0      # control loop frequency [Hz]
+    horizon_steps: 30          # MPC prediction horizon length [steps] - 25->50
                                 # (2026-09-04): at dt=0.12 this is a 3.0s->6.0s
                                 # horizon, ~4.5-9m->9-18m of road at 1.5-3 m/s
                                 # cruise. The observed vision-only wobble spans
@@ -26,7 +26,7 @@
     max_speed_mps: 3.0         # speed cap fed to the solver [m/s]
     max_accel_mps2: 1.2        # max forward acceleration [m/s^2]
     max_decel_mps2: -1.2       # max braking, negative [m/s^2]
-    max_steer_rad: 0.6      # steering angle limit [rad] - MUST stay under the
+    max_steer_rad: 0.7      # steering angle limit [rad] - MUST stay under the
                                 # Gazebo AckermannSteering plugin's <steering_limit>
                                 # (sedan.urdf.xacro), raised 0.50 -> 0.65 rad on
                                 # 2026-09-04 for urban_tight's tighter bends
@@ -45,8 +45,22 @@
     weight_speed_error: 1.0    # cost weight on speed error e_speed
     weight_accel: 0.2          # cost weight on acceleration effort a
     weight_steer: 3.0          # cost weight on steering effort delta
-    weight_accel_rate: 0.4     # cost weight on accel change, smoothness
-    weight_steer_rate: 8.0     # cost weight on steer change, damps wobble
+    weight_accel_rate: 0.4     # cost weight on accel change, WITHIN-horizon (u_{i+1}-u_i)
+    weight_steer_rate: 6.0     # cost weight on steer change, WITHIN-horizon (u_{i+1}-u_i)
+    weight_accel_rate_u0: 0.0  # boundary-only weight on (a_0 - previous applied a);
+                                # <=0 falls back to weight_accel_rate. 0 = untouched,
+                                # accel wasn't the thing chattering.
+    weight_steer_rate_u0: 20.0 # boundary-only weight on (delta_0 - previous applied
+                                # steer) (2026-09-05) - split from weight_steer_rate,
+                                # which used to do double duty as BOTH this boundary
+                                # term AND the within-horizon smoothness above (one
+                                # number for two different things). u_0 is the REAL
+                                # tick-to-tick output step; u_1..u_{N-1} are just this
+                                # solve's internal plan, mostly replanned next tick
+                                # anyway. Damping the real output step harder (2x
+                                # weight_steer_rate) targets actuator chatter without
+                                # also flattening how much the horizon can shape an
+                                # internal correction. Not yet validated in sim.
     weight_prev_track: 0.0     # cross-solve consistency vs the previous horizon's
                                 # plan for the same future points (shifted by one
                                 # step); damps tick-to-tick re-plan disagreement
@@ -56,6 +70,59 @@
                                 # 0.5, 1, 2, 5...) on the same stretch and compare
                                 # /mpc/cmd_steer if the bang-bang persists with a
                                 # clean pose (/odom_ekf remapped to /odom_truth_spawn).
+
+    steer_curvature_margin_base_rad: 0.1  # TEMP 0.3 (2026-09-05, paired with
+                                # steer_curvature_margin_slope=0 above): with
+                                # the kappa term off, base=0.1 alone couldn't
+                                # even get through the first turn (full lock,
+                                # e_lat->3.6m, lost the path by t=37s) - there
+                                # was no post-turn data to look at. 0.3 is the
+                                # old flat-margin value that got through turns
+                                # acceptably before kappa/elat scaling existed
+                                # at all. Restore to 0.1 once kappa_slope is
+                                # restored too.
+                                # hard steer bound = the path's own
+                                # curvature feed-forward angle atan(L*kappa)
+                                # +/- (base + kappa_slope*|kappa| +
+                                # elat_slope*|e_lat0|) [rad] (2026-09-04,
+                                # kappa_slope + elat_slope added 2026-09-05),
+                                # replacing the flat +/-max_steer box. The QP
+                                # can no longer command near-lock steer just
+                                # because tracking error is large while ON a
+                                # straight/gentle bend, where that's least
+                                # justified by the road itself.
+                                # base=0.1 -> ~26m achievable correction radius
+                                # on a straight with e_lat0~0 - deliberately
+                                # TIGHT; grows from there via the two slopes
+                                # below.
+    steer_curvature_margin_slope: 3.0    # TEMP 0 (2026-09-05 isolation test:
+                                # testing whether the fast post-turn chatter
+                                # is the per-STEP kappa term collapsing mid-
+                                # horizon right at a turn exit, vs the elat
+                                # term's positive-feedback risk - see turn-
+                                # settling notes). Restore to 4.0 after.
+                                # extra margin per unit |kappa|, so
+                                # real curves get more correction authority
+                                # than straights do: base+slope*|kappa| ~= 0.3
+                                # rad at a typical ~15m-radius bend (kappa
+                                # ~0.065), ~0.6+ (-> effectively just
+                                # +/-max_steer) on urban_tight's ~3.5-7m bends.
+                                # slope=0 recovers a flat margin.
+    steer_curvature_margin_elat_slope: 0.3 # extra margin per METRE of the
+                                # CURRENT (measured, foot-point) lateral error
+                                # e_lat0 - not the per-step PREDICTED e_lat_i,
+                                # which is a decision variable and would make
+                                # this bilinear/non-convex (unsolvable by
+                                # OSQP). Applies uniformly across the whole
+                                # horizon on a given tick, since e_lat0 is one
+                                # number per solve. At e_lat0=2m this alone
+                                # adds +0.3 rad, so a car genuinely far off
+                                # track gets real correction authority even on
+                                # a straight, while staying tightly capped
+                                # (base only) once it's back on track. 0 = off.
+                                # Not yet validated in sim - tune against
+                                # /mpc/cmd_steer and e_lat/e_head the same way
+                                # as everything else this session.
 
     heading_lookahead_m: 5.0        # heading-reference lookahead on straights [m]
     heading_lookahead_turn_m: 5.0   # heading-reference lookahead in turns [m]

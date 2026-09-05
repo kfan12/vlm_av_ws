@@ -134,8 +134,13 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // duplicates) so the diagonal accumulates the state/effort weights plus the
     // control-rate (Δu) contributions. OsqpEigen takes the upper triangle, so
     // off-diagonal Δu coupling is emitted once as the upper (i<j) entry.
-    const double w_da = mp_.w_accel_change; // Δaccel weight
-    const double w_ds = mp_.w_steer_change; // Δsteer weight
+    const double w_da = mp_.w_accel_change; // Δaccel weight (within-horizon)
+    const double w_ds = mp_.w_steer_change; // Δsteer weight (within-horizon)
+    // boundary-only weights for (u_0 - previous applied)^2; <=0 falls back
+    // to the within-horizon weight above (see w_accel_change_u0/
+    // w_steer_change_u0 in mpc_solver.hpp for why these are separate).
+    const double w_da0 = mp_.w_accel_change_u0 > 0.0 ? mp_.w_accel_change_u0 : w_da;
+    const double w_ds0 = mp_.w_steer_change_u0 > 0.0 ? mp_.w_steer_change_u0 : w_ds;
 
     std::vector<Eigen::Triplet<double>> Ptr;
     Ptr.reserve(n_vars + 4 * N); // diagonal + Δu off-
@@ -167,11 +172,14 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         Ptr.emplace_back(si(i), si(i), mp_.w_steer); // δ², diagonal
     }
 
-    // boundary term (u_0 - prev)^2: diagonal += w, gradient += -w*prev
-    Ptr.emplace_back(ai(0), ai(0), w_da); // a², diagonal
-    Ptr.emplace_back(si(0), si(0), w_ds); // δ², diagonal
-    q[ai(0)] += -w_da * previous_accel;   // linear term
-    q[si(0)] += -w_ds * previous_steer;   // linear term
+    // boundary term (u_0 - prev)^2: diagonal += w, gradient += -w*prev.
+    // Uses the u0-specific weight (falls back to the within-horizon weight
+    // if unset) - this is the REAL tick-to-tick output step, distinct from
+    // the within-horizon terms below.
+    Ptr.emplace_back(ai(0), ai(0), w_da0); // a², diagonal
+    Ptr.emplace_back(si(0), si(0), w_ds0); // δ², diagonal
+    q[ai(0)] += -w_da0 * previous_accel;   // linear term
+    q[si(0)] += -w_ds0 * previous_steer;   // linear term
 
     // within horizon (u_{i+1} - u{i})^2: diagonal += w on both, upper off-diag (i, i +1) -w;
     for (int i = 0; i < N - 1; ++i)
@@ -212,13 +220,16 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     P.makeCompressed(); // OSQP requires compressed sparse column format
 
     // constraints: l<= Az <= u
-    const int n_constraints = n_state * N + n_vars;       // dynamics (n_state*N) + control bounds (n_control*N) + state_bounds (n_state * (N+1))
+    // dynamics (n_state*N) + control bounds (n_control*N) + state_bounds
+    // (n_state*(N+1)) + steering-rate bounds (N: 1 boundary row for
+    // delta_0-vs-previous_steer, N-1 within-horizon delta_{i+1}-delta_i rows)
+    const int n_constraints = n_state * N + n_vars + N;
     Eigen::SparseMatrix<double> A(n_constraints, n_vars); // n_constraints*n_vars
     Eigen::VectorXd l(n_constraints);
     Eigen::VectorXd u(n_constraints);
 
     std::vector<Eigen::Triplet<double>> Tr;
-    Tr.reserve(n_state * N * 3 + n_vars); // rough estimate of nonzeros
+    Tr.reserve(n_state * N * 3 + n_vars + 2 * N); // rough estimate of nonzeros
 
     // system dynamics constraints: e_lat, e_head, v, 3 rows per step, N steps.
     // Coupling terms linearized around v_lin (current speed), NOT v_ref (target):
@@ -275,13 +286,55 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         u(base + i * n_state + 2) = vp_.max_speed;
     }
 
-    // control bounds: max_decel <= a <= max_accel, -max_steer <= delta <= max_steer, for all steps
+    // control bounds: max_decel <= a <= max_accel, for all steps.
+    // delta is bounded relative to path curvature, not a flat +/-max_steer
+    // box - see steer_curvature_margin_base/_slope/_elat_slope in
+    // mpc_solver.hpp. The margin grows with |kappa_i| (tightest on straights,
+    // loosest on genuinely tight curves) AND with the CURRENT measured
+    // |e_lat0| (uniformly across the whole horizon), so a car that's
+    // genuinely far off track gets more correction authority to recover
+    // quickly, while a car that's on track stays capped tight even through a
+    // straight/gentle stretch.
+    const double elat_margin = mp_.steer_curvature_margin_elat_slope * std::abs(e_lat0);
     for (int i = 0; i < N; ++i)
     {
         l(base + (N + 1) * n_state + i * n_control + 0) = vp_.max_decel;
         u(base + (N + 1) * n_state + i * n_control + 0) = vp_.max_accel;
-        l(base + (N + 1) * n_state + i * n_control + 1) = -vp_.max_steer;
-        u(base + (N + 1) * n_state + i * n_control + 1) = vp_.max_steer;
+
+        const double k_i = kappa[std::min(i, M - 1)];
+        const double delta_ff = std::atan(L * k_i);
+        const double margin_i = mp_.steer_curvature_margin_base +
+                                mp_.steer_curvature_margin_slope * std::abs(k_i) +
+                                elat_margin;
+        l(base + (N + 1) * n_state + i * n_control + 1) =
+            std::clamp(delta_ff - margin_i, -vp_.max_steer, vp_.max_steer);
+        u(base + (N + 1) * n_state + i * n_control + 1) =
+            std::clamp(delta_ff + margin_i, -vp_.max_steer, vp_.max_steer);
+    }
+
+    // steering-rate bounds: |delta change| <= steer_rate_limit * (elapsed time).
+    // Hard linear constraint, not a soft cost - the QP's own plan now can't
+    // ask for a swing faster than the plant (joint velocity + the node's
+    // output steer_slew_rps) can actually deliver, closing the plan-vs-plant
+    // rate gap the model previously had no notion of.
+    const int rate_base = base + n_vars; // after dynamics + all bound rows
+    const double dt0 = mp_.control_dt > 0.0 ? mp_.control_dt : dt; // real tick interval for u_0's transition
+    const double rate_bound0 = mp_.steer_rate_limit * dt0;
+    const double rate_bound = mp_.steer_rate_limit * dt; // within-horizon steps, spaced by dt
+
+    // delta_0 - previous_steer, bounded by the real one-tick achievable swing
+    Tr.emplace_back(rate_base, si(0), 1.0);
+    l(rate_base) = previous_steer - rate_bound0;
+    u(rate_base) = previous_steer + rate_bound0;
+
+    // delta_{i+1} - delta_i for i = 0..N-2, bounded by the horizon-step swing
+    for (int i = 0; i < N - 1; ++i)
+    {
+        const int row = rate_base + 1 + i;
+        Tr.emplace_back(row, si(i + 1), 1.0);
+        Tr.emplace_back(row, si(i), -1.0);
+        l(row) = -rate_bound;
+        u(row) = rate_bound;
     }
 
     A.setFromTriplets(Tr.begin(), Tr.end());

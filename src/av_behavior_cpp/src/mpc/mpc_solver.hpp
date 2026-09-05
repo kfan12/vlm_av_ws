@@ -16,8 +16,23 @@ struct MpcParams
     double w_speed{1.0};        // weight for speed error
     double w_accel{0.2};        // weight for acceleration
     double w_steer{0.5};        // weight for steering
-    double w_accel_change{0.4}; // weight for change in acceleration
-    double w_steer_change{2.0}; // weight for change in steering
+    double w_accel_change{0.4}; // weight for change in acceleration (within-horizon u_{i+1}-u_i)
+    double w_steer_change{2.0}; // weight for change in steering (within-horizon u_{i+1}-u_i)
+
+    // Boundary-only weights for (u_0 - previous APPLIED command)^2, separate
+    // from w_accel_change/w_steer_change above (which, until now, doubled as
+    // BOTH the u_0 boundary weight AND the within-horizon u_{i+1}-u_i
+    // smoothness weight - one number for two different things). u_0 is what
+    // actually reaches the plant next tick; u_1..u_{N-1} are just this
+    // solve's internal plan, largely thrown away and replanned next tick.
+    // Damping the REAL tick-to-tick output step more than the internal plan
+    // shape targets actuator chatter without also flattening how much the
+    // horizon is allowed to shape a correction internally. <= 0 falls back
+    // to w_accel_change/w_steer_change (today's undifferentiated behavior),
+    // so callers that don't set these (model_probe; mpc_probe except its own
+    // dedicated check) are unaffected.
+    double w_accel_change_u0{0.0};
+    double w_steer_change_u0{0.0};
 
     // Cross-solve consistency: penalizes this horizon's controls for deviating
     // from what the PREVIOUS solve planned for the same future points (shifted
@@ -36,6 +51,68 @@ struct MpcParams
     // lateral jitter (which the heading gain otherwise saturates into a steering
     // limit cycle) and previews the upcoming path. <= 0 restores the local tangent.
     double lookahead_m{0.6};
+
+    // Hard steering-RATE bound [rad/s], enforced as a linear inequality on
+    // consecutive delta's - NOT the same thing as w_steer_change, which only
+    // discourages large steer changes via a soft quadratic cost the optimizer
+    // can still override when tracking error makes it worth it. Before this,
+    // the model had NO notion of how fast the real actuator can move: delta_i
+    // was a free variable at every horizon step, achievable instantly as far
+    // as the QP knew, while the plant (sedan.urdf.xacro's steering joint +
+    // the node's own output steer_slew_rps limiter) is rate-limited for real.
+    // That let the QP plan corrections the plant would only partially deliver
+    // (2026-09-04 turn-settling diagnosis - the magnitude-side counterpart of
+    // this was the max_steer_rad-vs-steering_limit mismatch, fixed earlier
+    // that session). Default is effectively unconstrained (10 rad/s, far above
+    // any real steering actuator) so callers that don't set this (model_probe,
+    // mpc_probe) keep their old behavior; the node wires this to the same
+    // steer_slew_rps value that also rate-limits its output, so the QP and the
+    // output stage agree on one number instead of the QP being unaware of it.
+    double steer_rate_limit{10.0};
+
+    // Real elapsed time [s] between control ticks, i.e. 1/control_rate_hz -
+    // distinct from dt (the horizon's own, coarser discretization step) and
+    // used ONLY for the delta_0-vs-previous_steer boundary rate bound, since
+    // that transition happens over one real control tick, not one horizon
+    // step. <= 0 falls back to dt (the old, less accurate behavior).
+    double control_dt{0.0};
+
+    // Hard steering bound RELATIVE TO PATH CURVATURE [rad], replacing the flat
+    // +/-max_steer box: delta_i in [atan(L*kappa_i) - margin_i, atan(L*kappa_i)
+    // + margin_i], clamped to +/-max_steer, where
+    //   margin_i = steer_curvature_margin_base + steer_curvature_margin_slope * |kappa_i|
+    // kappa_i comes from the reference path geometry (precomputed before the
+    // QP is built), not a decision variable, so this stays a linear per-step
+    // bound - a bound tied to the PREDICTED e_lat_i instead would multiply
+    // two decision variables together (bilinear, non-convex, not solvable by
+    // OSQP).
+    // Effect: the QP can no longer command near-max_steer correction on a
+    // gentle bend or straight just because tracking error is large - it's
+    // capped to what the road geometry justifies plus this margin. The slope
+    // term (2026-09-05) makes that cap TIGHTEST exactly on straights/gentle
+    // bends (kappa~0, where a large correction is least justified - the
+    // 2026-09-04 turn-settling failure mode: full-lock steer, 0.9 rad, on a
+    // bend whose own curvature only called for ~0.18 rad) while loosening on
+    // genuinely tight curves, which legitimately need more authority beyond
+    // pure feed-forward. slope=0 recovers the old flat-margin behavior.
+    // Large base default (10.0 rad) is effectively unconstrained, matching
+    // steer_rate_limit's off-by-default convention, for callers that don't
+    // set this (model_probe; mpc_probe except its own dedicated check).
+    double steer_curvature_margin_base{10.0};
+    double steer_curvature_margin_slope{0.0};
+
+    // Extra margin per metre of CURRENT (measured, foot-point) lateral
+    // error [rad/m]: margin_i = base + slope*|kappa_i| + elat_slope*|e_lat0|.
+    // e_lat0 is a known scalar at solve time (like kappa_i) - the CURRENT
+    // foot-point error, not the per-step PREDICTED e_lat_i (a decision
+    // variable, which would make this bilinear/non-convex - see the note on
+    // steer_curvature_margin_base above). Because e_lat0 doesn't vary with
+    // horizon step i, this term shifts the WHOLE horizon's margin up
+    // uniformly on a bad tick, so the QP isn't stuck at the tight
+    // straight-road base while genuinely far off track - it can plan a
+    // faster recovery, then the margin tightens back up again as e_lat0
+    // shrinks on later ticks. 0 = off (the base/slope-on-kappa terms alone).
+    double steer_curvature_margin_elat_slope{0.0};
 };
 
 struct MpcResult
