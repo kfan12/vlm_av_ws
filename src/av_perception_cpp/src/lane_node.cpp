@@ -616,12 +616,12 @@ private:
 
 LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructor
 {
-    params_.cam_x = declare_parameter("cam_x", 1.9);          // URDF mount x (Day 2)
+    params_.cam_x = declare_parameter("cam_x", 1.2);          // URDF mount x (Day 2; 1.9->1.2 2026-09-05, must match sedan.urdf.xacro)
     params_.cam_z = declare_parameter("cam_z", 1.4);          // URDF mount z, also ground height post-fix
     params_.cam_pitch = declare_parameter("cam_pitch", 0.06); // URDF mount pitch, now the true value (Day 2 fix)
     params_.hfov = declare_parameter("camera_hfov", 1.6);     // must match the URDF's rgbd_camera hfov
     params_.img_w = declare_parameter("camera_width", 424);   // must match the URDF's image width (sedan.urdf.xacro)
-    params_.img_h = declare_parameter("camera_height", 240);  // must match the URDF's image height
+    params_.img_h = declare_parameter("camera_height", 300);  // must match the URDF's image height (240->300 2026-09-05, wider vertical FOV)
 
     params_.white_s_max = declare_parameter("white_s_max", 60);           // white: S must stay below this
     params_.white_v_min = declare_parameter("white_v_min", 150);          // white: V must stay above this
@@ -629,7 +629,7 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.yellow_h_max = declare_parameter("yellow_h_max", 38);         // yellow hue band, upper bound
     params_.yellow_s_min = declare_parameter("yellow_s_min", 80);         // yellow: S floor
     params_.yellow_v_min = declare_parameter("yellow_v_min", 120);        // yellow: V floor
-    params_.line_area_min_px = declare_parameter("line_area_min_px", 22); // drop blobs smaller than this (scaled from 50 @ 640x360 to 424x240)
+    params_.line_area_min_px = declare_parameter("line_area_min_px", 28); // drop blobs smaller than this (scaled from 50 @ 640x360; 22->28 2026-09-05 for 424x300, same area-scaling ratio: 50*(424*300)/(640*360))
 
     params_.z_gate = declare_parameter("z_gate", 0.15);                      // |z| tolerance around the ground plane
     params_.x_min = declare_parameter("depth_x_min", 0.5);                   // reject points closer than this (self-occlusion)

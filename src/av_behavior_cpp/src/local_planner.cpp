@@ -33,6 +33,7 @@ public:
         lane_stale_s_ = declare_parameter("lane_stale_s", 1.5);
         spline_tail_extend_m_ = declare_parameter("spline_tail_extend_m", 45.0);
         crossfade_m_ = declare_parameter("path_crossfade_m", 4.0);
+        near_fill_max_m_ = declare_parameter("near_fill_max_m", 8.0); // backfill the camera's near-field blind zone (~4.1m) up to this far; beyond it, treat as off-path rather than fabricate a long straight fill
         // road-curvature assist (course-style maps, see build_course_lane)
         curve_splice_enable_ = declare_parameter("curve_splice_enable", false);
         curve_kappa_min_ = declare_parameter("curve_kappa_min", 0.02);
@@ -92,7 +93,7 @@ private:
     int smooth_window_ = 9;
     double spacing_, splice_dist_, bridge_hold_s_, lane_stale_s_,
         spline_tail_extend_m_, crossfade_m_, a_lat_max_, a_comfort_, a_accel_,
-        v_cap_;
+        v_cap_, near_fill_max_m_;
     bool curve_splice_enable_ = true;
     double curve_kappa_min_, curve_entry_lead_m_, curve_exit_extend_m_,
         curve_end_hysteresis_m_, curve_offcourse_max_m_;
@@ -222,6 +223,85 @@ private:
         return out;
     }
 
+    // Backfill the camera's near-field blind zone: the closest visible
+    // ground point is ~4.1m ahead of base_link (cam_x=1.9m mount offset +
+    // ~2.2m to the first visible row at cam_z=1.4/pitch=0.06 - see
+    // expected_ground_distance in lane_node.cpp), so /lane/path_odom's first
+    // point is never actually at the car. Without this, ref0 in
+    // mpc_solver.cpp (the MPC's foot point - what e_lat0/e_head0 are
+    // computed against) is already several metres ahead of the car before
+    // any control logic runs. Straight-line fill from the ego's current
+    // position to the path's first point - the simplest approximation
+    // absent any real information about the road in the blind zone. Capped
+    // at near_fill_max_m_: a gap far beyond the expected ~4m means the car
+    // is off-path for some other reason, not something to paper over with a
+    // long fabricated straight segment.
+    Polyline extend_to_ego(const Polyline &path)
+    {
+        if (path.size() < 2 || !pose_)
+            return path;
+        Eigen::Vector2d ego(pose_->x, pose_->y);
+        Eigen::Vector2d gap = path.front() - ego;
+        double dist = gap.norm();
+        if (dist < spacing_ || dist > near_fill_max_m_)
+            return path;
+        int n = static_cast<int>(dist / spacing_);
+        Polyline out;
+        out.reserve(n + path.size());
+        for (int i = 0; i < n; ++i)
+            out.push_back(ego + gap * (static_cast<double>(i) / n));
+        out.insert(out.end(), path.begin(), path.end());
+        return out;
+    }
+
+    // Bridge the near-field blind zone using the PREVIOUSLY published path
+    // instead of fabricating a straight line: the road right in front of the
+    // car now was visible in an EARLIER frame, when the car was still far
+    // enough away to see it (the camera's near-field limit is geometric -
+    // see expected_ground_distance in lane_node.cpp - so it moves WITH the
+    // car). last_published_ is in the world-fixed odom frame, so its old
+    // points are still valid real geometry, not stale ego-relative data;
+    // this reuses what the sensor actually saw a moment ago rather than
+    // guessing. Falls back to extend_to_ego()'s straight-line fill when
+    // there's no usable old path to bridge from (first tick, ego/new-start
+    // not actually near the old path, or the old path doesn't reach as far
+    // as the new path's start).
+    Polyline bridge_deadzone(const Polyline &path)
+    {
+        if (path.empty() || !pose_)
+            return path;
+        Eigen::Vector2d ego(pose_->x, pose_->y);
+        double gap = (path.front() - ego).norm();
+        if (gap < spacing_ || gap > near_fill_max_m_)
+            return path; // nothing to bridge, or too far gone to trust either fill
+
+        if (last_published_.size() >= 2)
+        {
+            auto pr_ego = av::geom::project_point(last_published_, ego);
+            auto pr_new = av::geom::project_point(last_published_, path.front());
+            // only trust the old path as a bridge if the ego and the new
+            // path's start both actually land close to it (real overlap,
+            // not two unrelated polylines), and it extends past the ego far
+            // enough to reach where the new path picks up.
+            if (pr_ego.dist < spacing_ * 3.0 && pr_new.dist < spacing_ * 3.0 &&
+                pr_new.s > pr_ego.s + spacing_)
+            {
+                auto old_s = av::geom::arc_length(last_published_);
+                Polyline bridge;
+                for (size_t i = 0; i < last_published_.size(); ++i)
+                    if (old_s[i] >= pr_ego.s && old_s[i] <= pr_new.s)
+                        bridge.push_back(last_published_[i]);
+                if (bridge.size() >= 2)
+                {
+                    Polyline out = bridge;
+                    out.insert(out.end(), path.begin(), path.end());
+                    return out;
+                }
+            }
+        }
+        return extend_to_ego(path); // fallback: straight-line fill
+    }
+
     Polyline build_path(bool &spliced, std::string &spline_id)
     {
         spliced = false;
@@ -329,6 +409,7 @@ private:
         if (spliced)
             last_spliced_t_ = now_s;
 
+        path = bridge_deadzone(path);
         path = av::geom::smooth_moving_avg(path, smooth_window_);
         path = av::geom::resample_uniform(path, spacing_);
         path = crossfade(path);

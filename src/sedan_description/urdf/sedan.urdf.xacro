@@ -30,8 +30,15 @@
     <xacro:property name="steer_mass" value="5.0" />
     <xacro:property name="wheel_mass" value="15.0" />
 
-    <!-- camera mount (day-03 memo: 1.4 m height buys ~25-35 m lane visibility) -->
-    <xacro:property name="cam_x" value="1.9" />
+    <!-- camera mount (day-03 memo: 1.4 m height buys ~25-35 m lane visibility).
+       cam_x 1.9->1.2 (2026-09-05): 1.9m put the mount near the front bumper;
+       1.2m is closer to a realistic windshield-area dashcam position for
+       this wheelbase, and directly shrinks the near-field blind zone (the
+       closest visible ground row, ~2.2m from the camera at cam_z=1.4/
+       pitch=0.06/424-wide-image geometry - see expected_ground_distance in
+       lane_node.cpp) by the same 0.7m, since it's a pure translation with
+       no effect on the pitch-driven near/far FOV tradeoff. -->
+    <xacro:property name="cam_x" value="1.2" />
     <xacro:property name="cam_z" value="1.4" />
     <xacro:property name="cam_pitch" value="0.06" />
 
@@ -418,11 +425,23 @@
                     <!-- 424x240 (was 640x360): the WSL software-GL renderer
                          can't sustain 10 Hz RGBD at 640x360 (stalled to ~3-4 Hz
                          with 1.6 s gaps); 320x180 was too coarse and starved
-                         the far paint blobs. 16:9 kept, so the derived pinhole
-                         geometry is unchanged (fx/fy just scale). If the far
-                         field still matters, line_area_min_px scales with it. -->
+                         the far paint blobs.
+                         height 240->300 (2026-09-05): width/horizontal_fov
+                         unchanged, so horizontal detail and far-field lateral
+                         resolution are untouched, but pinhole_from_config
+                         (ground_cal.hpp) sets fy=fx from width/hfov alone, so
+                         a taller image is a wider VERTICAL fov at the same
+                         fx - the near AND far ground-visibility limits both
+                         extend (see expected_ground_distance), instead of
+                         trading one for the other via cam_pitch alone. 424x300
+                         is ~25% more pixels than 424x240 (vs 640x360's 2.3x) -
+                         cheaper on the WSL software renderer than the earlier
+                         full-width bump that broke framerate. line_area_min_px
+                         (lane_node.cpp) scales with total pixel area, so it
+                         needs revisiting if this is kept (currently sized for
+                         424x240). -->
                     <width>424</width>
-                    <height>240</height>
+                    <height>300</height>
                     <format>R8G8B8</format>
                 </image>
                 <clip>

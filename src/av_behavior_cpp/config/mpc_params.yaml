@@ -7,8 +7,8 @@
 #   ros2 run av_behavior_cpp mpc_tracker_v2 --ros-args --params-file <this file>
 /**:
   ros__parameters:
-    control_rate_hz: 50.0      # control loop frequency [Hz]
-    horizon_steps: 30          # MPC prediction horizon length [steps] - 25->50
+    control_rate_hz: 30.0      # control loop frequency [Hz]
+    horizon_steps: 50          # MPC prediction horizon length [steps] - 25->50
                                 # (2026-09-04): at dt=0.12 this is a 3.0s->6.0s
                                 # horizon, ~4.5-9m->9-18m of road at 1.5-3 m/s
                                 # cruise. The observed vision-only wobble spans
@@ -26,7 +26,7 @@
     max_speed_mps: 3.0         # speed cap fed to the solver [m/s]
     max_accel_mps2: 1.2        # max forward acceleration [m/s^2]
     max_decel_mps2: -1.2       # max braking, negative [m/s^2]
-    max_steer_rad: 0.7      # steering angle limit [rad] - MUST stay under the
+    max_steer_rad: 0.6     # steering angle limit [rad] - MUST stay under the
                                 # Gazebo AckermannSteering plugin's <steering_limit>
                                 # (sedan.urdf.xacro), raised 0.50 -> 0.65 rad on
                                 # 2026-09-04 for urban_tight's tighter bends
@@ -44,13 +44,13 @@
     weight_heading_error: 3.0  # cost weight on heading error e_head
     weight_speed_error: 1.0    # cost weight on speed error e_speed
     weight_accel: 0.2          # cost weight on acceleration effort a
-    weight_steer: 3.0          # cost weight on steering effort delta
+    weight_steer: 1.0          # cost weight on steering effort delta
     weight_accel_rate: 0.4     # cost weight on accel change, WITHIN-horizon (u_{i+1}-u_i)
     weight_steer_rate: 6.0     # cost weight on steer change, WITHIN-horizon (u_{i+1}-u_i)
     weight_accel_rate_u0: 0.0  # boundary-only weight on (a_0 - previous applied a);
                                 # <=0 falls back to weight_accel_rate. 0 = untouched,
                                 # accel wasn't the thing chattering.
-    weight_steer_rate_u0: 20.0 # boundary-only weight on (delta_0 - previous applied
+    weight_steer_rate_u0: 16.0 # boundary-only weight on (delta_0 - previous applied
                                 # steer) (2026-09-05) - split from weight_steer_rate,
                                 # which used to do double duty as BOTH this boundary
                                 # term AND the within-horizon smoothness above (one
@@ -61,7 +61,7 @@
                                 # weight_steer_rate) targets actuator chatter without
                                 # also flattening how much the horizon can shape an
                                 # internal correction. Not yet validated in sim.
-    weight_prev_track: 0.0     # cross-solve consistency vs the previous horizon's
+    weight_prev_track: 0.0    # cross-solve consistency vs the previous horizon's
                                 # plan for the same future points (shifted by one
                                 # step); damps tick-to-tick re-plan disagreement
                                 # that weight_steer_rate alone can't reach (it only
@@ -95,7 +95,7 @@
                                 # on a straight with e_lat0~0 - deliberately
                                 # TIGHT; grows from there via the two slopes
                                 # below.
-    steer_curvature_margin_slope: 3.0    # TEMP 0 (2026-09-05 isolation test:
+    steer_curvature_margin_slope: 2.0    # TEMP 0 (2026-09-05 isolation test:
                                 # testing whether the fast post-turn chatter
                                 # is the per-STEP kappa term collapsing mid-
                                 # horizon right at a turn exit, vs the elat
@@ -108,7 +108,7 @@
                                 # ~0.065), ~0.6+ (-> effectively just
                                 # +/-max_steer) on urban_tight's ~3.5-7m bends.
                                 # slope=0 recovers a flat margin.
-    steer_curvature_margin_elat_slope: 0.3 # extra margin per METRE of the
+    steer_curvature_margin_elat_slope: 0.2 # extra margin per METRE of the
                                 # CURRENT (measured, foot-point) lateral error
                                 # e_lat0 - not the per-step PREDICTED e_lat_i,
                                 # which is a decision variable and would make
