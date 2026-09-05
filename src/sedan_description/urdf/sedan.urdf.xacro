@@ -247,7 +247,7 @@
        once this is confirmed not to reopen it; ideally with the
        truth-vs-EKF yaw rate check run first to isolate real slip from
        estimator lag. -->
-    <xacro:macro name="wheel_friction" params="link slip:=0.01">
+    <xacro:macro name="wheel_friction" params="link slip:=0.00">
         <gazebo reference="${link}">
             <collision>
                 <surface>
