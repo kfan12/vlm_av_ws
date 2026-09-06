@@ -34,7 +34,14 @@ WS = Path(__file__).resolve().parents[1]
 COURSE = [
     ("straight", 60.0),
     ("arc", 15.0, -math.pi / 2),      # right 90
-    ("straight", 20.0),
+    ("straight", 45.0),               # 20->45 m (2026-09-06): the winding board
+                                      # sits SIGN_LEAD_M (18 m) into this straight,
+                                      # so at 20 m it was only ~2 m past the turn
+                                      # exit - the car cleared the right-hander
+                                      # and passed the sign almost at once. 45 m
+                                      # puts the board ~27 m past the exit, a few
+                                      # seconds of straight-line approach to read
+                                      # "winding" before the S begins.
     ("arc", 18.0, +math.pi / 4),      # winding S: left 45
     ("arc", 18.0, -math.pi / 2),      #            right 90
     ("arc", 18.0, +math.pi / 4),      #            left 45 (net straight again)
@@ -176,9 +183,16 @@ def ribbon(vis, tag, pts, lateral, width, z, thick, rgba,
     return n
 
 
-SIGN_BOARD_M = 1.8      # urban board face size (the mesh quad is 1x1 m)
-SIGN_BOARD_Z = 2.2      # board center height
-SIGN_POST_LEN = 1.6
+# Oversized demo boards: 2.6 m face (was 1.8) so Qwen still resolves the glyph
+# at the ~14 m read range - 1.44x linear = 1.44x pixel height at every distance
+# (28 px @ 14 m, vs 20 px before). Board centre raised to 2.5 m and the post
+# shortened to 1.2 m so the face bottom (2.5 - 1.3) sits on the post top; face
+# then spans z [1.2, 3.8], still inside the camera frame for d >~ 2.7 m.
+# sign_maneuver_node's sign_z_max_m must cover the new top (see its default /
+# config/sign_maneuver_params.yaml).
+SIGN_BOARD_M = 2.6      # urban board face size (the mesh quad is 1x1 m)
+SIGN_BOARD_Z = 2.5      # board center height
+SIGN_POST_LEN = 1.2
 
 def emit_sign_models():
     """Write sign_<kind>_urban model dirs into src/urban_gazebo/models/.

@@ -1,0 +1,118 @@
+# sign_maneuver_node tuning. Values here match the node's built-in defaults
+# (sign_maneuver_node.py) - this file exists so a tuning cycle can edit and
+# rerun without touching code or piling up --ros-args -p flags.
+#
+# Run the node against it (inside the vlm venv):
+#   python3 -m vlm_planner_py.sign_maneuver_node --ros-args \
+#       --params-file src/vlm_planner_py/config/sign_maneuver_params.yaml
+#
+# Keep a copy per tune (e.g. sign_maneuver_params_slowapproach.yaml) and point
+# --params-file at whichever one you are running. Anything omitted from the file
+# falls back to the code default, so a cycle-specific file can list only the
+# handful of keys it changes.
+#
+# vlm_sign_node has its own knobs (vlm_query_rate_hz, roi_max_age_sec, ...);
+# pass those to that node the same way if a cycle needs to move them.
+/**:
+  ros__parameters:
+
+    # ---- camera intrinsics / extrinsics -------------------------------------
+    # NOT tuning knobs. These MUST match src/sedan_description/urdf/sedan.urdf.xacro
+    # (and lane_node.cpp) - the bridge camera_info is wrong, so the geometry is
+    # rebuilt from these. Only touch them if the URDF camera changes.
+    img_w: 424                 # URDF <image><width>
+    img_h: 300                 # URDF <image><height>
+    hfov: 1.9                  # URDF <horizontal_fov> [rad]
+    cam_x: 2.2                 # URDF front_camera_joint x offset [m]
+    cam_z: 1.4                 # URDF camera height / ground height [m]
+    cam_pitch: 0.06            # URDF front_camera_joint pitch, down-positive [rad]
+
+    # ---- vehicle geometry --------------------------------------------------
+    veh_front_overhang_m: 2.25 # base_link (wheelbase midpoint) -> front bumper
+                               # [m]; subtracted from the stop distance so the
+                               # bumper, not base_link, stops short of the line.
+                               # From sedan.urdf.xacro chassis ch_l 4.5 / 2.
+
+    # ---- board detection (depth blob -> candidate sign board) --------------
+    px_stride: 4               # depth-image subsample stride [px]; higher = faster,
+                               # coarser boxes, needs a lower sign_min_pts
+    sign_z_min_m: 1.0          # board blob height band, base_link frame [m].
+    sign_z_max_m: 3.9          # Board face is 2.6 m tall centred at z 2.5 ->
+                               # spans [1.2, 3.8]; band keeps margin either side.
+                               # (generate_course_world.py SIGN_BOARD_M/Z)
+    sign_x_min_m: 3.0          # ignore blobs nearer than this (board top clips
+                               # out of frame below ~2.7 m) [m]
+    sign_x_max_m: 35.0         # ignore blobs past this; detection range [m]
+    sign_y_min_m: -9.0         # lateral accept band, base_link +y = left [m].
+    sign_y_max_m: 2.0          # All course signs are on the right shoulder
+                               # (~-3 m); deep on the right for curve heading
+                               # error, shallow on the left to reject clutter.
+    sign_min_pts: 12           # min connected-component area (stride-res px) to
+                               # accept a blob as a board
+    board_match_radius_m: 2.5  # re-observe radius for sticky board identity [m]
+    board_lost_s: 2.0          # drop a far latched board after this long unseen
+                               # [s] (inside lock range the frozen latch rides on)
+
+    # ---- colour gate: reject depth blobs that are not a red/yellow sign ----
+    # Measured on the rendered faces: yellow diamonds score frac ~0.40, the red
+    # stop octagon ~0.63. Every building in urban_course.world.sdf is neutral
+    # grey (diffuse ~0.21) -> frac 0.0, so 0.10 cleanly separates them. The one
+    # residual risk is a strongly saturated red/orange wall; raise
+    # sign_color_s_min toward 150 if one is added.
+    sign_color_gate: true      # false = geometry only (old behaviour)
+    sign_color_frac_min: 0.10  # min red-or-yellow fraction of the blob's RGB bbox
+    sign_color_s_min: 90       # HSV saturation floor for a "coloured" pixel (0-255)
+    sign_color_v_min: 80       # HSV value floor (0-255) - drops dark/shadowed px
+    sign_yellow_h_min: 18      # yellow hue band, OpenCV H (0-180)
+    sign_yellow_h_max: 40
+    sign_red_h_lo_max: 12      # red wraps: hue in [0, this] ...
+    sign_red_h_hi_min: 168     # ... or [this, 180]
+
+    # ---- sign label latch (SignLabelLatch distance band) -------------------
+    sign_label_min_dist_m: 4.0  # accept a Qwen read only if the board's
+    sign_label_max_dist_m: 14.0 # CAPTURE-time distance was in [min, max] [m].
+                               # Window must span several VLM inferences on
+                               # approach: at cruise 1.5 m/s + vlm_query_rate_hz
+                               # 0.5 (~2 s latency) a 3 m window caught ~1 read
+                               # and routinely lost the first sign. Widen (and/or
+                               # slow the approach / raise the query rate)
+                               # if labels still miss; tighten the floor toward
+                               # the board-crop distance if close-range misreads
+                               # of the NEXT sign start leaking in.
+    sign_label_lock_dist_m: 2.8 # freeze the label (no more reads change it) once
+                               # the board is this close [m]
+    sign_reach_dist_m: 22.0    # arm a maneuver only once its board is within
+                               # this range ahead [m]
+
+    # ---- maneuver commit distance (board distance ahead at commit) ---------
+    commit_dist_turn_m: 3.0    # left / right: commit when board is this near [m]
+    commit_dist_winding_m: 3.0 # winding: commit earlier (longer maneuver) [m]
+    commit_dist_stop_m: 3.0   # stop: commit distance [m]
+
+    # ---- speed setpoints fed to the MPC (min(profile, setpoint); caps only
+    #      ever LOWER speed) ------------------------------------------------
+    cruise_speed: 1.5          # straight-road setpoint [m/s]
+    turn_speed_cap: 1.0        # cap while in a left / right maneuver [m/s]
+    winding_speed_cap: 1.0     # cap while in a winding maneuver [m/s]
+    stop_creep_cap: 0.5        # creep speed on approach to a stop sign, before
+                               # the hard 0 inside the standoff [m/s]
+    stop_standoff_m: 1.0       # target gap between the front bumper and the stop
+                               # line at rest [m] (front overhang is handled
+                               # separately, see veh_front_overhang_m)
+
+    # ---- maneuver exit (ManeuverStateMachine: path-straightness release) ---
+    engage_tol_rad: 0.35       # a maneuver must bend the lane path past this
+                               # total heading change before it can be released
+                               # (stops the straight approach ending it early)
+    straight_tol_rad: 0.20     # lane path counts as "straight" below this total
+                               # heading change
+    release_dist_m: 3.0        # metres of continuously-straight lane travel that
+                               # release an engaged maneuver back to straight [m]
+    exit_min_len_m: 4.0        # ignore lane paths shorter than this for the
+                               # straightness test [m]
+
+    # ---- misc ------------------------------------------------------------
+    wait_for_vlm: true         # hold the car (speed cap 0) at spawn until the
+                               # first Qwen read arrives (~1 min model load)
+    debug_image: true          # publish /maneuver/debug_image (frame + boxes +
+                               # ROI + FSM/label/speed readout) for RViz

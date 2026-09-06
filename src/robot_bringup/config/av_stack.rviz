@@ -58,6 +58,19 @@ Visualization Manager:
       Min Value: 0
       Median window: 5
       Normalize Range: true
+    - Class: rviz_default_plugins/Image
+      Name: maneuver/debug_image
+      Enabled: true
+      Topic:
+        Value: /maneuver/debug_image
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Max Value: 1
+      Min Value: 0
+      Median window: 5
+      Normalize Range: true
     - Class: rviz_default_plugins/MarkerArray
       Name: lane/debug_markers
       Enabled: true

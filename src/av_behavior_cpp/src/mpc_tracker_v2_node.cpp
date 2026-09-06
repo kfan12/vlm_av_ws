@@ -37,26 +37,26 @@ public:
         dt_ = dt; // kept for reference-path resampling: horizon node spacing = v * dt_
         mp.target_speed = 0.0;
 
-        mp.w_lat = declare_parameter("weight_lateral_error", 6.0);       // cost weight on cross-track error e_lat
-        mp.w_head = declare_parameter("weight_heading_error", 3.0);      // cost weight on heading error e_head
-        mp.w_speed = declare_parameter("weight_speed_error", 1.0);       // cost weight on speed error e_speed
-        mp.w_accel = declare_parameter("weight_accel", 0.2);             // cost weight on acceleration effort a
-        mp.w_steer = declare_parameter("weight_steer", 3.0);             // cost weight on steering effort delta
-        mp.w_accel_change = declare_parameter("weight_accel_rate", 0.4); // cost weight on accel change, smoothness (within-horizon)
-        mp.w_steer_change = declare_parameter("weight_steer_rate", 6.0); // cost weight on steer change, damps wobble (within-horizon)
-        mp.w_accel_change_u0 = declare_parameter("weight_accel_rate_u0", 0.0); // boundary-only weight on (a_0 - previous applied a); <=0 falls back to weight_accel_rate (see mpc_solver.hpp)
-        mp.w_steer_change_u0 = declare_parameter("weight_steer_rate_u0", 16.0); // boundary-only weight on (delta_0 - previous applied steer); the REAL tick-to-tick output step, damped harder than the internal within-horizon plan
-        mp.w_prev_track = declare_parameter("weight_prev_track", 0.0);  // cross-solve consistency vs the previous horizon; 0 = off (see mpc_solver.hpp)
-        mp.lookahead_m = declare_parameter("heading_lookahead_m", 5.0);  // heading-reference lookahead on straights [m]
-        look_turn_ = declare_parameter("heading_lookahead_turn_m", 5.0); // heading-reference lookahead in turns [m]
-        look_time_ = declare_parameter("heading_lookahead_time_s", 3.2); // lookahead as time headway, dist = v * this [s]
-        look_min_ = declare_parameter("heading_lookahead_min_m", 5.0);   // lower clamp on the computed lookahead [m]
-        look_max_ = declare_parameter("heading_lookahead_max_m", 14.0);  // upper clamp on the computed lookahead [m]
-        steer_slew_ = declare_parameter("steer_slew_rps", 2.0);          // max steering-command slew rate [rad/s]
-        mp.steer_rate_limit = steer_slew_;  // same physical limit now enforced INSIDE the QP's plan, not just on its output (see mpc_solver.hpp)
-        mp.control_dt = 1.0 / rate_hz_;     // real tick interval, for the delta_0-vs-previous_steer boundary rate bound
-        mp.steer_curvature_margin_base = declare_parameter("steer_curvature_margin_base_rad", 0.1);   // hard steer bound = path curvature's own feed-forward angle +/- (base + kappa_slope*|kappa| + elat_slope*|e_lat0|) [rad]
-        mp.steer_curvature_margin_slope = declare_parameter("steer_curvature_margin_slope", 3.0);     // extra margin per unit |kappa| [rad per 1/m]; 0.1+3.0*0.065 ~= 0.3 rad at a typical ~15m-radius bend
+        mp.w_lat = declare_parameter("weight_lateral_error", 6.0);                                           // cost weight on cross-track error e_lat
+        mp.w_head = declare_parameter("weight_heading_error", 3.0);                                          // cost weight on heading error e_head
+        mp.w_speed = declare_parameter("weight_speed_error", 1.0);                                           // cost weight on speed error e_speed
+        mp.w_accel = declare_parameter("weight_accel", 0.2);                                                 // cost weight on acceleration effort a
+        mp.w_steer = declare_parameter("weight_steer", 3.0);                                                 // cost weight on steering effort delta
+        mp.w_accel_change = declare_parameter("weight_accel_rate", 0.4);                                     // cost weight on accel change, smoothness (within-horizon)
+        mp.w_steer_change = declare_parameter("weight_steer_rate", 6.0);                                     // cost weight on steer change, damps wobble (within-horizon)
+        mp.w_accel_change_u0 = declare_parameter("weight_accel_rate_u0", 0.0);                               // boundary-only weight on (a_0 - previous applied a); <=0 falls back to weight_accel_rate (see mpc_solver.hpp)
+        mp.w_steer_change_u0 = declare_parameter("weight_steer_rate_u0", 16.0);                              // boundary-only weight on (delta_0 - previous applied steer); the REAL tick-to-tick output step, damped harder than the internal within-horizon plan
+        mp.w_prev_track = declare_parameter("weight_prev_track", 0.0);                                       // cross-solve consistency vs the previous horizon; 0 = off (see mpc_solver.hpp)
+        mp.lookahead_m = declare_parameter("heading_lookahead_m", 5.0);                                      // heading-reference lookahead on straights [m]
+        look_turn_ = declare_parameter("heading_lookahead_turn_m", 5.0);                                     // heading-reference lookahead in turns [m]
+        look_time_ = declare_parameter("heading_lookahead_time_s", 3.2);                                     // lookahead as time headway, dist = v * this [s]
+        look_min_ = declare_parameter("heading_lookahead_min_m", 5.0);                                       // lower clamp on the computed lookahead [m]
+        look_max_ = declare_parameter("heading_lookahead_max_m", 14.0);                                      // upper clamp on the computed lookahead [m]
+        steer_slew_ = declare_parameter("steer_slew_rps", 2.0);                                              // max steering-command slew rate [rad/s]
+        mp.steer_rate_limit = steer_slew_;                                                                   // same physical limit now enforced INSIDE the QP's plan, not just on its output (see mpc_solver.hpp)
+        mp.control_dt = 1.0 / rate_hz_;                                                                      // real tick interval, for the delta_0-vs-previous_steer boundary rate bound
+        mp.steer_curvature_margin_base = declare_parameter("steer_curvature_margin_base_rad", 0.1);          // hard steer bound = path curvature's own feed-forward angle +/- (base + kappa_slope*|kappa| + elat_slope*|e_lat0|) [rad]
+        mp.steer_curvature_margin_slope = declare_parameter("steer_curvature_margin_slope", 3.0);            // extra margin per unit |kappa| [rad per 1/m]; 0.1+3.0*0.065 ~= 0.3 rad at a typical ~15m-radius bend
         mp.steer_curvature_margin_elat_slope = declare_parameter("steer_curvature_margin_elat_slope", 0.15); // extra margin per metre of CURRENT lateral error [rad/m], so a car far off track gets more correction authority to recover fast
 
         VehicleParams vp{};
@@ -107,8 +107,7 @@ public:
             "/maneuver/state", 10, [this](std_msgs::msg::String::SharedPtr m)
             {
                 turning_ = m->data == "left" || m->data == "right";
-                state_time_ = now();
-            });
+                state_time_ = now(); });
 
         cmd_pub_ = create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
         pred_pub_ = create_publisher<nav_msgs::msg::Path>("/mpc_predicted_path", 10);
