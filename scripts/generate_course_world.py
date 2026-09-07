@@ -45,7 +45,15 @@ COURSE = [
     ("arc", 18.0, +math.pi / 4),      # winding S: left 45
     ("arc", 18.0, -math.pi / 2),      #            right 90
     ("arc", 18.0, +math.pi / 4),      #            left 45 (net straight again)
-    ("straight", 15.0),
+    ("straight", 45.0),               # 15->45 m: the left board sits SIGN_LEAD_M
+                                      # (18 m) before the left 90, so at 15 m it
+                                      # landed ~3 m INSIDE the winding S tail -
+                                      # the maneuver FSM then engaged on the S,
+                                      # released on the short pre-turn straight,
+                                      # and the real left turn ran uncapped. 45 m
+                                      # (matching the winding board's straight)
+                                      # puts the board ~27 m clear of the S with
+                                      # a proper straight-line approach to read.
     ("arc", 15.0, +math.pi / 2),      # left 90
     ("straight", 45.0),
 ]
@@ -183,16 +191,16 @@ def ribbon(vis, tag, pts, lateral, width, z, thick, rgba,
     return n
 
 
-# Oversized demo boards: 2.6 m face (was 1.8) so Qwen still resolves the glyph
-# at the ~14 m read range - 1.44x linear = 1.44x pixel height at every distance
-# (28 px @ 14 m, vs 20 px before). Board centre raised to 2.5 m and the post
-# shortened to 1.2 m so the face bottom (2.5 - 1.3) sits on the post top; face
-# then spans z [1.2, 3.8], still inside the camera frame for d >~ 2.7 m.
-# sign_maneuver_node's sign_z_max_m must cover the new top (see its default /
-# config/sign_maneuver_params.yaml).
-SIGN_BOARD_M = 2.6      # urban board face size (the mesh quad is 1x1 m)
-SIGN_BOARD_Z = 2.5      # board center height
-SIGN_POST_LEN = 1.2
+# Board face 2.0 m (1.8 -> 2.6 -> 3.2 -> 2.0): the big sizes were only
+# compensating for signs that rendered as flat grey (the ogre2 .mtl bug fixed
+# by the PBR albedo_map/emissive_map material below). With the face now
+# actually textured and self-lit, 2.0 m is enough - just a small margin over
+# the 1.8 m baseline for the 424-wide camera (~22 px @ 14 m). Centre 2.2 m on
+# a 1.5 m post: face spans z [1.2, 3.2], in frame for d >~ 2.1 m.
+# sign_maneuver_node's sign_z_max_m must cover the top (3.2 -> keep 3.4).
+SIGN_BOARD_M = 2.0      # urban board face size (the mesh quad is 1x1 m)
+SIGN_BOARD_Z = 2.2      # board center height
+SIGN_POST_LEN = 1.5
 
 def emit_sign_models():
     """Write sign_<kind>_urban model dirs into src/urban_gazebo/models/.
@@ -225,6 +233,27 @@ def emit_sign_models():
           <uri>model://sign_{kind}_urban/meshes/sign.obj</uri>
           <scale>{SIGN_BOARD_M:.2f} {SIGN_BOARD_M:.2f} {SIGN_BOARD_M:.2f}</scale>
         </mesh></geometry>
+        <!-- The OBJ carries the texture via meshes/sign.mtl (map_Kd), but
+             gz-sim's ogre2 renderer routinely does NOT apply .mtl map_Kd
+             (worse under the WSL software-GL path) - the face then renders as
+             a flat dark-grey fallback and neither Qwen nor the colour gate can
+             read it. Declaring the texture here as a PBR albedo_map is the
+             reliable route. emissive_map makes the face self-lit so it stays
+             legible regardless of sun angle / shadow - appropriate for a
+             synthetic sign a vision model must classify, and it mimics a
+             retroreflective board under headlights. -->
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
+          <pbr>
+            <metal>
+              <albedo_map>model://sign_{kind}_urban/meshes/sign_{kind}.png</albedo_map>
+              <emissive_map>model://sign_{kind}_urban/meshes/sign_{kind}.png</emissive_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
       </visual>
       <collision name="board_col">
         <pose>0 0 {SIGN_BOARD_Z:.3f} 0 0 0</pose>

@@ -37,8 +37,8 @@
     px_stride: 4               # depth-image subsample stride [px]; higher = faster,
                                # coarser boxes, needs a lower sign_min_pts
     sign_z_min_m: 1.0          # board blob height band, base_link frame [m].
-    sign_z_max_m: 3.9          # Board face is 2.6 m tall centred at z 2.5 ->
-                               # spans [1.2, 3.8]; band keeps margin either side.
+    sign_z_max_m: 3.4          # Board face is 2.0 m tall centred at z 2.2 ->
+                               # spans [1.2, 3.2]; band keeps margin either side.
                                # (generate_course_world.py SIGN_BOARD_M/Z)
     sign_x_min_m: 3.0          # ignore blobs nearer than this (board top clips
                                # out of frame below ~2.7 m) [m]
@@ -50,8 +50,13 @@
     sign_min_pts: 12           # min connected-component area (stride-res px) to
                                # accept a blob as a board
     board_match_radius_m: 2.5  # re-observe radius for sticky board identity [m]
-    board_lost_s: 2.0          # drop a far latched board after this long unseen
-                               # [s] (inside lock range the frozen latch rides on)
+    board_lost_s: 2.0          # stop actively tracking a board after this long
+                               # unseen [s] (inside lock range the frozen latch
+                               # rides on regardless)
+    board_lost_grace_s: 3.0    # ...then COAST (freeze odom + identity) this much
+                               # longer before truly abandoning it, so an
+                               # S-curve dropout doesn't invalidate the ~2 s
+                               # in-flight Qwen read ('stale-board')
 
     # ---- colour gate: reject depth blobs that are not a red/yellow sign ----
     # Measured on the rendered faces: yellow diamonds score frac ~0.40, the red
@@ -60,9 +65,13 @@
     # residual risk is a strongly saturated red/orange wall; raise
     # sign_color_s_min toward 150 if one is added.
     sign_color_gate: true      # false = geometry only (old behaviour)
-    sign_color_frac_min: 0.10  # min red-or-yellow fraction of the blob's RGB bbox
-    sign_color_s_min: 90       # HSV saturation floor for a "coloured" pixel (0-255)
-    sign_color_v_min: 80       # HSV value floor (0-255) - drops dark/shadowed px
+    sign_color_frac_min: 0.10  # min red-or-yellow fraction of the blob's ACTUAL
+                               # footprint (the connected component, upsampled +
+                               # dilated one stride cell), not a loose bbox.
+                               # Clean sign face scores ~0.4-0.7; read the number
+                               # on the magenta reject box to retune.
+    sign_color_s_min: 50       # HSV saturation floor for a "coloured" pixel (0-255)
+    sign_color_v_min: 40       # HSV value floor (0-255) - drops dark/shadowed px
     sign_yellow_h_min: 18      # yellow hue band, OpenCV H (0-180)
     sign_yellow_h_max: 40
     sign_red_h_lo_max: 12      # red wraps: hue in [0, this] ...
@@ -79,7 +88,7 @@
                                # if labels still miss; tighten the floor toward
                                # the board-crop distance if close-range misreads
                                # of the NEXT sign start leaking in.
-    sign_label_lock_dist_m: 2.8 # freeze the label (no more reads change it) once
+    sign_label_lock_dist_m: 3.8 # freeze the label (no more reads change it) once
                                # the board is this close [m]
     sign_reach_dist_m: 22.0    # arm a maneuver only once its board is within
                                # this range ahead [m]
@@ -91,7 +100,7 @@
 
     # ---- speed setpoints fed to the MPC (min(profile, setpoint); caps only
     #      ever LOWER speed) ------------------------------------------------
-    cruise_speed: 1.5          # straight-road setpoint [m/s]
+    cruise_speed: 2.0         # straight-road setpoint [m/s]
     turn_speed_cap: 1.0        # cap while in a left / right maneuver [m/s]
     winding_speed_cap: 1.0     # cap while in a winding maneuver [m/s]
     stop_creep_cap: 0.5        # creep speed on approach to a stop sign, before

@@ -12,7 +12,8 @@ SIGN_PROMPT = (
     '  "right"   - a black arrow that bends toward the right\n'
     '  "left"    - a black arrow that bends toward the left\n'
     '  "winding" - a black wavy, S-shaped (double-bend) arrow\n'
-    '  "stop"    - white letters STOP on a red octagon\n'
+    '  "stop"    - white letters STOP on a red octagon (a solid red sign face, '
+    'even if the letters are too small to read, is "stop")\n'
     '  "none"    - no sign is clearly visible or readable\n'
     "If several signs are visible, classify only the LARGEST (closest) one.\n"
     'Reply with ONE line of JSON and nothing else: '

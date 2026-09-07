@@ -80,11 +80,11 @@ class SignManeuverNode(Node):
         self.cam_z = float(p('cam_z', 1.4).value)
         self.cam_pitch = float(p('cam_pitch', 0.06).value)
 
-        # --- board detection (urban boards: 2.6 m face centered at z 2.5,
-        #     spans z [1.2, 3.8]; see generate_course_world.py SIGN_BOARD_*)
+        # --- board detection (urban boards: 2.0 m face centered at z 2.2,
+        #     spans z [1.2, 3.2]; see generate_course_world.py SIGN_BOARD_*)
         self.stride = int(p('px_stride', 4).value)
         self.z_min = float(p('sign_z_min_m', 1.0).value)
-        self.z_max = float(p('sign_z_max_m', 3.9).value)
+        self.z_max = float(p('sign_z_max_m', 3.4).value)
         self.x_min = float(p('sign_x_min_m', 3.0).value)
         self.x_max = float(p('sign_x_max_m', 35.0).value)
         self.y_min = float(p('sign_y_min_m', -9.0).value)   # right shoulder…
@@ -92,6 +92,11 @@ class SignManeuverNode(Node):
         self.min_pts = int(p('sign_min_pts', 12).value)     # stride-res blob size
         self.match_radius = float(p('board_match_radius_m', 2.5).value)
         self.board_lost_s = float(p('board_lost_s', 2.0).value)
+        # after board_lost_s with no detection, COAST (freeze the odom latch +
+        # identity) for this much longer before truly abandoning the board.
+        # Bridges S-curve dropouts so the ~2 s Qwen read doesn't come back
+        # 'stale-board'. board pass-behind (bx<0.5) still drops it immediately.
+        self.board_lost_grace_s = float(p('board_lost_grace_s', 3.0).value)
 
         # --- colour gate: an elevated depth blob is only a sign board if its
         # RGB footprint is mostly red (stop octagon) or yellow (warning
@@ -241,22 +246,30 @@ class SignManeuverNode(Node):
         c, s = math.cos(-yaw), math.sin(-yaw)
         return (c * dx - s * dy, s * dx + c * dy)
 
-    def _sign_colored_frac(self, bgr, bbox):
-        """Fraction of the bbox's RGB footprint that is sign-coloured (red
-        octagon or yellow diamond). 0.0 if the crop is empty."""
-        x0, y0, x1, y1 = bbox
-        pad = self.stride
+    def _sign_colored_frac(self, bgr, sel_stride):
+        """(frac, mean_bgr, mean_hsv) for the blob's ACTUAL RGB footprint.
+
+        frac = fraction of the connected-component pixels (upsampled to full
+        res, dilated one stride cell to absorb minor RGB/depth misalignment)
+        that are sign-coloured (red octagon / yellow diamond). The two means
+        are for diagnosing a near-zero frac: blue-ish -> channel swap; dark ->
+        raise v_min / lower it; grey -> the footprint is off the sign."""
+        st = self.stride
         H, W = bgr.shape[:2]
-        crop = bgr[max(0, y0 - pad):min(H, y1 + pad),
-                   max(0, x0 - pad):min(W, x1 + pad)]
-        if crop.size == 0:
-            return 0.0
-        hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-        hue, sat, val = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+        m = np.repeat(np.repeat(sel_stride, st, 0), st, 1)[:H, :W].astype(np.uint8)
+        m = cv2.dilate(m, np.ones((2 * st + 1, 2 * st + 1), np.uint8))
+        px = bgr[m.astype(bool)]
+        if px.size == 0:
+            return 0.0, (0, 0, 0), (0, 0, 0)
+        hsv = cv2.cvtColor(px.reshape(-1, 1, 3), cv2.COLOR_BGR2HSV).reshape(-1, 3)
+        hue, sat, val = hsv[:, 0], hsv[:, 1], hsv[:, 2]
         chroma = (sat >= self.color_s_min) & (val >= self.color_v_min)
         yellow = (hue >= self.yellow_h[0]) & (hue <= self.yellow_h[1])
         red = (hue <= self.red_h_lo) | (hue >= self.red_h_hi)
-        return float((chroma & (yellow | red)).mean())
+        frac = float((chroma & (yellow | red)).mean())
+        mean_bgr = tuple(int(v) for v in px.mean(axis=0))
+        mean_hsv = tuple(int(v) for v in hsv.mean(axis=0))
+        return frac, mean_bgr, mean_hsv
 
     def _detect_boards(self, depth_m, rgb_bgr=None):
         """Elevated blobs in the depth image → list of (bx, by, bbox_px, npts),
@@ -296,9 +309,13 @@ class SignManeuverNode(Node):
             y1 = y0 + int(stats[i, cv2.CC_STAT_HEIGHT]) * st
             bbox = (x0, y0, x1, y1)
             if self.color_gate and rgb_bgr is not None:
-                frac = self._sign_colored_frac(rgb_bgr, bbox)
+                frac, mbgr, mhsv = self._sign_colored_frac(rgb_bgr, sel)
                 if frac < self.color_frac_min:
-                    self.color_rejects.append((bbox, frac))
+                    self.color_rejects.append((bbox, frac, mbgr, mhsv))
+                    self.get_logger().warn(
+                        f'colour-gate drop @x~{bx:.0f}m: frac={frac:.2f} '
+                        f'meanBGR={mbgr} meanHSV={mhsv}',
+                        throttle_duration_sec=2.0)
                     continue
             boards.append((bx, by, bbox, int(stats[i, cv2.CC_STAT_AREA])))
         return boards
@@ -425,10 +442,11 @@ class SignManeuverNode(Node):
         for (_bx, _by, (x0, y0, x1, y1), _n) in self.last_boards:
             cv2.rectangle(frame, (x0, y0), (x1, y1), (150, 150, 150), 1)
 
-        # blobs the colour gate rejected (not red/yellow): magenta + the frac
-        for ((x0, y0, x1, y1), frac) in self.color_rejects:
+        # blobs the colour gate rejected (not red/yellow): magenta box, the
+        # frac, and the footprint's mean HSV (for diagnosing a ~0 frac)
+        for ((x0, y0, x1, y1), frac, _mbgr, mhsv) in self.color_rejects:
             cv2.rectangle(frame, (x0, y0), (x1, y1), (200, 0, 200), 1)
-            cv2.putText(frame, '{:.2f}'.format(frac), (x0, max(9, y0 - 2)),
+            cv2.putText(frame, '{:.2f} hsv{}'.format(frac, mhsv), (x0, max(9, y0 - 2)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (200, 0, 200), 1, cv2.LINE_AA)
 
         # the tracked board: green once its maneuver is committed, amber while
@@ -491,14 +509,20 @@ class SignManeuverNode(Node):
         """Track ONE board: nearest detection ahead; identity sticky within
         match_radius; a locked label freezes the identity (v1 label-lock)."""
         if not boards:
-            if (self.board_odom is not None and
-                    now - self.board_seen_t > self.board_lost_s and
-                    self._odom_to_base(self.board_odom)[0] > self.lock_dist):
-                # lost while still far ahead (occlusion/false blob) — drop it;
-                # inside lock range we keep riding the frozen latch instead
-                self.latch.clear_board()
-                self.board_odom = None
-                self.board_committed = False
+            if self.board_odom is not None:
+                gone = now - self.board_seen_t
+                ahead = self._odom_to_base(self.board_odom)[0]
+                # inside lock range: ride the frozen latch, never drop.
+                # short gap (board_lost_s..+grace): COAST — keep board_odom and
+                # the latch identity frozen so a re-acquisition within
+                # match_radius resumes the SAME board and any in-flight Qwen
+                # read stays valid (no stale-board churn through the S-curve).
+                # only past the grace window is it a real loss.
+                if (ahead > self.lock_dist and
+                        gone > self.board_lost_s + self.board_lost_grace_s):
+                    self.latch.clear_board()
+                    self.board_odom = None
+                    self.board_committed = False
             return
         cands = [(bx, by, bbox, n) for (bx, by, bbox, n) in boards if bx > 0.5]
         if not cands:

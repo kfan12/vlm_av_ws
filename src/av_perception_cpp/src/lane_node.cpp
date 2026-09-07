@@ -544,6 +544,8 @@ private:
         double path_reuse_s;             // B.11 how long to republish the last good path
         double chain_d_max_m;            // trusted forward range for chain evidence + markings occupancy
         int smooth_window;               // centreline moving-average window, in points
+        double depth_stale_warn_s;       // watchdog: WARN if no depth frame arrives for this long
+        double rgb_depth_skew_max_s;     // skip a tick when |rgb stamp - depth stamp| exceeds this
     };
 
     struct ChainResult
@@ -627,6 +629,14 @@ private:
     std::optional<Eigen::Vector2d> last_stop_line_ego_;
     rclcpp::Time last_path_time_;  // when last_path_ was published
     av::geom::Polyline last_path_; // last published odom-frame path, for the reuse window
+
+    // Depth-staleness watchdog. tick() is driven ONLY by on_depth(), so a
+    // stalled depth stream silently freezes /lane/path_odom (RGB-only consumers
+    // keep working, which hides it). Wall-clock timestamps + a manual throttle
+    // so the warning still fires when the sim clock itself is frozen.
+    std::chrono::steady_clock::time_point last_depth_wall_{};
+    std::chrono::steady_clock::time_point last_stall_warn_{};
+    rclcpp::TimerBase::SharedPtr watchdog_timer_;
 };
 
 LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructor
@@ -676,6 +686,8 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.path_reuse_s = declare_parameter("path_reuse_s", 1.0);                         // B.11
     params_.chain_d_max_m = declare_parameter("chain_d_max_m", 20.0);                      // Day 6 pitfall: far depth noise
     params_.smooth_window = declare_parameter("smooth_window", 9);                         // ~6 m at 0.75 m spacing
+    params_.depth_stale_warn_s = declare_parameter("depth_stale_warn_s", 1.5);             // watchdog: no-depth WARN threshold
+    params_.rgb_depth_skew_max_s = declare_parameter("rgb_depth_skew_max_s", 0.20);        // skip tick past this rgb/depth stamp gap
 
     params_.dump_dir = declare_parameter("dump_dir", std::string()); // debug: set to enable ingest_mask() dumps
     params_.dump_every_n = declare_parameter("dump_every_n", 10);    // dump 1 out of every N ticks
@@ -735,6 +747,22 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     // mixes clock sources. A default-constructed rclcpp::Time is RCL_SYSTEM_TIME
     // while this->now() is RCL_ROS_TIME, and subtracting the two throws.
     last_path_time_ = this->now();
+
+    watchdog_timer_ = create_wall_timer(std::chrono::milliseconds(500), [this]()
+    {
+        if (last_depth_wall_.time_since_epoch().count() == 0)
+            return; // no depth received yet -- startup, not a stall
+        const auto now_wall = std::chrono::steady_clock::now();
+        const double gap = std::chrono::duration<double>(now_wall - last_depth_wall_).count();
+        if (gap > params_.depth_stale_warn_s &&
+            std::chrono::duration<double>(now_wall - last_stall_warn_).count() > 2.0)
+        {
+            last_stall_warn_ = now_wall;
+            RCLCPP_WARN(get_logger(),
+                        "no fresh depth for %.1f s -- tick() is depth-driven, so /lane/path_odom "
+                        "is frozen (check the rgbd_camera sensor / ros_gz_bridge)", gap);
+        }
+    });
 }
 
 void LaneNode::on_rgb(sensor_msgs::msg::Image::ConstSharedPtr msg) // callback for RGB image
@@ -745,6 +773,7 @@ void LaneNode::on_rgb(sensor_msgs::msg::Image::ConstSharedPtr msg) // callback f
 void LaneNode::on_depth(sensor_msgs::msg::Image::ConstSharedPtr msg) // callback for depth image
 {
     depth_msg_ = msg;
+    last_depth_wall_ = std::chrono::steady_clock::now(); // watchdog heartbeat
     if (rgb_msg_)
         tick();
 }
@@ -1353,6 +1382,24 @@ void LaneNode::tick()
 try
 {
     const auto t_start = std::chrono::steady_clock::now(); // tick_ms on the tap: is the node or the camera the rate limit?
+
+    // RGB/depth skew guard: ingest() resolves frame_pose_ from the DEPTH stamp
+    // but ingest_mask() reads the latest RGB. If the two streams have drifted
+    // apart (depth stalling under render load), a current-view detection would
+    // be planted at a stale pose -- the "centreline stuck at the origin" bug.
+    // Skip the frame; the reuse window covers a brief gap, a persistent one
+    // SHOULD stop the path so the planner isn't fed garbage.
+    {
+        const double rgb_t = rgb_msg_->header.stamp.sec + 1e-9 * rgb_msg_->header.stamp.nanosec;
+        const double dep_t = depth_msg_->header.stamp.sec + 1e-9 * depth_msg_->header.stamp.nanosec;
+        if (std::abs(rgb_t - dep_t) > params_.rgb_depth_skew_max_s)
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+                                 "RGB/depth stamp skew %.2f s > %.2f s -- skipping frame",
+                                 std::abs(rgb_t - dep_t), params_.rgb_depth_skew_max_s);
+            return;
+        }
+    }
 
     ingest();      // wrap Mats, resolve frame_pose_, update pitch_ema_/T_base_cam_
     ingest_mask(); // build white_cloud_/yellow_cloud_ for THIS frame

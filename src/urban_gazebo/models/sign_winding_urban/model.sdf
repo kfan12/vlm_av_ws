@@ -4,20 +4,41 @@
     <static>true</static>
     <link name="link">
       <visual name="post">
-        <pose>0 0 0.800 0 0 0</pose>
-        <geometry><cylinder><radius>0.06</radius><length>1.600</length></cylinder></geometry>
+        <pose>0 0 0.750 0 0 0</pose>
+        <geometry><cylinder><radius>0.06</radius><length>1.500</length></cylinder></geometry>
         <material><ambient>0.3 0.3 0.3 1</ambient><diffuse>0.4 0.4 0.4 1</diffuse></material>
       </visual>
       <visual name="board_face">
         <pose>0 0 2.200 0 0 0</pose>
         <geometry><mesh>
           <uri>model://sign_winding_urban/meshes/sign.obj</uri>
-          <scale>1.80 1.80 1.80</scale>
+          <scale>2.00 2.00 2.00</scale>
         </mesh></geometry>
+        <!-- The OBJ carries the texture via meshes/sign.mtl (map_Kd), but
+             gz-sim's ogre2 renderer routinely does NOT apply .mtl map_Kd
+             (worse under the WSL software-GL path) - the face then renders as
+             a flat dark-grey fallback and neither Qwen nor the colour gate can
+             read it. Declaring the texture here as a PBR albedo_map is the
+             reliable route. emissive_map makes the face self-lit so it stays
+             legible regardless of sun angle / shadow - appropriate for a
+             synthetic sign a vision model must classify, and it mimics a
+             retroreflective board under headlights. -->
+        <material>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
+          <pbr>
+            <metal>
+              <albedo_map>model://sign_winding_urban/meshes/sign_winding.png</albedo_map>
+              <emissive_map>model://sign_winding_urban/meshes/sign_winding.png</emissive_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
       </visual>
       <collision name="board_col">
         <pose>0 0 2.200 0 0 0</pose>
-        <geometry><box><size>0.06 1.800 1.800</size></box></geometry>
+        <geometry><box><size>0.06 2.000 2.000</size></box></geometry>
       </collision>
     </link>
   </model>
