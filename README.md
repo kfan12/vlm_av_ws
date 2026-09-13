@@ -69,6 +69,10 @@ The easiest way to see the full demo (sim + both VLM nodes + narrative panes) is
 colcon build
 source install/setup.bash
 
+# scripts/ can lose the executable bit (e.g. after a Windows-side checkout);
+# re-set it if you get "Permission denied" on the next line:
+chmod +x ./scripts/start_course_demo.sh
+
 ./scripts/start_course_demo.sh
 # ./scripts/start_course_demo.sh waits for the "VLM ready" marker before
 # starting the sim; skip the wait, or pick a world, with:
