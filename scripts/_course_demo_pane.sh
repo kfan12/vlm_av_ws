@@ -25,6 +25,7 @@
 #   DEMO_RUNDIR    per-run scratch dir    (set by the launcher)
 #   DEMO_WORLD     world / map name       (default urban_course)
 #   DEMO_RVIZ      true|false             (default true)
+#   DEMO_CURVE_SPLICE true|false          (default false) local_planner curve splice
 #   STACK_NOWAIT=1 pane 2 starts the stack without waiting for Qwen
 # ---------------------------------------------------------------------------
 # no `set -u`: the ROS 2 setup scripts reference unbound vars
@@ -33,6 +34,7 @@ WS="${VLM_AV_WS:-$HOME/vlm_av_ws}"
 VENV="${VLM_VENV:-$HOME/venvs/vlm_robot}"
 RUNDIR="${DEMO_RUNDIR:-/tmp/vlm_course_demo}"
 WORLD="${DEMO_WORLD:-urban_course}"
+CURVE_SPLICE="${DEMO_CURVE_SPLICE:-false}"
 PARAMS="$WS/src/vlm_planner_py/config/sign_maneuver_params.yaml"
 VLM_LOG="$RUNDIR/vlm_sign.log"
 VLM_READY="$RUNDIR/vlm_ready"
@@ -85,7 +87,8 @@ case "${1:-}" in
           echo "[2] Qwen up -> launching the stack"
       fi
       ros2 launch robot_bringup av_stack.launch.py \
-          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}"
+          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" \
+          curve_splice_enable:="$CURVE_SPLICE"
       hold 2 ;;
 
   3)  echo "[3] /vlm/sign_maneuver  (1 Hz)  maneuver / speed_cap / stop_dist / sign latch"

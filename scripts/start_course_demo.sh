@@ -25,6 +25,7 @@
 #   STACK_NOWAIT=1 ./scripts/start_course_demo.sh     # don't wait for Qwen
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
+#   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
 # Teardown: close the terminator window (each pane's job dies with it).
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -131,7 +132,7 @@ cat > "$CFG" <<EOF
 EOF
 
 export VLM_AV_WS="$WS" VLM_VENV="$VENV" DEMO_RUNDIR="$RUNDIR"
-for v in DEMO_WORLD DEMO_RVIZ STACK_NOWAIT; do
+for v in DEMO_WORLD DEMO_RVIZ DEMO_CURVE_SPLICE STACK_NOWAIT; do
     if [ -n "${!v:-}" ]; then export "${v?}"; fi
 done
 
