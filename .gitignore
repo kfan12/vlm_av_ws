@@ -2,8 +2,9 @@ build/
 install/
 data/
 __pycache__/
-docs/av_daily_plans/
-docs/teaching/
+local/
 log/
 debug/
 .vscode/
+.claude/
+CLAUDE.md
