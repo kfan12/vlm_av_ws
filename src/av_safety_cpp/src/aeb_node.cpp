@@ -81,7 +81,7 @@ public:
 
         rate_hz_ = declare_parameter("aeb_rate_hz", 20.0);
         odom_stale_ = declare_parameter("odom_stale_sec", 0.3);
-        depth_stale_ = declare_parameter("depth_stale_sec", 0.3);
+        depth_stale_ = declare_parameter("depth_stale_sec", 0.5);
 
         sub_depth_ = create_subscription<sensor_msgs::msg::Image>(
             "/camera/front/depth/image_raw", rclcpp::SensorDataQoS(),
@@ -384,7 +384,7 @@ private:
     double warning_ttc_ = 2.5, brake_ttc_ = 1.5, collision_hold_ = 1.0,
            clear_hysteresis_ = 0.5, stop_hold_speed_ = 0.1;
     int persistence_ticks_ = 3;
-    double rate_hz_ = 20.0, odom_stale_ = 0.3, depth_stale_ = 0.3;
+    double rate_hz_ = 20.0, odom_stale_ = 0.3, depth_stale_ = 0.5;
 
     AebState state_ = AebState::INACTIVE;
     std::optional<AebState> state_before_fault_; // latched BRAKING/STOP_HOLD interrupted by a fault

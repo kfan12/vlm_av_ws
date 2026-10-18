@@ -41,4 +41,4 @@
 
     aeb_rate_hz: 20.0
     odom_stale_sec: 0.3
-    depth_stale_sec: 0.3
+    depth_stale_sec: 0.5   # depth ~8.5 Hz (~0.12 s); 0.3 tripped a one-tick FAULT about every 45 s
