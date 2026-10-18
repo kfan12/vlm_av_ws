@@ -50,6 +50,16 @@ target_link_libraries(mpc_probe Eigen3::Eigen tf2::tf2 osqp::osqp OsqpEigen::Osq
 ament_target_dependencies(mpc_probe
  rclcpp nav_msgs geometry_msgs tf2 tf2_ros tf2_geometry_msgs)
 
+# offline closed-loop check: solver vs a plant with the measured steering lag
+add_executable(mpc_closed_loop_sim
+  src/mpc/mpc_closed_loop_sim.cpp
+  src/mpc/mpc_solver.cpp
+  src/mpc/vehicle_model.cpp
+  src/mpc/path_utils.cpp)
+target_link_libraries(mpc_closed_loop_sim Eigen3::Eigen tf2::tf2 osqp::osqp OsqpEigen::OsqpEigen)
+ament_target_dependencies(mpc_closed_loop_sim
+ rclcpp nav_msgs geometry_msgs tf2 tf2_ros tf2_geometry_msgs)
+
 # --- MPC v2 tracker node (runtime) -----------------------------------------
 add_executable(mpc_tracker_v2
   src/mpc_tracker_v2_node.cpp
@@ -65,6 +75,9 @@ install(TARGETS model_probe
   DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS mpc_probe
+  DESTINATION lib/${PROJECT_NAME})
+
+install(TARGETS mpc_closed_loop_sim
   DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS mpc_tracker_v2

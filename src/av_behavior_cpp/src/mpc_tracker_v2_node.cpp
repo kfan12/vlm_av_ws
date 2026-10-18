@@ -58,6 +58,9 @@ public:
         mp.steer_curvature_margin_base = declare_parameter("steer_curvature_margin_base_rad", 0.1);          // hard steer bound = path curvature's own feed-forward angle +/- (base + kappa_slope*|kappa| + elat_slope*|e_lat0|) [rad]
         mp.steer_curvature_margin_slope = declare_parameter("steer_curvature_margin_slope", 3.0);            // extra margin per unit |kappa| [rad per 1/m]; 0.1+3.0*0.065 ~= 0.3 rad at a typical ~15m-radius bend
         mp.steer_curvature_margin_elat_slope = declare_parameter("steer_curvature_margin_elat_slope", 0.15); // extra margin per metre of CURRENT lateral error [rad/m], so a car far off track gets more correction authority to recover fast
+        mp.steer_tau = declare_parameter("steer_tau_sec", 1.0);                                              // steering actuator first-order lag [s], modeled in the QP (see mpc_solver.hpp); <= 0 = instant actuator
+        steer_tau_ = mp.steer_tau;
+        mp.centered_heading_ref = declare_parameter("heading_ref_centered", true);                           // heading-reference chord centered on each point (no curvature phase lead) vs forward from it
 
         VehicleParams vp{};
         vp.wheelbase = wb;
@@ -122,6 +125,9 @@ public:
         dbg_elat_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/e_lat", 10);
         dbg_ehead_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/e_head", 10);
         dbg_lookahead_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/lookahead_used", 10);
+        // the actuator-lag state the QP is seeded with (estimate of the ACTUAL
+        // wheel angle), for checking against the real joint angle
+        dbg_steer_est_pub_ = create_publisher<std_msgs::msg::Float64>("/mpc/steer_actual_est", 10);
 
         auto period = std::chrono::duration<double>(1.0 / rate_hz_);
 
@@ -144,12 +150,32 @@ private:
         dbg_steer_pub_->publish(m);
     }
 
+    // Advance the actual-steering-angle estimate by one tick toward what was
+    // just commanded - the same first-order lag the QP models, driven by the
+    // node's own (slewed) output. Open loop, no wheel-angle sensor needed.
+    void advance_steer_estimate(double commanded, double dt_tick)
+    {
+        if (steer_tau_ > 0.0)
+            steer_act_est_ += (1.0 - std::exp(-dt_tick / steer_tau_)) * (commanded - steer_act_est_);
+        else
+            steer_act_est_ = commanded;
+        std_msgs::msg::Float64 m;
+        m.data = steer_act_est_;
+        dbg_steer_est_pub_->publish(m);
+    }
+
     // publish stop cmd
     void stop_cmd()
     {
         geometry_msgs::msg::Twist cmd{};
         cmd_pub_->publish(cmd);
         publish_debug(v_ref_cmd_, 0.0, 0.0);
+        // a zero Twist recentres the wheel (measured 2026-10-18: the steering
+        // joint returns to 0 while stopped), so the command memory and the
+        // actuator estimate follow it - otherwise a resume would start from a
+        // stale angle
+        steer_cmd_ = prev_steer_ = 0.0;
+        advance_steer_estimate(0.0, 1.0 / rate_hz_);
     }
 
     void control_tick()
@@ -180,6 +206,7 @@ private:
         state.psi = std::atan2(2 * (q.w * q.z + q.x * q.y),
                                1 - 2 * (q.y * q.y + q.z * q.z));
         state.v = v_now;
+        state.delta = steer_act_est_;
 
         // update path points
         auto pts = path_msg_to_points(*path_);
@@ -286,6 +313,7 @@ private:
         double max_dsteer = steer_slew_ * dt_tick;
         steer_cmd_ += std::clamp(result.steer - steer_cmd_, -max_dsteer, max_dsteer);
         prev_steer_ = steer_cmd_;
+        advance_steer_estimate(steer_cmd_, dt_tick);
 
         double angular_z = state.v / vp_.wheelbase * std::tan(steer_cmd_);
         double new_v =
@@ -324,6 +352,7 @@ private:
     double dt_ = 0.1; // MPC step time [s], mirror of mp.dt for path resampling
     bool hold_without_maneuver_ = true, turning_ = false, last_fallback_ = false;
     double prev_accel_ = 0, prev_steer_ = 0, v_ref_cmd_ = 0, steer_cmd_ = 0;
+    double steer_tau_ = 0.0, steer_act_est_ = 0.0;
     double maneuver_speed_ = 0.0;
 
     VehicleParams vp_;
@@ -347,7 +376,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pred_pub_, ref_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr dbg_vref_pub_, dbg_accel_pub_, dbg_steer_pub_,
-        dbg_elat_pub_, dbg_ehead_pub_, dbg_lookahead_pub_;
+        dbg_elat_pub_, dbg_ehead_pub_, dbg_lookahead_pub_, dbg_steer_est_pub_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };

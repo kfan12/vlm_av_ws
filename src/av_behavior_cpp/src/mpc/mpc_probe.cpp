@@ -234,6 +234,27 @@ int main()
               "than a small one, on the same (straight) path");
     }
 
+    // 11. path-end degenerate case: the foot point is the path's LAST point,
+    // so the whole resampled horizon is that one point repeated. With no
+    // geometry ahead the reference heading must fall back to the point's own
+    // orientation - not to atan2(0, 0) = east - so a car sitting on the end
+    // of a SOUTH-bound path, aligned with it, must not be told to swing 90 deg.
+    {
+        MpcParams mp_end = mp;
+        mp_end.centered_heading_ref = true;
+        mp_end.steer_tau = 1.0;
+        MpcSolver end_solver(vp, mp_end);
+        std::vector<PathPoint> pad(mp_end.N + 1, PathPoint{0.0, -10.0, -M_PI / 2.0, 10.0});
+        VehicleState at_end;
+        at_end.y = -10.0;
+        at_end.psi = -M_PI / 2.0;
+        at_end.v = 1.0;
+        auto re = end_solver.Solve(at_end, pad, 0.0, 0.0);
+        CHECK(re.success && !re.used_fallback, "QP solves when the horizon is only the path's last point");
+        CHECK(std::abs(re.e_head) < 1e-6 && std::abs(re.steer) < 0.05,
+              "path-end horizon on a south-bound path: no heading error, no swing toward east");
+    }
+
     std::printf(fails ? "\n%d CHECK(S) FAILED\n" : "\nALL CHECKS PASS\n", fails);
     return fails ? 1 : 0;
 }

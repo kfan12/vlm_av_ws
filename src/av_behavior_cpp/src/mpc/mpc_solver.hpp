@@ -52,6 +52,14 @@ struct MpcParams
     // limit cycle) and previews the upcoming path. <= 0 restores the local tangent.
     double lookahead_m{0.6};
 
+    // false: the chord above runs FORWARD from point i, so its bearing is the
+    // path tangent ~lookahead_m/2 further on - on an arc the QP sees the
+    // curvature that much early and turns in early (cuts the corner).
+    // true: the chord is CENTERED on point i (same noise averaging, no phase
+    // lead), shrinking symmetrically near the perceived path's ends, and the
+    // initial e_lat/e_head are measured against that same reference heading.
+    bool centered_heading_ref{false};
+
     // Hard steering-RATE bound [rad/s], enforced as a linear inequality on
     // consecutive delta's - NOT the same thing as w_steer_change, which only
     // discourages large steer changes via a soft quadratic cost the optimizer
@@ -113,6 +121,20 @@ struct MpcParams
     // faster recovery, then the margin tightens back up again as e_lat0
     // shrinks on later ticks. 0 = off (the base/slope-on-kappa terms alone).
     double steer_curvature_margin_elat_slope{0.0};
+
+    // Steering actuator time constant [s]. The plant does NOT reach the
+    // commanded steering angle instantly: a 2026-10-18 open-loop step test in
+    // Gazebo measured the AckermannSteering steering joint as a first-order
+    // lag, tau ~= 1.0 s (t63 = 1.0 s, t90 = 2.3 s at 2 and 3 m/s, 0.1 and
+    // 0.2 rad steps), steady state ~98%, yaw rate exactly v/L*tan(actual).
+    // Unmodeled, that lag is ~0.5 s of phase at the 0.11 Hz weave and was the
+    // cause of the growing straight-line oscillation at 3 m/s.
+    // > 0: the QP carries the actual angle as a 4th state,
+    //   delta_act_{i+1} = a*delta_act_i + (1-a)*u_i,  a = exp(-dt/steer_tau),
+    // seeded from VehicleState::delta, and e_head integrates delta_act (not
+    // the command). The control u is then the COMMANDED angle, free to lead
+    // the actual one. <= 0: the old instant-actuator model (delta_act = u).
+    double steer_tau{0.0};
 };
 
 struct MpcResult

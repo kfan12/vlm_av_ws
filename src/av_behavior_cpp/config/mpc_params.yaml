@@ -124,12 +124,31 @@
                                 # /mpc/cmd_steer and e_lat/e_head the same way
                                 # as everything else this session.
 
+    heading_ref_centered: true      # heading-reference chord CENTERED on each
+                                # horizon point (true) instead of running
+                                # forward from it (false). A forward chord's
+                                # bearing is the tangent lookahead/2 further
+                                # on, so the QP saw every curve ~5-7 m early
+                                # and cut it. Offline (mpc_closed_loop_sim,
+                                # 3 m/s, 3 cm path noise) max cross-track
+                                # 0.62 -> 0.33 m, straight-line RMS 0.038 ->
+                                # 0.007 m (2026-10-18).
     heading_lookahead_m: 5.0        # heading-reference lookahead on straights [m]
     heading_lookahead_turn_m: 5.0   # heading-reference lookahead in turns [m]
     heading_lookahead_time_s: 5.0   # lookahead as time headway, dist = v * this [s]
     heading_lookahead_min_m: 5.0    # lower clamp on the computed lookahead [m]
     heading_lookahead_max_m: 14.0   # upper clamp on the computed lookahead [m]
     steer_slew_rps: 4.0             # max steering-command slew rate [rad/s]
+    steer_tau_sec: 1.0              # steering actuator first-order lag [s], modeled
+                                # in the QP as a 4th state (mpc_solver.hpp
+                                # steer_tau). MEASURED 2026-10-18 by an
+                                # open-loop step test in Gazebo: the
+                                # AckermannSteering steering joint reaches 63%
+                                # of a step in 1.0 s and 90% in 2.3 s at 2 and
+                                # 3 m/s; yaw rate is exactly v/L*tan(actual).
+                                # Unmodeled (0 = instant actuator), that lag
+                                # made the straight-line weave grow at 3 m/s.
+                                # Re-measure if the sedan plugin changes.
 
     path_timeout_sec: 2.0                  # path considered stale after this [s]
     hold_without_maneuver: true            # hold speed if no /maneuver/target_speed

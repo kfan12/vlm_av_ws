@@ -22,9 +22,10 @@ MpcSolver::MpcSolver(const VehicleParams &vehicle_params, const MpcParams &mpc_p
 }
 
 // Build and solve the linearized MPC as a QP problem.
-// State error:[e_lat,e_head,e_speed]
-// Control: [a, delta]
-// total variables: (N+1)*3 + N*2
+// State error:[e_lat,e_head,e_speed] (+ delta_act, the actual steering angle,
+// when the actuator-lag model is on - MpcParams::steer_tau > 0)
+// Control: [a, delta]  (delta = the COMMANDED steering angle)
+// total variables: (N+1)*n_state + N*2
 
 MpcResult MpcSolver::Solve(const VehicleState &current_state,
                            const std::vector<PathPoint> &reference_path,
@@ -38,13 +39,16 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         return result;
     }
 
-    const int n_state = 3;   // [e_lat, e_head, e_speed]
+    const bool act = mp_.steer_tau > 0.0; // actuator-lag model on
+    const int n_state = act ? 4 : 3;       // [e_lat, e_head, e_speed(, delta_act)]
     const int n_control = 2; // [a, delta]
     const int N = mp_.N;     // Number of time steps
     const int n_vars = (N + 1) * n_state + N * n_control;
 
     const double L = vp_.wheelbase;
     const double dt = mp_.dt;
+    // exact zero-order-hold discretization of the first-order steering lag
+    const double a_act = act ? std::exp(-dt / mp_.steer_tau) : 0.0;
 
     const double v_ref = mp_.target_speed;                                          // Reference speed
     const double v_lin = std::clamp(current_state.v, vp_.min_speed, vp_.max_speed); // the operating point the lateral/heading dynamics are LINEARIZED around.
@@ -61,22 +65,81 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // turns to preserve curvature). lookahead_m <= 0 restores the local tangent.
     const int M = static_cast<int>(reference_path.size());
     const double look = mp_.lookahead_m;
-    std::vector<double> psi_ref(M, 0.0);
+
+    // End of the PERCEIVED path. resample_path pads a horizon longer than the
+    // path by repeating its last point (x, y and s all stay put). Those
+    // points carry no geometry: a bearing between two of them is atan2(0, 0)
+    // = 0 rad, i.e. due EAST whatever the road's direction - harmless on an
+    // east-bound straight, a fake ~90 deg swing after any turn, which the QP
+    // then cut the corner to follow (2026-10-18: the planned path only reaches
+    // ~13 m ahead, the 50-step horizon ~18 m at 3 m/s). Points from M_valid on
+    // are past the end: heading is held, curvature is 0, and they get no
+    // lateral/heading weight and no curvature-relative steer bound below -
+    // the road beyond the camera is unknown, not straight.
+    int M_valid = M;
+    for (int i = 1; i < M; ++i)
+        if (std::hypot(reference_path[i].x - reference_path[i - 1].x,
+                       reference_path[i].y - reference_path[i - 1].y) < 1e-6)
+        {
+            M_valid = i;
+            break;
+        }
+    // M_valid == 1: the foot point already IS the path's last point, so there
+    // is no geometry ahead at all. Every heading then falls back to the
+    // planner's own orientation for that point (ref0.psi) - never to the
+    // atan2(0, 0) = east of a zero-length chord.
+    std::vector<double> psi_ref(M, reference_path[0].psi);
     std::vector<double> kappa(M, 0.0);
-    for (int i = 0; i < M; ++i)
+
+    // linear interpolation along the perceived part of the reference by arc length
+    auto point_at = [&](double sq, double &px, double &py)
+    {
+        int k = 0;
+        while (k < M_valid - 2 && reference_path[k + 1].s < sq)
+            ++k;
+        const PathPoint &a = reference_path[k], &b = reference_path[std::min(k + 1, M_valid - 1)];
+        const double r = std::clamp((sq - a.s) / std::max(b.s - a.s, 1e-9), 0.0, 1.0);
+        px = a.x + r * (b.x - a.x);
+        py = a.y + r * (b.y - a.y);
+    };
+
+    for (int i = 0; i < M && mp_.centered_heading_ref && look > 0.0; ++i)
+    {
+        if (i >= M_valid - 1)
+        {
+            psi_ref[i] = psi_ref[std::max(i - 1, 0)]; // past the end: hold
+            continue;
+        }
+        // chord [s_i - hb, s_i + hf]: centered (hb = hf = look/2) where the path
+        // allows, shrinking symmetrically toward either end, never shorter than
+        // a CENTERED_FLOOR_M forward stub at the very start (ref[0] is the foot
+        // point; nothing is perceived behind it)
+        constexpr double CENTERED_FLOOR_M = 0.75;
+        const double h = 0.5 * look;
+        const double back = reference_path[i].s - reference_path[0].s;
+        const double fwd = reference_path[M_valid - 1].s - reference_path[i].s;
+        const double hb = std::min({h, back, std::max(fwd, CENTERED_FLOOR_M)});
+        const double hf = std::min(fwd, std::max(hb, CENTERED_FLOOR_M));
+        double ax, ay, bx, by;
+        point_at(reference_path[i].s - hb, ax, ay);
+        point_at(reference_path[i].s + hf, bx, by);
+        psi_ref[i] = std::atan2(by - ay, bx - ax);
+    }
+
+    for (int i = 0; i < M && !(mp_.centered_heading_ref && look > 0.0); ++i)
     {
         int j = i + 1; // local tangent baseline#
         if (look > 0.0)
         {
             j = i;
-            while (j < M - 1 && reference_path[j].s - reference_path[i].s < look)
+            while (j < M_valid - 1 && reference_path[j].s - reference_path[i].s < look)
                 ++j;
         }
 
-        if (j >= M)
-            j = M - 1;
-        if (j == i)
-            psi_ref[i] = (i > 0) ? psi_ref[i - 1] : 0.0; // no point ahead, use previous tangent
+        if (j >= M_valid)
+            j = M_valid - 1;
+        if (j <= i)
+            psi_ref[i] = (i > 0) ? psi_ref[i - 1] : reference_path[0].psi; // no point ahead, use previous tangent
         else
             psi_ref[i] = std::atan2(reference_path[j].y - reference_path[i].y,
                                     reference_path[j].x - reference_path[i].x);
@@ -123,10 +186,14 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // initial condition at the foot point
     const PathPoint &ref0 = reference_path[0];
 
-    const double e_lat0 = -std::sin(ref0.psi) * (current_state.x - ref0.x) +
-                          std::cos(ref0.psi) * (current_state.y - ref0.y);
+    // centered mode measures the initial errors against the same reference
+    // heading the dynamics integrate (psi_ref), not the pose orientation the
+    // planner happened to attach to the foot point
+    const double psi0 = mp_.centered_heading_ref ? psi_ref[0] : ref0.psi;
+    const double e_lat0 = -std::sin(psi0) * (current_state.x - ref0.x) +
+                          std::cos(psi0) * (current_state.y - ref0.y);
 
-    const double e_head0 = wrap_pi(current_state.psi - ref0.psi);
+    const double e_head0 = wrap_pi(current_state.psi - psi0);
     const double v0 = current_state.v;
 
     // Cost matrix P and gradient q. Weights follow the (1/2)*w*(.)^2 convention
@@ -150,8 +217,9 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     for (int i = 0; i < N + 1; ++i)
     {
         int idx_base = i * n_state;
-        Ptr.emplace_back(idx_base + 0, idx_base + 0, mp_.w_lat);   // e_lat²
-        Ptr.emplace_back(idx_base + 1, idx_base + 1, mp_.w_head);  // e_head²
+        const bool seen = i < M_valid; // reference point i is on the perceived path
+        Ptr.emplace_back(idx_base + 0, idx_base + 0, seen ? mp_.w_lat : 0.0);  // e_lat²
+        Ptr.emplace_back(idx_base + 1, idx_base + 1, seen ? mp_.w_head : 0.0); // e_head²
         Ptr.emplace_back(idx_base + 2, idx_base + 2, mp_.w_speed); // e_speed²
         q[idx_base + 2] = -mp_.w_speed * v_ref;                    // linear term for speed target
     }
@@ -236,6 +304,8 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // e_lat_{i+1} = e_lat_i + dt*v_lin*e_head_i
     // e_head_{i+1} = e_head_i + dt*(v_lin/L)*delta_i - dt*v_lin*kappa_i
     // v_{i+1} = v_i + dt*a_i   (speed dynamics unaffected)
+    // with the actuator model, e_head integrates delta_act_i instead of the
+    // command delta_i, and delta_act_{i+1} = a_act*delta_act_i + (1-a_act)*delta_i
 
     for (int i = 0; i < N; ++i)
     {
@@ -254,7 +324,8 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         // e_head_{i+1} - e_head_i - dt*(v_lin/L)*delta_i = -dt*v_lin*k_i
         Tr.emplace_back(row + 1, xi1 + 1, 1.0);            // 1.0 -> e_head_{i+1}
         Tr.emplace_back(row + 1, xi + 1, -1.0);            // -1.0 -> e_head_{i}
-        Tr.emplace_back(row + 1, ui + 1, -dt * v_lin / L); // -dt * v_lin/L->delta { i }
+        Tr.emplace_back(row + 1, act ? xi + 3 : ui + 1,    // -dt * v_lin/L -> delta_act_{i}
+                        -dt * v_lin / L);                  //   (or the command delta_{i})
         l(row + 1) = u(row + 1) = -dt * v_lin * k_i;       // right side of equation
 
         // v_{i+1} - v_i - dt*a_i = 0
@@ -262,6 +333,15 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
         Tr.emplace_back(row + 2, xi + 2, -1.0); // -1.0 -> v_{i}
         Tr.emplace_back(row + 2, ui + 0, -dt);  // -dt ->a { i }
         l(row + 2) = u(row + 2) = 0.0;          // right side of equation
+
+        if (act)
+        {
+            // delta_act_{i+1} - a_act*delta_act_i - (1-a_act)*delta_i = 0
+            Tr.emplace_back(row + 3, xi1 + 3, 1.0);
+            Tr.emplace_back(row + 3, xi + 3, -a_act);
+            Tr.emplace_back(row + 3, ui + 1, -(1.0 - a_act));
+            l(row + 3) = u(row + 3) = 0.0;
+        }
     }
 
     // boundary conditions
@@ -278,6 +358,8 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     l(base + 0) = u(base + 0) = e_lat0;
     l(base + 1) = u(base + 1) = e_head0;
     l(base + 2) = u(base + 2) = v0;
+    if (act)
+        l(base + 3) = u(base + 3) = current_state.delta; // actual steering angle now
 
     // speed bounds: 0 <= v <= max_speed, for all steps after the pinned step 0
     for (int i = 1; i <= N; ++i)
@@ -295,7 +377,19 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // genuinely far off track gets more correction authority to recover
     // quickly, while a car that's on track stays capped tight even through a
     // straight/gentle stretch.
+    //
+    // These bounds and the steering-rate bounds below are both HARD, so they
+    // can contradict each other: when kappa (hence delta_ff) jumps between
+    // ticks, the box can sit wholly outside what the rate limit lets delta_0
+    // reach from previous_steer - an infeasible QP, i.e. a tick on the
+    // proportional fallback (1-5 such switches per Gazebo lap, 2026-10-18).
+    // So each step's box is widened just enough to meet the interval reachable
+    // from previous_steer through the rate limits of the steps before it.
     const double elat_margin = mp_.steer_curvature_margin_elat_slope * std::abs(e_lat0);
+    const double dt0 = mp_.control_dt > 0.0 ? mp_.control_dt : dt; // real tick interval for u_0's transition
+    const double rate_bound0 = mp_.steer_rate_limit * dt0;
+    const double rate_bound = mp_.steer_rate_limit * dt; // within-horizon steps, spaced by dt
+    double reach_lo = previous_steer - rate_bound0, reach_hi = previous_steer + rate_bound0;
     for (int i = 0; i < N; ++i)
     {
         l(base + (N + 1) * n_state + i * n_control + 0) = vp_.max_decel;
@@ -303,13 +397,22 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
 
         const double k_i = kappa[std::min(i, M - 1)];
         const double delta_ff = std::atan(L * k_i);
-        const double margin_i = mp_.steer_curvature_margin_base +
-                                mp_.steer_curvature_margin_slope * std::abs(k_i) +
-                                elat_margin;
-        l(base + (N + 1) * n_state + i * n_control + 1) =
-            std::clamp(delta_ff - margin_i, -vp_.max_steer, vp_.max_steer);
-        u(base + (N + 1) * n_state + i * n_control + 1) =
-            std::clamp(delta_ff + margin_i, -vp_.max_steer, vp_.max_steer);
+        const double margin_i = i < M_valid - 1
+                                    ? mp_.steer_curvature_margin_base +
+                                          mp_.steer_curvature_margin_slope * std::abs(k_i) +
+                                          elat_margin
+                                    : 2.0 * vp_.max_steer; // past the path end: plain +/-max_steer
+        double lo = std::clamp(delta_ff - margin_i, -vp_.max_steer, vp_.max_steer);
+        double hi = std::clamp(delta_ff + margin_i, -vp_.max_steer, vp_.max_steer);
+        if (lo > reach_hi)
+            lo = reach_hi; // box wholly above what delta_i can reach: extend it down
+        if (hi < reach_lo)
+            hi = reach_lo; // ... or wholly below: extend it up
+        l(base + (N + 1) * n_state + i * n_control + 1) = lo;
+        u(base + (N + 1) * n_state + i * n_control + 1) = hi;
+        // reachable interval for delta_{i+1}: this step's feasible part, +/- one step's swing
+        reach_lo = std::max(lo, reach_lo) - rate_bound;
+        reach_hi = std::min(hi, reach_hi) + rate_bound;
     }
 
     // steering-rate bounds: |delta change| <= steer_rate_limit * (elapsed time).
@@ -318,9 +421,6 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     // output steer_slew_rps) can actually deliver, closing the plan-vs-plant
     // rate gap the model previously had no notion of.
     const int rate_base = base + n_vars; // after dynamics + all bound rows
-    const double dt0 = mp_.control_dt > 0.0 ? mp_.control_dt : dt; // real tick interval for u_0's transition
-    const double rate_bound0 = mp_.steer_rate_limit * dt0;
-    const double rate_bound = mp_.steer_rate_limit * dt; // within-horizon steps, spaced by dt
 
     // delta_0 - previous_steer, bounded by the real one-tick achievable swing
     Tr.emplace_back(rate_base, si(0), 1.0);
@@ -382,14 +482,23 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     result.success = true;
 
     // Predicted preview: roll the NONLINEAR model out under the QP's control
-    // sequence (the QP states are linearized errors, not poses).
+    // sequence (the QP states are linearized errors, not poses), through the
+    // same actuator lag the QP planned with.
     VehicleState s = current_state;
+    double delta_act = current_state.delta;
     for (int i = 0; i < N; ++i)
     {
         const int ui = (N + 1) * n_state + i * n_control;
         VehicleControl uc{std::clamp(z[ui + 0], vp_.max_decel, vp_.max_accel),
                           std::clamp(z[ui + 1], -vp_.max_steer, vp_.max_steer)};
-        s = integrate_kinematic(s, uc, vp_, dt);
+        VehicleControl applied = uc;
+        if (act)
+        {
+            applied.delta = delta_act;
+            delta_act = a_act * delta_act + (1.0 - a_act) * uc.delta;
+        }
+        s = integrate_kinematic(s, applied, vp_, dt);
+        s.delta = applied.delta;
         result.predicted_states.push_back(s);
         result.accels.push_back(uc.a);
         result.steers.push_back(uc.delta);

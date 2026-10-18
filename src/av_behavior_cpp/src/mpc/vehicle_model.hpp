@@ -4,6 +4,9 @@
 struct VehicleState
 {
     double x{0.0}, y{0.0}, psi{0.0}, v{0.0};
+    double delta{0.0}; // ACTUAL front-wheel steering angle [rad] - the solver's
+                       // actuator-lag state seed (MpcParams::steer_tau); ignored
+                       // by integrate_kinematic, which takes delta as the control
 };
 
 struct VehicleControl
