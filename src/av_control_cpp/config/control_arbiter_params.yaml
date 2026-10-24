@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    mpc_timeout_sec: 0.15
+    aeb_status_timeout_sec: 0.15
+    aeb_cmd_timeout_sec: 0.15
+    estop_timeout_sec: 0.5
+    max_speed_mps: 4.0
+    max_yaw_rate_radps: 2.0
+    arbiter_rate_hz: 40.0
