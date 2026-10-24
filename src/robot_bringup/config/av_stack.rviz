@@ -81,6 +81,16 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
+    - Class: rviz_default_plugins/Marker
+      Name: control/active_source
+      Enabled: true
+      Namespaces: {}
+      Topic:
+        Value: /control/active_source_marker
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
     - Class: rviz_default_plugins/Path
       Name: lane_path_odom
       Enabled: true

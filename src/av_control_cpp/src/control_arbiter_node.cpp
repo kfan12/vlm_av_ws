@@ -7,6 +7,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -64,6 +65,8 @@ public:
 
         pub_cmd_ = create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
         pub_source_ = create_publisher<std_msgs::msg::String>("/control/active_source", 10);
+        // RViz2 has no String display - same text as a marker riding above the car
+        pub_source_marker_ = create_publisher<visualization_msgs::msg::Marker>("/control/active_source_marker", 10);
 
         auto period = std::chrono::duration<double>(1.0 / rate_hz_);
         timer_ = create_wall_timer(std::chrono::duration_cast<std::chrono::nanoseconds>(period),
@@ -110,6 +113,33 @@ private:
         std_msgs::msg::String src;
         src.data = source;
         pub_source_->publish(src);
+
+        visualization_msgs::msg::Marker mk;
+        mk.header.frame_id = "base_link"; // rides with the car, no pose bookkeeping
+        mk.header.stamp = now();
+        mk.ns = "active_source";
+        mk.id = 0;
+        mk.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+        mk.pose.position.z = 3.0; // above lane_node's state text (2.5)
+        mk.pose.orientation.w = 1.0;
+        mk.scale.z = 0.7;
+        mk.color.a = 1.0;
+        if (source == "mpc")
+        {
+            mk.color.g = 1.0; // green: nominal
+        }
+        else if (source == "aeb")
+        {
+            mk.color.r = 1.0; // orange: safety override
+            mk.color.g = 0.6;
+        }
+        else
+        {
+            mk.color.r = 1.0; // red: estop / fault / fallback
+        }
+        mk.text = "ctrl: " + source;
+        pub_source_marker_->publish(mk);
+
         if (source != last_source_)
         {
             RCLCPP_INFO(get_logger(), "control source: %s -> %s", last_source_.c_str(), source.c_str());
@@ -165,6 +195,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_estop_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_source_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_source_marker_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };

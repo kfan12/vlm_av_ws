@@ -52,6 +52,17 @@ def setup(context):
     if not mpc_config:
         pkg_behavior = get_package_share_directory('av_behavior_cpp')
         mpc_config = os.path.join(pkg_behavior, 'config', 'mpc_params.yaml')
+        
+    
+    aeb_config = context.launch_configurations['aeb_config']
+    if not aeb_config:
+        pkg_safety = get_package_share_directory('av_safety_cpp')
+        aeb_config = os.path.join(pkg_safety, 'config', 'aeb_params.yaml')
+
+    arbiter_config = context.launch_configurations['arbiter_config']
+    if not arbiter_config:
+        pkg_control = get_package_share_directory('av_control_cpp')
+        arbiter_config = os.path.join(pkg_control, 'config', 'control_arbiter_params.yaml')
 
     # Spawn pose = origin of the odom frame. Same read as urban_world.launch.py;
     # kept here too so the map_origin_* fan-out has a single owner.
@@ -102,7 +113,16 @@ def setup(context):
                  parameters=[map_origin, planner_opts]),
             Node(package='av_behavior_cpp', executable='mpc_tracker_v2',
                  name='mpc_tracker_v2', output='screen',
-                 parameters=[mpc_config, {'use_sim_time': True}]),
+                 parameters=[mpc_config, {'use_sim_time': True}],
+                 remappings=[('/cmd_vel', '/control/mpc_cmd')]),
+            Node(package='av_safety_cpp', executable='aeb_node',
+                 name='aeb_node', output='screen',
+                 parameters=[aeb_config, {'use_sim_time': True}],
+                 remappings=[('nominal_cmd', '/control/mpc_cmd')]),
+            Node(package='av_control_cpp', executable='control_arbiter_node',
+                 name='control_arbiter', output='screen',
+                 parameters=[arbiter_config, {'use_sim_time': True}]),
+
         ]),
     ]
 
@@ -115,6 +135,10 @@ def generate_launch_description():
         DeclareLaunchArgument('mpc_config', default_value='',
                               description='mpc_tracker_v2 params yaml; '
                                           'empty = av_behavior_cpp/config/mpc_params.yaml'),
+        DeclareLaunchArgument('aeb_config', default_value='',
+                              description='aeb_node params yaml; empty = av_safety_cpp/config/aeb_params.yaml'),
+        DeclareLaunchArgument('arbiter_config', default_value='',
+                              description='control_arbiter params yaml; empty = av_control_cpp/config/control_arbiter_params.yaml'), 
         DeclareLaunchArgument('lane_debug_tap', default_value='false',
                               description='lane_node: enable av::DebugTap dump'),
         DeclareLaunchArgument('lane_debug_markers', default_value='true',

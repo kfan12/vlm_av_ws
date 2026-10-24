@@ -14,9 +14,10 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(av_feature_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 add_executable(control_arbiter_node src/control_arbiter_node.cpp)
-ament_target_dependencies(control_arbiter_node rclcpp std_msgs geometry_msgs av_feature_msgs)
+ament_target_dependencies(control_arbiter_node rclcpp std_msgs geometry_msgs av_feature_msgs visualization_msgs)
 
 install(TARGETS control_arbiter_node DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})

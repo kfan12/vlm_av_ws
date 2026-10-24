@@ -6,6 +6,7 @@ local/
 log/
 debug/
 docs/reports/
+docs/baselines/
 .vscode/
 .claude/
 CLAUDE.md
