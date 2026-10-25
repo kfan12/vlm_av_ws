@@ -1,4 +1,4 @@
-# V2 sedan EKF (day 06) — NEW file, v1 ekf.yaml untouched.
+# V2 sedan EKF - separate file, v1 ekf.yaml untouched.
 # Same fusion structure as v1 (wheel twist + IMU yaw/yaw-rate/ax); process
 # noise left at robot_localization defaults for the first implementation —
 # retune on the day-06 drift plot when the sim runs (target < 2 %/distance).

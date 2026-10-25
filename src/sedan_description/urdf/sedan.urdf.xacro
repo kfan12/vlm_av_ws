@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sedan">
 
-    <!-- V2 full-size sedan (day 03). Same plugin set / joint naming as the v1
+    <!-- V2 full-size sedan. Same plugin set / joint naming as the v1
        robotcar (the AckermannSteering plugin keys off the joint names).
        Mass is 300 kg NOT 1400 (plan note: stability > physics fidelity;
        raise later if the sim tolerates it). Camera extrinsic (cam_x/cam_z/

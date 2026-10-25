@@ -1,4 +1,4 @@
-// mpc_probe - Day 10 offline checks: the QP solves, uses OSQP (not the
+// mpc_probe - offline checks: the QP solves, uses OSQP (not the
 // fallback), and its signs and feed-forward behave. Solve() expects
 // reference_path[0] to BE the foot point (the node resamples from the
 // closest point), so the probes construct references accordingly.

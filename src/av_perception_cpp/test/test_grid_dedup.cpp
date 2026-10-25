@@ -18,7 +18,7 @@
 #include <vector>
 
 // ---------------------------------------------------------------- the function under test
-// Copied verbatim from lane_node.cpp's anonymous namespace / the Day 6 guide.
+// Copied verbatim from lane_node.cpp's anonymous namespace.
 // Keep this in sync by hand if the real implementation changes.
 struct ChainPt
 {

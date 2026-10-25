@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""record_av_lap.py - minimal lap recorder for the AV stack (Day 15).
+"""record_av_lap.py - minimal lap recorder for the AV stack.
 
 Subscribes to the stack's key topics and writes one JSONL file per signal
 into a session dir.
@@ -24,8 +24,8 @@ Every row is stamped with the node's clock at arrival (sim time with
 use_sim_time), so all streams share one time base; rows that arrive before
 /clock (t = 0) are dropped.
 
-Deviations from day15.md: /odom_truth is absolute world, not spawn-zeroed
-(the analyzer relies on this); aeb_state added so Day 17 laps can count
+/odom_truth is recorded in the absolute world frame, not spawn-zeroed
+(the analyzer relies on this); aeb_state added so laps with the arbiter can count
 FAULT ticks; meta carries world + seed so baselines are only compared
 within one world.
 

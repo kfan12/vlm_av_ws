@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """visualize_lane_dump.py - offline visualization of lane_node's ingest_mask()
-pipeline (Day 5/6 debugging). No ROS needed: reads the PNGs/JSON that
+pipeline. No ROS needed: reads the PNGs/JSON that
 lane_node.cpp's dump_debug_frame() writes when the dump_dir parameter is set.
 
 Enable dumping on the node:

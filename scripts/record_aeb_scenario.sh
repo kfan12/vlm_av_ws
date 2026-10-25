@@ -1,6 +1,6 @@
 #!/bin/bash
 # record_aeb_scenario.sh [--label L --duration S --world W --target-speed V]
-# Thin wrapper over tools/avkit/record_aeb_scenario.py (Day 18 shape).
+# Thin wrapper over tools/avkit/record_aeb_scenario.py.
 set -e
 export PYTHONNOUSERSITE=1
 source /opt/ros/humble/setup.bash

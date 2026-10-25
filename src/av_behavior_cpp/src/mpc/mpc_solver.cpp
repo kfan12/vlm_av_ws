@@ -591,7 +591,7 @@ MpcResult MpcSolver::solve_proportional(const VehicleState &current_state,
     // Blend with the previous command — stand-in for the QP's control-rate
     // (smoothness) weights. A higher rate-weight => stronger blend toward the
     // previous command => smoother / less oscillation, which is exactly the knob
-    // the Day 15 tuning rules reach for (raise weight_steer_rate to damp wobble).
+    // the lap-metric tuning rules reach for (raise weight_steer_rate to damp wobble).
     // Normalized to [0,1) so it can't run away; kRateRef sets where the default
     // weights sit (w_steer_change=2 -> ~0.33, matching the old fixed 0.3).
     const double kRateRef = 4.0;

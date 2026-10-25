@@ -1,4 +1,4 @@
-# ros_gz bridge for the V2 sedan in the generated urban world (day 06).
+# ros_gz bridge for the V2 sedan in the generated urban world.
 # NEW file — the v1 bridge.yaml is untouched. Model name: sedan. Only
 # world-independent topics belong here; the joint_state topic embeds the world
 # name, so urban_world.launch.py bridges it via a positional arg instead.

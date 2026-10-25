@@ -641,9 +641,9 @@ private:
 
 LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructor
 {
-    params_.cam_x = declare_parameter("cam_x", 2.2);          // URDF mount x (Day 2; 1.9->1.2->2.2 2026-09-05 to clear hood self-occlusion, must match sedan.urdf.xacro)
+    params_.cam_x = declare_parameter("cam_x", 2.2);          // URDF mount x (1.9->1.2->2.2 2026-09-05 to clear hood self-occlusion, must match sedan.urdf.xacro)
     params_.cam_z = declare_parameter("cam_z", 1.4);          // URDF mount z, also ground height post-fix
-    params_.cam_pitch = declare_parameter("cam_pitch", 0.06); // URDF mount pitch, now the true value (Day 2 fix)
+    params_.cam_pitch = declare_parameter("cam_pitch", 0.06); // URDF mount pitch, now the true value
     params_.hfov = declare_parameter("camera_hfov", 1.9);     // must match the URDF's rgbd_camera hfov (1.6->1.9 2026-09-05: lowers fx=fy, widens vertical FOV, pulls the near-field ground limit forward - see sedan.urdf.xacro)
     params_.img_w = declare_parameter("camera_width", 424);   // must match the URDF's image width (424->500->400->424 2026-09-05: back to baseline, near coverage now comes from hfov instead of extra pixels)
     params_.img_h = declare_parameter("camera_height", 300);  // must match the URDF's image height (240->300->400->300 2026-09-05: back to baseline, ~1.0x the original 424x240 pixel-area baseline)
@@ -684,7 +684,7 @@ LaneNode::LaneNode() : rclcpp::Node("lane_node"), debug_tap_(this) // constructo
     params_.chain_merge_bin_m = declare_parameter("chain_merge_bin_m", 1.5);               // B.8 -- 2x chain_resample_m so the merge genuinely averages, not re-bins the same grid
     params_.chain_min_center_pts = declare_parameter("chain_min_center_pts", 5);           // B.10
     params_.path_reuse_s = declare_parameter("path_reuse_s", 1.0);                         // B.11
-    params_.chain_d_max_m = declare_parameter("chain_d_max_m", 20.0);                      // Day 6 pitfall: far depth noise
+    params_.chain_d_max_m = declare_parameter("chain_d_max_m", 20.0);                      // far depth noise
     params_.smooth_window = declare_parameter("smooth_window", 9);                         // ~6 m at 0.75 m spacing
     params_.depth_stale_warn_s = declare_parameter("depth_stale_warn_s", 1.5);             // watchdog: no-depth WARN threshold
     params_.rgb_depth_skew_max_s = declare_parameter("rgb_depth_skew_max_s", 0.20);        // skip tick past this rgb/depth stamp gap
@@ -832,12 +832,12 @@ void LaneNode::ingest()
                              "estimated pitch %.4f rad (EMA %.4f)", *p, pitch_ema_);
         have_pitch_ = true;
 
-        // bypass estimation, use the known true pitch from URDF mount, for Day 5 accept check
+        // bypass estimation, use the known true pitch from URDF mount, to check the ground fit against a known pitch
         // pitch_ema_ = params_.cam_pitch;
         T_base_cam_ = av::proj::make_T_base_cam(params_.cam_x, 0.0, params_.cam_z, pitch_ema_);
     }
 
-    debug_tap_.put("pitch_est", pitch_ema_); // exposed on /debug/lane_node for the Day 5 accept check
+    debug_tap_.put("pitch_est", pitch_ema_); // exposed on /debug/lane_node to verify the pitch estimate
 }
 
 void LaneNode::ingest_mask()
@@ -942,7 +942,7 @@ void LaneNode::ingest_mask()
             ++added;
         }
     }
-    debug_tap_.put("added", added);                                         // Day 5 accept check: thousands on a straight
+    debug_tap_.put("added", added);                                         // expect thousands on a straight
     debug_tap_.put("rej_depth", rej_depth);                                 // should be bounded, not dominant
     debug_tap_.put("rej_zgate", rej_zgate);                                 // should be bounded, not dominant
     debug_tap_.put("cloud_white", static_cast<int>(white_cloud_.size()));   // split so /lane/markings occ can be traced back
@@ -966,7 +966,7 @@ LaneNode::ChainResult LaneNode::chain_centerline()
     // is what the world's geometry requires.
     Chain wpts, ypts;
     for (const auto &p : white_cloud_)
-        if (p.x() <= params_.chain_d_max_m) // trust bound for centreline geometry (Day 6 pitfall)
+        if (p.x() <= params_.chain_d_max_m) // trust bound for centreline geometry (far depth is too noisy)
             wpts.push_back({p.x(), p.y(), false});
     for (const auto &p : yellow_cloud_)
         if (p.x() <= params_.chain_d_max_m)

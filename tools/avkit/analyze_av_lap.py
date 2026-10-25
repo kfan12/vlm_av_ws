@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""analyze_av_lap.py - metrics + report for a recorded lap (Day 15).
+"""analyze_av_lap.py - metrics + report for a recorded lap.
 
   python3 tools/avkit/analyze_av_lap.py latest [--map maps/urban_course.json] [--plots]
 
@@ -8,8 +8,8 @@ from record_av_lap.py and writes metrics.json + report.md (+ lap.png) into it.
 
 Frames: everything is compared in the WORLD frame (the map JSON's frame).
 /odom_truth is already absolute world; /odom_ekf is spawn-zeroed and is moved
-into world by the map's spawn pose. (day15.md shifted the map into odom and
-then compared it against raw /odom_truth, which double-counts the spawn pose.)
+into world by the map's spawn pose. (Shifting the map into odom and comparing
+it against raw /odom_truth would double-count the spawn pose.)
 
 Reference lane: the map's course centerline offset half a lane RIGHT of the
 travel direction (the same construction as local_planner's build_course_lane).

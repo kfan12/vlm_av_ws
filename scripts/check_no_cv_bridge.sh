@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cv_bridge is banned in v2: the venv's NumPy 2 breaks its Python binding, and
 # C++ nodes wrap sensor_msgs data zero-copy into cv::Mat (img_access.hpp) so
-# they don't need it either. Day 01 guard.
+# they don't need it either.
 WS="$(cd "$(dirname "$0")/.." && pwd)"
 # match real usage (include/import), not comments that mention the ban
 hits=$(grep -rnE "include.*cv_bridge|import cv_bridge|from cv_bridge" \

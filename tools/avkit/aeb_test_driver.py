@@ -5,7 +5,7 @@
       --ros-args -p use_sim_time:=true
 
 Publishes /maneuver/target_speed at 10 Hz and logs events to stdout.
---stop-on-brake stands in for the Day 17 arbiter in shadow mode: the MPC
+--stop-on-brake stands in for control_arbiter in shadow mode: the MPC
 brakes more gently than AEB's 6 m/s^2 would, so it is a smoke test of the
 STOP_HOLD logic, not of stopping distance.
   --stop-at-x X       set target 0 once /odom_truth x >= X  (stop-short repro)

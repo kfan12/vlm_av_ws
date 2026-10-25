@@ -1,6 +1,6 @@
 #!/bin/bash
 # record_av_lap.sh [--label L --duration S --world W]
-# Thin wrapper over tools/avkit/record_av_lap.py (Day 15).
+# Thin wrapper over tools/avkit/record_av_lap.py.
 # System python, no venv; use_sim_time so stamps share the sim clock epoch.
 set -e
 export PYTHONNOUSERSITE=1

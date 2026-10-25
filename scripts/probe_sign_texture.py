@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""probe_sign_texture.py - offline Qwen read of a sign image (Day 12).
+"""probe_sign_texture.py - offline Qwen read of a sign image.
 
 Feeds an image file through the same model_runner + prompt + parser stack the
 node uses and prints the parsed label. Run under the venv with the workspace

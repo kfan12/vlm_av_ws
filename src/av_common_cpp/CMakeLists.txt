@@ -21,7 +21,7 @@ target_link_libraries(av_common INTERFACE
   nlohmann_json::nlohmann_json Eigen3::Eigen)
 
 # Smoke target: forces every header to actually compile.
-# TODO(day01 task 6): re-enable once src/header_check.cpp is written.
+# TODO: re-enable once src/header_check.cpp is written.
 add_executable(header_check src/header_check.cpp)
 target_link_libraries(header_check av_common)
 ament_target_dependencies(header_check rclcpp std_msgs sensor_msgs)
