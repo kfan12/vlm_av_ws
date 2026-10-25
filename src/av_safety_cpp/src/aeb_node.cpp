@@ -1,11 +1,13 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
+#include <opencv2/imgproc.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -114,6 +116,22 @@ public:
         pub_obstacles_ = create_publisher<visualization_msgs::msg::MarkerArray>("/safety/aeb/debug_obstacles", 10);
         pub_corridor_ = create_publisher<visualization_msgs::msg::MarkerArray>("/safety/aeb/debug_corridor", 10);
 
+        // /safety/aeb/debug_image: front RGB + swept corridor, clusters, d_safe
+        // line and state banner. The RGB subscription exists only for this
+        // view - no safety decision ever reads it.
+        debug_image_ = declare_parameter("debug_image", true);
+        if (debug_image_)
+        {
+            sub_rgb_ = create_subscription<sensor_msgs::msg::Image>(
+                "/camera/front/image_raw", rclcpp::SensorDataQoS(),
+                [this](sensor_msgs::msg::Image::ConstSharedPtr m)
+                { rgb_ = m; });
+            // BEST_EFFORT, depth 1, same reason as lane_node's /lane/debug_image:
+            // a slow reliable RViz reader must never back up into tick()
+            pub_debug_image_ = create_publisher<sensor_msgs::msg::Image>(
+                "/safety/aeb/debug_image", rclcpp::QoS(1).best_effort());
+        }
+
         auto period = std::chrono::duration<double>(1.0 / rate_hz_);
         timer_ = create_wall_timer(std::chrono::duration_cast<std::chrono::nanoseconds>(period), [this]()
                                    { tick(); });
@@ -218,6 +236,10 @@ private:
         st.reason = reason;
         pub_status_->publish(st);
         pub_cmd_->publish(geometry_msgs::msg::Twist{}); // zero cmd on fault
+
+        DebugOverlay o;
+        o.reason = reason;
+        publish_debug_image(o);
     }
 
     void tick()
@@ -319,6 +341,263 @@ private:
         pub_cmd_->publish(cmd);
 
         publish_debug_markers(clusters);
+
+        DebugOverlay o;
+        o.clusters = &clusters;
+        o.mpc_path = &mpc_path_base;
+        o.kin_path = &kin_path;
+        o.best = best;
+        o.ttc = ttc;
+        o.d_safe = d_safe;
+        o.v = v;
+        o.reason = st.reason;
+        publish_debug_image(o);
+    }
+
+    // Everything the debug image draws from one tick. Pointers are only valid
+    // for the duration of publish_debug_image().
+    struct DebugOverlay
+    {
+        const std::vector<av::safety::ObstacleCluster> *clusters = nullptr;
+        const av::geom::Polyline *mpc_path = nullptr; // base_link, may be empty (stale MPC)
+        const av::geom::Polyline *kin_path = nullptr; // base_link
+        av::safety::CorridorResult best;
+        double ttc = 1e9, d_safe = 0.0, v = 0.0;
+        std::string reason;
+    };
+
+    static const char *state_name(AebState s)
+    {
+        switch (s)
+        {
+        case AebState::INACTIVE:
+            return "INACTIVE";
+        case AebState::MONITORING:
+            return "MONITORING";
+        case AebState::WARNING:
+            return "WARNING";
+        case AebState::BRAKING:
+            return "BRAKING";
+        case AebState::STOP_HOLD:
+            return "STOP_HOLD";
+        case AebState::FAULT:
+            return "FAULT";
+        }
+        return "?";
+    }
+
+    static cv::Scalar state_color(AebState s) // rgb8
+    {
+        switch (s)
+        {
+        case AebState::MONITORING:
+            return {40, 200, 80};
+        case AebState::WARNING:
+            return {255, 165, 0};
+        case AebState::BRAKING:
+            return {255, 40, 40};
+        case AebState::STOP_HOLD:
+            return {200, 40, 220};
+        case AebState::FAULT:
+            return {255, 230, 0};
+        default:
+            return {160, 160, 160};
+        }
+    }
+
+    std::optional<cv::Point> to_pixel(double x, double y, double z) const
+    {
+        auto uv = av::proj::base_to_pixel(pin_, T_base_cam_, {x, y, z});
+        if (!uv || std::abs(uv->x()) > 1e4 || std::abs(uv->y()) > 1e4)
+            return std::nullopt;
+        return cv::Point(static_cast<int>(std::lround(uv->x())), static_cast<int>(std::lround(uv->y())));
+    }
+
+    // Ground-plane outline of the swept corridor along `path`, from arc length
+    // s0 (bumper + longitudinal margin, where check_corridor's distances start)
+    // to the path end, half_w either side - the region check_corridor tests.
+    std::vector<cv::Point> corridor_polygon(const av::geom::Polyline &path, double s0, double half_w) const
+    {
+        std::vector<cv::Point> left, right;
+        double s = 0.0;
+        for (size_t i = 0; i + 1 < path.size(); ++i)
+        {
+            Eigen::Vector2d d = path[i + 1] - path[i];
+            double len = d.norm();
+            if (len < 1e-9)
+                continue;
+            Eigen::Vector2d t = d / len, n(-t.y(), t.x());
+            auto add = [&](const Eigen::Vector2d &c)
+            {
+                auto l = to_pixel(c.x() + n.x() * half_w, c.y() + n.y() * half_w, 0.0);
+                auto r = to_pixel(c.x() - n.x() * half_w, c.y() - n.y() * half_w, 0.0);
+                if (l && r)
+                {
+                    left.push_back(*l);
+                    right.push_back(*r);
+                }
+            };
+            if (s + len >= s0)
+            {
+                if (left.empty())
+                    add(path[i] + t * std::max(0.0, s0 - s));
+                add(path[i + 1]);
+            }
+            s += len;
+        }
+        if (left.size() < 2)
+            return {};
+        left.insert(left.end(), right.rbegin(), right.rend());
+        return left;
+    }
+
+    // point + unit tangent at arc length s along path (nullopt past its end)
+    static std::optional<std::pair<Eigen::Vector2d, Eigen::Vector2d>> point_at(
+        const av::geom::Polyline &path, double s)
+    {
+        double acc = 0.0;
+        for (size_t i = 0; i + 1 < path.size(); ++i)
+        {
+            Eigen::Vector2d d = path[i + 1] - path[i];
+            double len = d.norm();
+            if (len < 1e-9)
+                continue;
+            if (acc + len >= s)
+                return std::make_pair(Eigen::Vector2d(path[i] + d * ((s - acc) / len)), Eigen::Vector2d(d / len));
+            acc += len;
+        }
+        return std::nullopt;
+    }
+
+    // /safety/aeb/debug_image. Purely a view: at most once per new RGB frame,
+    // and any failure here is logged and swallowed - drawing must never take
+    // down the safety node.
+    void publish_debug_image(const DebugOverlay &o)
+    {
+        if (!pub_debug_image_ || !rgb_ || rgb_ == last_debug_rgb_ || rgb_->encoding != "rgb8")
+            return;
+        last_debug_rgb_ = rgb_;
+        try
+        {
+            cv::Mat img = cv::Mat(rgb_->height, rgb_->width, CV_8UC3,
+                                  const_cast<uint8_t *>(rgb_->data.data()), rgb_->step)
+                              .clone();
+            const cv::Scalar col_state = state_color(state_);
+            const cv::Scalar col_mpc(0, 220, 255), col_kin(255, 255, 255), col_dsafe(255, 230, 0),
+                col_out(150, 220, 150), col_in(255, 140, 0), col_near(255, 30, 30);
+            const double half_w = foot_.vehicle_width_m / 2.0 + foot_.lateral_margin_m;
+            const double half_l = foot_.vehicle_length_m / 2.0 + foot_.longitudinal_margin_m;
+
+            // swept corridors (translucent fill in the state colour, outline per source)
+            std::vector<std::pair<std::vector<cv::Point>, cv::Scalar>> polys;
+            if (o.kin_path)
+                polys.push_back({corridor_polygon(*o.kin_path, half_l, half_w), col_kin});
+            if (o.mpc_path)
+                polys.push_back({corridor_polygon(*o.mpc_path, half_l, half_w), col_mpc});
+            cv::Mat fill = img.clone();
+            for (const auto &[poly, _] : polys)
+                if (!poly.empty())
+                    cv::fillPoly(fill, std::vector<std::vector<cv::Point>>{poly}, col_state, cv::LINE_AA);
+            cv::addWeighted(fill, 0.28, img, 0.72, 0.0, img);
+            for (const auto &[poly, col] : polys)
+                if (!poly.empty())
+                    cv::polylines(img, std::vector<std::vector<cv::Point>>{poly}, true, col, 1, cv::LINE_AA);
+
+            // d_safe: where a cluster starts to count as a braking risk
+            if (o.kin_path && o.d_safe > 0.0)
+                if (auto pt = point_at(*o.kin_path, half_l + o.d_safe))
+                {
+                    const auto &[c, t] = *pt;
+                    Eigen::Vector2d n(-t.y(), t.x());
+                    auto a = to_pixel(c.x() + n.x() * half_w, c.y() + n.y() * half_w, 0.0);
+                    auto b = to_pixel(c.x() - n.x() * half_w, c.y() - n.y() * half_w, 0.0);
+                    if (a && b)
+                    {
+                        cv::line(img, *a, *b, col_dsafe, 2, cv::LINE_AA);
+                        cv::putText(img, "d_safe", *b + cv::Point(4, 0), cv::FONT_HERSHEY_SIMPLEX, 0.4,
+                                    col_dsafe, 1, cv::LINE_AA);
+                    }
+                }
+
+            // clusters: stalk from the ground to the cluster's mean height;
+            // orange inside a corridor, red + distance for the nearest one
+            // (drawn last, so the others never cover its label)
+            int n_clusters = 0;
+            if (o.clusters)
+            {
+                n_clusters = static_cast<int>(o.clusters->size());
+                const int nearest_id = o.best.obstacle_in_corridor ? o.best.nearest_obstacle_id : -1;
+                auto draw = [&](int i)
+                {
+                    const auto &c = (*o.clusters)[i];
+                    bool nearest = i == nearest_id;
+                    bool in_corridor = nearest;
+                    for (const auto *p : {o.kin_path, o.mpc_path})
+                        if (!in_corridor && p && p->size() >= 2 &&
+                            av::safety::check_corridor(*p, {c}, foot_).obstacle_in_corridor)
+                            in_corridor = true;
+                    cv::Scalar col = nearest ? col_near : (in_corridor ? col_in : col_out);
+                    auto g = to_pixel(c.centroid.x(), c.centroid.y(), 0.0);
+                    auto top = to_pixel(c.centroid.x(), c.centroid.y(), std::max(0.3, c.centroid.z()));
+                    if (!g || !top)
+                        return;
+                    cv::line(img, *g, *top, col, nearest ? 3 : 1, cv::LINE_AA);
+                    cv::circle(img, *top, nearest ? 6 : 3, col, cv::FILLED, cv::LINE_AA);
+                    if (nearest)
+                    {
+                        char lbl[32];
+                        std::snprintf(lbl, sizeof(lbl), "%.1f m", o.best.nearest_distance_m);
+                        cv::Point at = *top + cv::Point(-20, -12);
+                        cv::putText(img, lbl, at, cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(0, 0, 0), 4, cv::LINE_AA);
+                        cv::putText(img, lbl, at, cv::FONT_HERSHEY_SIMPLEX, 0.55, col_near, 2, cv::LINE_AA);
+                    }
+                };
+                for (int i = 0; i < n_clusters; ++i)
+                    if (i != nearest_id)
+                        draw(i);
+                if (nearest_id >= 0 && nearest_id < n_clusters)
+                    draw(nearest_id);
+            }
+
+            // banner: state + the numbers behind it
+            cv::rectangle(img, {0, 0}, {img.cols, 42}, cv::Scalar(0, 0, 0), cv::FILLED);
+            cv::putText(img, std::string("AEB ") + state_name(state_), {6, 17}, cv::FONT_HERSHEY_SIMPLEX,
+                        0.55, col_state, 2, cv::LINE_AA);
+            char buf[128], ttc_buf[16];
+            std::snprintf(buf, sizeof(buf), "v %.1f m/s", o.v);
+            cv::putText(img, buf, {img.cols - 90, 17}, cv::FONT_HERSHEY_SIMPLEX, 0.45,
+                        cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+            // which predicted paths fed the corridor this tick
+            const char *paths = (o.mpc_path && o.mpc_path->size() >= 2) ? "mpc+kin" : "kin";
+            if (o.ttc < 100.0)
+                std::snprintf(ttc_buf, sizeof(ttc_buf), "%.2fs", o.ttc);
+            else
+                std::snprintf(ttc_buf, sizeof(ttc_buf), "inf");
+            if (state_ == AebState::FAULT)
+                std::snprintf(buf, sizeof(buf), "%s", o.reason.c_str());
+            else if (o.best.obstacle_in_corridor)
+                std::snprintf(buf, sizeof(buf), "dist %.2f  ttc %s  d_safe %.2f  [%s] %d cl",
+                              o.best.nearest_distance_m, ttc_buf, o.d_safe, paths, n_clusters);
+            else
+                std::snprintf(buf, sizeof(buf), "corridor clear  d_safe %.2f  [%s] %d cl",
+                              o.d_safe, paths, n_clusters);
+            cv::putText(img, buf, {6, 35}, cv::FONT_HERSHEY_SIMPLEX, 0.42, cv::Scalar(255, 255, 255), 1,
+                        cv::LINE_AA);
+
+            sensor_msgs::msg::Image out;
+            out.header = rgb_->header;
+            out.height = img.rows;
+            out.width = img.cols;
+            out.encoding = "rgb8";
+            out.is_bigendian = 0;
+            out.step = img.cols * 3;
+            out.data.assign(img.data, img.data + out.step * img.rows);
+            pub_debug_image_->publish(out);
+        }
+        catch (const std::exception &e)
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "debug image skipped: %s", e.what());
+        }
     }
 
     void publish_debug_markers(const std::vector<av::safety::ObstacleCluster> &clusters)
@@ -390,13 +669,15 @@ private:
     std::optional<AebState> state_before_fault_; // latched BRAKING/STOP_HOLD interrupted by a fault
     int persist_count_ = 0, clear_count_ = 0, corridor_clear_count_ = 0;
     double last_nominal_angular_ = 0.0;
+    bool debug_image_ = true;
 
     sensor_msgs::msg::Image::ConstSharedPtr depth_;
+    sensor_msgs::msg::Image::ConstSharedPtr rgb_, last_debug_rgb_; // debug image only
     nav_msgs::msg::Odometry::ConstSharedPtr odom_;
     nav_msgs::msg::Path::ConstSharedPtr mpc_path_;
     rclcpp::Time depth_t_{0, 0, RCL_ROS_TIME}, odom_t_{0, 0, RCL_ROS_TIME}, mpc_path_t_{0, 0, RCL_ROS_TIME};
 
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_, sub_rgb_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr sub_mpc_path_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_nominal_cmd_;
@@ -404,6 +685,7 @@ private:
     rclcpp::Publisher<AebStatus>::SharedPtr pub_status_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_obstacles_, pub_corridor_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_debug_image_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 };

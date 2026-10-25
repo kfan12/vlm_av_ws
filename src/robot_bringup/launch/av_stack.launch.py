@@ -20,12 +20,17 @@ metres off the vehicle.
   # safety chain (default true): aeb_node + control_arbiter own /cmd_vel and the
   # MPC publishes /control/mpc_cmd. false = no aeb_node, no arbiter, the MPC
   # publishes /cmd_vel directly - the VLM setup, since the two never run together
-  # (start_course_demo.sh vlm|aeb picks the matching value).
+  # (start_course_demo.sh vlm|aeb picks the matching value). RViz gets a copy
+  # of config/av_stack.rviz without the other setup's displays (aeb: AEB debug
+  # image + markers + arbiter label; vlm: /maneuver/debug_image) - edit the
+  # base file, the copy in $TMPDIR is regenerated every launch.
   ros2 launch robot_bringup av_stack.launch.py aeb:=false
 """
 import json
 import os
+import tempfile
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription,
@@ -41,6 +46,25 @@ def _bool_arg(context, name):
     # real bool - a string 'true' would declare a string parameter and fail the
     # node's bool-typed default.
     return context.launch_configurations[name].lower() == 'true'
+
+
+# av_stack.rviz holds the displays of both setups; each setup gets a copy
+# without the other's (by display Name), so neither shows an empty panel.
+VLM_ONLY_DISPLAYS = {'maneuver/debug_image'}
+AEB_ONLY_DISPLAYS = {'aeb/debug_image', 'aeb/debug_obstacles', 'aeb/debug_corridor',
+                     'control/active_source'}
+
+
+def _setup_rviz_config(base_cfg, aeb):
+    with open(base_cfg) as f:
+        cfg = yaml.safe_load(f)
+    drop = VLM_ONLY_DISPLAYS if aeb else AEB_ONLY_DISPLAYS
+    displays = cfg['Visualization Manager']['Displays']
+    cfg['Visualization Manager']['Displays'] = [d for d in displays if d.get('Name') not in drop]
+    out = os.path.join(tempfile.gettempdir(), f"av_stack_{'aeb' if aeb else 'vlm'}.rviz")
+    with open(out, 'w') as f:
+        yaml.safe_dump(cfg, f, sort_keys=False)
+    return out
 
 
 def setup(context):
@@ -126,6 +150,8 @@ def setup(context):
             launch_arguments={
                 'world': world,
                 'rviz': LaunchConfiguration('rviz'),
+                'rviz_config': _setup_rviz_config(
+                    os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
                 'ekf': LaunchConfiguration('ekf'),
             }.items()),
 

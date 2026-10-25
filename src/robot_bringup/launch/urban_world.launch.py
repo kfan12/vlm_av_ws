@@ -31,7 +31,9 @@ def setup(context):
     world_file = os.path.join(pkg_urban, 'worlds', f'{world}.world.sdf')
     urdf_file = os.path.join(pkg_sedan, 'urdf', 'sedan.urdf.xacro')
     bridge_cfg = os.path.join(pkg_bringup, 'config', 'bridge_sedan.yaml')
-    rviz_cfg = os.path.join(pkg_bringup, 'config', 'av_stack.rviz')
+    # av_stack.launch.py passes a per-setup copy (vlm / aeb displays only)
+    rviz_cfg = (context.launch_configurations['rviz_config']
+                or os.path.join(pkg_bringup, 'config', 'av_stack.rviz'))
     ekf_cfg = os.path.join(pkg_loc, 'config', 'ekf_sedan.yaml')
 
     # spawn pose from the map (generator emits it). This is also the origin of
@@ -158,6 +160,8 @@ def generate_launch_description():
         DeclareLaunchArgument('world', default_value='urban_course'),
         DeclareLaunchArgument('rviz', default_value='true',
                               description='launch RViz2 with the av_stack config'),
+        DeclareLaunchArgument('rviz_config', default_value='',
+                              description='RViz config path; empty = robot_bringup/config/av_stack.rviz'),
         DeclareLaunchArgument('ekf', default_value='true',
                               description='launch the robot_localization EKF (odom->base_link TF, /odom_ekf)'),
         OpaqueFunction(function=setup),

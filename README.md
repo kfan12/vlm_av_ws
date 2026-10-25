@@ -81,6 +81,7 @@ Two C++ nodes, started by `av_stack.launch.py` when `aeb:=true` (the default):
   It clusters obstacle points from the depth image (ground removed, height and range gated), sweeps the car's footprint along the predicted path (the MPC's path, extended by a kinematic prediction so a stopped car still sees what is in front of it), and computes time-to-collision and safe braking distance for the nearest obstacle in that corridor.
   A six-state machine (`INACTIVE`, `MONITORING`, `WARNING`, `BRAKING`, `STOP_HOLD`, `FAULT`) turns that into `/safety/aeb_status` (`av_feature_msgs/AebStatus`: state, emergency flag, distance, TTC, requested deceleration, reason) and an emergency command on `/control/aeb_cmd`.
   Stale depth or odometry puts it in `FAULT`, and a fault never releases an active brake or hold.
+  For RViz it publishes `/safety/aeb/debug_image`: the front camera with the swept corridor of both predicted paths, the `d_safe` braking line, obstacle clusters (orange inside the corridor, red with its distance for the nearest one), and a state-coloured banner with distance / TTC / `d_safe` (param `debug_image`, view only - the safety logic never reads the RGB frame).
 - **`control_arbiter`** (`av_control_cpp`) - the only node allowed to publish `/cmd_vel` in this setup.
   Each tick it picks one source by priority: manual e-stop (`/safety/manual_estop`) > AEB emergency (`/control/aeb_cmd`) > stop if the AEB status is missing or in `FAULT` > the MPC's nominal command (`/control/mpc_cmd`) > stop.
   So no AEB means no driving, never "drive on unprotected".
@@ -136,6 +137,7 @@ DEMO_WORLD=urban_course_roadblock_oncoming ./scripts/start_course_demo.sh aeb
 DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb # lower speed cap (default 8.0 = planner profile governs)
 ```
 
+RViz shows each setup's own views: the lane debug image in both, plus `/maneuver/debug_image` (VLM sign view) in the vlm setup, or `/safety/aeb/debug_image`, the AEB obstacle / corridor markers and the arbiter's `ctrl:` label in the aeb setup.
 Other env vars: `DEMO_RVIZ=false`, `DEMO_CURVE_SPLICE=true`, `VLM_VENV`; the header of `scripts/start_course_demo.sh` documents them all.
 Teardown is closing the terminator window; each pane's job dies with it.
 

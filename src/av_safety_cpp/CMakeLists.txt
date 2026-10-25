@@ -14,7 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(av_common_cpp REQUIRED)
 find_package(av_feature_msgs REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS core)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc)
 find_package(Eigen3 REQUIRED)
 
 include_directories(include)
