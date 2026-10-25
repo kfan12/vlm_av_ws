@@ -5,24 +5,35 @@
 # Bring up the V2 course demo (world urban_course: straight -> right 90 ->
 # winding S -> left 90 -> STOP) in ONE terminator window laid out as a 3x2
 # grid of 6 panes. Column 1 is the two things that must be started by hand -
-# the venv VLM pipeline and the ROS launch; columns 2-3 are watchers.
+# the speed source and the ROS launch; columns 2-3 are watchers.
 #
-#   col1 top     1  VLM pipeline (venv): vlm_sign_node -> wait "VLM ready"
-#                   -> sign_maneuver_node
-#   col1 bottom  2  ros2 launch robot_bringup av_stack.launch.py
-#                   (gazebo + bridge + EKF + RViz + lane + planner + MPC),
-#                   held until pane 1 signals Qwen is loaded
-#   col2 top     3  /vlm/sign_maneuver narrative
-#   col2 bottom  4  /maneuver setpoint + raw /vlm/sign
-#   col3 top     5  topic-rate health (camera / depth / lane path / sign)
-#   col3 bottom  6  free shell
+# Two setups, never both at once (MODE = first arg, or DEMO_MODE, default vlm):
+#   vlm  VLM sign chain sets the speed cap; av_stack runs with aeb:=false
+#        (no aeb_node, no control_arbiter - the MPC publishes /cmd_vel)
+#   aeb  no VLM; a fixed /maneuver/target_speed (DEMO_SPEED, default 8.0 =
+#        above the MPC cap, so the planner profile governs) and av_stack with
+#        aeb:=true (aeb_node + control_arbiter own /cmd_vel). Default world
+#        urban_course_roadblock, so there is something to brake for.
+#
+#   pane              vlm                              aeb
+#   col1 top     1    vlm_sign_node -> "VLM ready"     target_speed publisher
+#                     -> sign_maneuver_node (venv)
+#   col1 bottom  2    av_stack aeb:=false, held        av_stack aeb:=true
+#                     until Qwen is loaded
+#   col2 top     3    /vlm/sign_maneuver narrative     /safety/aeb_status narrative
+#   col2 bottom  4    /maneuver setpoint + /vlm/sign   arbiter source + /cmd_vel
+#   col3 top     5    topic-rate health (camera / depth / lane path / sign or aeb)
+#   col3 bottom  6    free shell
 #
 # The av_stack launch file and the RViz config are assumed to already exist
 # and be good - this script does not touch them.
 #
 # Usage:
-#   ./scripts/start_course_demo.sh
-#   STACK_NOWAIT=1 ./scripts/start_course_demo.sh     # don't wait for Qwen
+#   ./scripts/start_course_demo.sh [vlm|aeb]
+#   STACK_NOWAIT=1 ./scripts/start_course_demo.sh     # vlm: don't wait for Qwen
+#   ./scripts/start_course_demo.sh aeb                # roadblock world, AEB on
+#   DEMO_WORLD=urban_course_roadblock_oncoming ./scripts/start_course_demo.sh aeb
+#   DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb  # cap the aeb-mode speed
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
 #   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
@@ -40,9 +51,29 @@ command -v terminator >/dev/null 2>&1 || {
 [ -f "$PANE" ] || { echo "missing $PANE"; exit 1; }
 chmod +x "$PANE"
 [ -f "$WS/install/setup.bash" ] || echo "warn: $WS/install/setup.bash missing - run colcon build first"
-[ -d "$VENV" ] || echo "warn: venv $VENV missing - pane 1 will fail"
-WORLD="${DEMO_WORLD:-urban_course}"
+DEMO_MODE="${1:-${DEMO_MODE:-vlm}}"
+case "$DEMO_MODE" in
+    vlm) [ -d "$VENV" ] || echo "warn: venv $VENV missing - pane 1 will fail"
+         DEMO_WORLD="${DEMO_WORLD:-urban_course}" ;;
+    aeb) DEMO_WORLD="${DEMO_WORLD:-urban_course_roadblock}" ;;
+    *)   echo "usage: start_course_demo.sh [vlm|aeb]   (got '$DEMO_MODE')"; exit 2 ;;
+esac
+WORLD="$DEMO_WORLD"
 [ -f "$WS/maps/$WORLD.json" ] || echo "warn: maps/$WORLD.json missing - regenerate the world first"
+
+# DDS should be pinned to loopback (WSL mirrored networking: default Cyclone binds the
+# Wi-Fi eth1, and a reconnect mid-run kills every node's sockets and stops the car).
+# Unset falls back to Cyclone defaults (works, but Wi-Fi-fragile); any other file is refused.
+# All panes inherit this shell's environment, so checking here covers the whole stack.
+DDS_CFG="$WS/src/robot_bringup/config/cyclonedds_localhost.xml"
+if [ "${RMW_IMPLEMENTATION:-}" != "rmw_cyclonedds_cpp" ]; then
+    echo "error: RMW_IMPLEMENTATION='${RMW_IMPLEMENTATION:-}' (need rmw_cyclonedds_cpp) - set it in ~/.bashrc and open a new shell"; exit 1
+fi
+if [ -z "${CYCLONEDDS_URI:-}" ]; then
+    echo "warn: CYCLONEDDS_URI unset - DDS on Cyclone defaults, a Wi-Fi reconnect will break the run"
+elif [ "${CYCLONEDDS_URI}" != "file://$DDS_CFG" ]; then
+    echo "error: CYCLONEDDS_URI='${CYCLONEDDS_URI}' - unset it or use file://$DDS_CFG"; exit 1
+fi
 
 mkdir -p "$RUNDIR"
 CFG="$RUNDIR/terminator_config"
@@ -66,7 +97,7 @@ cat > "$CFG" <<EOF
       type = Window
       parent = ""
       size = 1920, 1040
-      title = vlm course demo
+      title = $DEMO_MODE course demo
     [[[h0]]]
       type = HPaned
       parent = window0
@@ -131,12 +162,16 @@ cat > "$CFG" <<EOF
 [keybindings]
 EOF
 
-export VLM_AV_WS="$WS" VLM_VENV="$VENV" DEMO_RUNDIR="$RUNDIR"
-for v in DEMO_WORLD DEMO_RVIZ DEMO_CURVE_SPLICE STACK_NOWAIT; do
+export VLM_AV_WS="$WS" VLM_VENV="$VENV" DEMO_RUNDIR="$RUNDIR" DEMO_MODE DEMO_WORLD
+for v in DEMO_RVIZ DEMO_CURVE_SPLICE DEMO_SPEED STACK_NOWAIT; do
     if [ -n "${!v:-}" ]; then export "${v?}"; fi
 done
 
-echo "terminator 3x2 course demo   rundir=$RUNDIR   world=$WORLD"
-echo "  1 vlm pipeline | 2 av_stack | 3 sign_maneuver | 4 setpoint | 5 health | 6 free"
+echo "terminator 3x2 course demo   mode=$DEMO_MODE   rundir=$RUNDIR   world=$WORLD"
+if [ "$DEMO_MODE" = aeb ]; then
+    echo "  1 target_speed | 2 av_stack aeb:=true | 3 aeb_status | 4 arbiter | 5 health | 6 free"
+else
+    echo "  1 vlm pipeline | 2 av_stack aeb:=false | 3 sign_maneuver | 4 setpoint | 5 health | 6 free"
+fi
 echo "  close the window to tear everything down."
 exec terminator -g "$CFG" -l avdemo

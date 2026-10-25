@@ -42,6 +42,7 @@ import math
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64, String
@@ -192,8 +193,10 @@ class SignManeuverNode(Node):
         self.pub_state = self.create_publisher(String, self.state_topic, 10)
         self.pub_dbg_img = (self.create_publisher(Image, '/maneuver/debug_image', 1)
                             if self.debug_image else None)
-        self.create_subscription(Image, self.image_topic, self._rgb_cb, 5)
-        self.create_subscription(Image, self.depth_topic, self._depth_cb, 5)
+        # camera frames best-effort like lane_node / aeb_node: only the latest is used,
+        # and a reliable reader makes the bridge buffer/resend ~300-400 KB frames for it
+        self.create_subscription(Image, self.image_topic, self._rgb_cb, qos_profile_sensor_data)
+        self.create_subscription(Image, self.depth_topic, self._depth_cb, qos_profile_sensor_data)
         self.create_subscription(Odometry, self.odom_topic, self._odom_cb, 20)
         self.create_subscription(Path, self.lane_topic, self._lane_cb, 5)
         self.create_subscription(String, self.sign_topic, self._label_cb, 10)

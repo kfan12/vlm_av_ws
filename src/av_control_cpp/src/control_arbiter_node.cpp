@@ -171,8 +171,30 @@ private:
 
             RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
                                  "AebStatus demands emergency but /control/aeb_cmd is stale - stopping");
+            publish(geometry_msgs::msg::Twist(), "fault_aeb_cmd_stale");
+            return;
         }
-    };
+
+        // 3. system fault: no fresh AEB status, or AEB itself in FAULT -> stop
+        bool safety_channel_healthy = aeb_status_fresh() && aeb_status_.state != AebStatus::FAULT;
+        if (!safety_channel_healthy)
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+                                 "AEB status missing or FAULT - stopping (no emergency channel = no nominal driving)");
+            publish(geometry_msgs::msg::Twist(), "fault_aeb_status");
+            return;
+        }
+
+        // 4. MPC nominal command
+        if (mpc_fresh())
+        {
+            publish(mpc_cmd_, "mpc");
+            return;
+        }
+
+        // 5. fallback: built-in stop
+        publish(geometry_msgs::msg::Twist(), "stop_no_fresh_source");
+    }
 
     double mpc_timeout_;
     double aeb_status_timeout_;

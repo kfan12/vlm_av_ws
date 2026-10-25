@@ -17,6 +17,11 @@ metres off the vehicle.
   ros2 launch robot_bringup av_stack.launch.py lane_debug_tap:=true lane_debug_markers:=false
   # local_planner: turn off the map-derived road-curvature assist (default true)
   ros2 launch robot_bringup av_stack.launch.py curve_splice_enable:=false
+  # safety chain (default true): aeb_node + control_arbiter own /cmd_vel and the
+  # MPC publishes /control/mpc_cmd. false = no aeb_node, no arbiter, the MPC
+  # publishes /cmd_vel directly - the VLM setup, since the two never run together
+  # (start_course_demo.sh vlm|aeb picks the matching value).
+  ros2 launch robot_bringup av_stack.launch.py aeb:=false
 """
 import json
 import os
@@ -93,6 +98,28 @@ def setup(context):
         'curve_splice_enable': _bool_arg(context, 'curve_splice_enable'),
     }
 
+    # Safety chain on: the arbiter is the only /cmd_vel publisher and stops the
+    # car whenever /safety/aeb_status is missing, so aeb_node and the arbiter
+    # come as a pair. Off: neither runs and the MPC drives /cmd_vel itself -
+    # keeping the arbiter without aeb_node would hold the car at 0 forever.
+    aeb = _bool_arg(context, 'aeb')
+    control_nodes = [
+        Node(package='av_behavior_cpp', executable='mpc_tracker_v2',
+             name='mpc_tracker_v2', output='screen',
+             parameters=[mpc_config, {'use_sim_time': True}],
+             remappings=[('/cmd_vel', '/control/mpc_cmd')] if aeb else []),
+    ]
+    if aeb:
+        control_nodes += [
+            Node(package='av_safety_cpp', executable='aeb_node',
+                 name='aeb_node', output='screen',
+                 parameters=[aeb_config, {'use_sim_time': True}],
+                 remappings=[('nominal_cmd', '/control/mpc_cmd')]),
+            Node(package='av_control_cpp', executable='control_arbiter_node',
+                 name='control_arbiter', output='screen',
+                 parameters=[arbiter_config, {'use_sim_time': True}]),
+        ]
+
     return [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(world_launch),
@@ -111,18 +138,7 @@ def setup(context):
             Node(package='av_behavior_cpp', executable='local_planner',
                  name='local_planner', output='screen',
                  parameters=[map_origin, planner_opts]),
-            Node(package='av_behavior_cpp', executable='mpc_tracker_v2',
-                 name='mpc_tracker_v2', output='screen',
-                 parameters=[mpc_config, {'use_sim_time': True}],
-                 remappings=[('/cmd_vel', '/control/mpc_cmd')]),
-            Node(package='av_safety_cpp', executable='aeb_node',
-                 name='aeb_node', output='screen',
-                 parameters=[aeb_config, {'use_sim_time': True}],
-                 remappings=[('nominal_cmd', '/control/mpc_cmd')]),
-            Node(package='av_control_cpp', executable='control_arbiter_node',
-                 name='control_arbiter', output='screen',
-                 parameters=[arbiter_config, {'use_sim_time': True}]),
-
+            *control_nodes,
         ]),
     ]
 
@@ -135,6 +151,10 @@ def generate_launch_description():
         DeclareLaunchArgument('mpc_config', default_value='',
                               description='mpc_tracker_v2 params yaml; '
                                           'empty = av_behavior_cpp/config/mpc_params.yaml'),
+        DeclareLaunchArgument('aeb', default_value='true',
+                              description='true = aeb_node + control_arbiter own /cmd_vel; '
+                                          'false = neither runs, the MPC publishes /cmd_vel '
+                                          '(the VLM setup)'),
         DeclareLaunchArgument('aeb_config', default_value='',
                               description='aeb_node params yaml; empty = av_safety_cpp/config/aeb_params.yaml'),
         DeclareLaunchArgument('arbiter_config', default_value='',

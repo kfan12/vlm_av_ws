@@ -36,6 +36,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 import cv2
@@ -81,8 +82,10 @@ class VlmSignNode(Node):
         # subscription and publisher
         self.sign_pub = self.create_publisher(String, self.sign_topic, 10)
         self.sign_image_pub = self.create_publisher(Image, self.sign_image_topic, 10)
+        # best-effort like lane_node: only the latest frame is used, and a
+        # reliable reader makes the bridge buffer/resend ~300 KB frames for it
         self.image_sub = self.create_subscription(
-            Image, self.image_topic, self._image_cb, 10)
+            Image, self.image_topic, self._image_cb, qos_profile_sensor_data)
         self.roi_sub = self.create_subscription(
             String, self.sign_roi_topic, self._roi_cb, 10)
 

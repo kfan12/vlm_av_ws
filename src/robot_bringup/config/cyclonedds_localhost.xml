@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CycloneDDS pinned to loopback (export CYCLONEDDS_URI=file://<this file>).
+  With WSL networkingMode=mirrored, Cyclone otherwise binds the Wi-Fi-mirrored
+  eth1, and every Wi-Fi reconnect breaks running nodes' sockets
+  ("ddsi_udp_conn_write ... failed") and fails new participants
+  ("rtps_init: failed to join multicast groups"). The whole stack runs inside
+  one WSL instance, so DDS never needs the LAN.
+
+  lo has no MULTICAST flag, so multicast="true" overrides Cyclone's interface
+  check and keeps normal multicast discovery and data on loopback.
+  Do NOT replace this with AllowMulticast=false + unicast Peers: measured on
+  Cyclone 0.10.5 (Humble), that combination on lo delivers nothing from a
+  RELIABLE writer to a BEST_EFFORT reader in another process - i.e. the
+  camera bridge -> lane_node / aeb_node / ros2 topic hz - while reliable
+  readers keep working, so perception freezes with no error anywhere.
+-->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain Id="any">
+    <General>
+      <Interfaces>
+        <NetworkInterface name="lo" multicast="true"/>
+      </Interfaces>
+    </General>
+  </Domain>
+</CycloneDDS>
