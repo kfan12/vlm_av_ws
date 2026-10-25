@@ -90,6 +90,46 @@ Two C++ nodes, started by `av_stack.launch.py` when `aeb:=true` (the default):
 Tunables live in `src/av_safety_cpp/config/aeb_params.yaml` (camera geometry, obstacle gating, corridor margins, TTC thresholds, braking model, staleness timeouts) and `src/av_control_cpp/config/control_arbiter_params.yaml` (timeouts, speed / yaw-rate clamp); pass a copy with `aeb_config:=` / `arbiter_config:=`.
 Purpose-built test worlds put a barrier on the course: `urban_course_roadblock` (barrier in the ego lane 32 m after spawn) and `urban_course_roadblock_oncoming` (barrier in the oncoming lane, which must *not* trigger braking).
 
+### AEB in operation: the roadblock scenario
+
+On `urban_course_roadblock` a barrier blocks the ego lane ahead of the car.
+Nothing in the lane-following chain knows about it: the planner and the MPC keep asking for the fixed target speed, so stopping is entirely up to `aeb_node` and the arbiter.
+
+![Gazebo: the sedan approaching the barrier in its lane](docs/snapshots/gazebo_roadbllock.png)
+
+How to read the AEB debug image (`/safety/aeb/debug_image` in RViz):
+
+- **Banner:** the state name in its colour, the ego speed `v`, the distance `dist` to the nearest obstacle in the corridor, `ttc`, `d_safe`, which predicted paths are in use (`[mpc+kin]`, or `[kin]` when the MPC path is stale) and the number of obstacle clusters (`cl`).
+- **Corridor:** the car's footprint (plus a 0.3 m lateral margin) swept along the predicted paths and filled in the state colour; the cyan outline follows the MPC's path, the white one the kinematic prediction.
+- **Yellow `d_safe` line:** the safe braking distance at the current speed, `d_safe = v * t_response + v^2 / (2 * a_brake) + offset` (0.3 s, 6 m/s^2 and 1.0 m by default).
+- **Cluster stalks:** green outside the corridor, orange inside it, and red with a distance label for the nearest one.
+- **Distance:** measured from the front bumper plus a 0.5 m longitudinal margin to the cluster's leading edge, so it reads 0.5 m shorter than the true gap (conservative on purpose).
+
+| MONITORING | WARNING |
+| --- | --- |
+| ![AEB monitoring](docs/snapshots/AEB_Monitoring.png) | ![AEB warning](docs/snapshots/AEB_Warning.png) |
+| **BRAKING** | **STOP_HOLD** |
+| ![AEB braking](docs/snapshots/AEB_Braking.png) | ![AEB stop hold](docs/snapshots/AEB_Stop.png) |
+
+The run goes through the states in order:
+
+1. **MONITORING** (green): the barrier is still far down the road and no obstacle cluster is in the corridor (`corridor clear`, `0 cl`).
+   The arbiter passes the MPC command through (`ctrl: mpc`).
+   At 1.7 m/s, `d_safe` is 0.51 + 0.24 + 1.0 = 1.76 m, as the banner shows.
+2. **WARNING** (orange): an obstacle is in the corridor and either TTC < 2.5 s or the distance is under 1.5 x `d_safe`, for 3 consecutive ticks (one noisy frame never triggers anything).
+   Here the barrier's clusters are 5.4 m ahead with a TTC of 1.88 s.
+   WARNING is advisory only: the MPC still drives, and the state drops back to MONITORING once the concern has been clear for 0.5 s.
+3. **BRAKING** (red): TTC < 1.5 s **and** the distance is inside `d_safe`, again for 3 ticks.
+   `aeb_node` publishes a zero-speed command on `/control/aeb_cmd` (keeping the last yaw rate so the car stays on its line), and the arbiter switches its source from `mpc` to `aeb`.
+   BRAKING never releases while the car is moving; it only ends by reaching a standstill.
+   The snapshot is the end of the stop: `v` is down to 0.1 m/s, so TTC is large again, but the state stays latched.
+4. **STOP_HOLD** (magenta): the car is below 0.1 m/s, 1.7 m (reported, about 2.2 m true gap) short of the barrier.
+   AEB keeps commanding zero speed for as long as anything is in the corridor.
+   It hands control back (to MONITORING) only after the corridor has been completely empty for more than 1 s, for example when the barrier is removed; low TTC or a small `d_safe` at standstill does not count as clear, so the hold never releases with the obstacle still in front of the car.
+
+A fifth state, **FAULT**, covers stale inputs (no depth for 0.5 s or no odometry for 0.3 s): the arbiter stops the car, and a fault that interrupts BRAKING or STOP_HOLD resumes that state afterwards instead of releasing it.
+On `urban_course_roadblock_oncoming`, the barrier is outside the corridor, and the shadow-mode tests recorded no WARNING or BRAKING at all.
+
 ## Running it
 
 Build first:
