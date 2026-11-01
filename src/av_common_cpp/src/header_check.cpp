@@ -5,6 +5,7 @@
 #include "av_common/latch.hpp"
 #include "av_common/map_model.hpp"
 #include "av_common/projection.hpp"
+#include "av_common/point_cloud.hpp"
 
 int main()
 {

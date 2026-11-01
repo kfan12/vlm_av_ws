@@ -25,7 +25,12 @@ target_link_libraries(aeb_node av_common_cpp::av_common ${OpenCV_LIBS})
 ament_target_dependencies(aeb_node
   rclcpp std_msgs sensor_msgs nav_msgs geometry_msgs visualization_msgs av_feature_msgs)
 
-install(TARGETS aeb_node DESTINATION lib/${PROJECT_NAME})
+add_executable(obstacle_probe src/obstacle_probe.cpp)
+target_include_directories(obstacle_probe PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(obstacle_probe av_common_cpp::av_common ${OpenCV_LIBS})
+ament_target_dependencies(obstacle_probe rclcpp sensor_msgs nav_msgs visualization_msgs)
+
+install(TARGETS aeb_node obstacle_probe DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
 ament_package()
