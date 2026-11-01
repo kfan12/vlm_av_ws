@@ -175,11 +175,45 @@ DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 ./scripts/start_course_demo.sh aeb                # aeb setup, default world urban_course_roadblock
 DEMO_WORLD=urban_course_roadblock_oncoming ./scripts/start_course_demo.sh aeb
 DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb # lower speed cap (default 8.0 = planner profile governs)
+DEMO_GZ_GL=software ./scripts/start_course_demo.sh aeb  # render Gazebo on the CPU instead of the GPU (see below)
 ```
 
 RViz shows each setup's own views: the lane debug image in both, plus `/maneuver/debug_image` (VLM sign view) in the vlm setup, or `/safety/aeb/debug_image`, the AEB obstacle / corridor markers and the arbiter's `ctrl:` label in the aeb setup.
 Other env vars: `DEMO_RVIZ=false`, `DEMO_CURVE_SPLICE=true`, `VLM_VENV`; the header of `scripts/start_course_demo.sh` documents them all.
 Teardown is closing the terminator window; each pane's job dies with it.
+
+### Gazebo rendering: GPU or software
+
+Gazebo renders the RGB-D camera either on the GPU or on the CPU, selected by the `gz_gl` launch argument:
+
+| Mode | How it renders | Default for |
+| --- | --- | --- |
+| `gpu` | Mesa's d3d12 driver on the WSLg GPU (Windows 11 + WSL2) | the demo (`start_course_demo.sh`, vlm and aeb) |
+| `software` | llvmpipe on the CPU (`LIBGL_ALWAYS_SOFTWARE=1`) | `av_stack.launch.py`, `urban_world.launch.py`, `run_headless_lap.sh` |
+
+```bash
+./scripts/start_course_demo.sh aeb                          # gpu (demo default)
+DEMO_GZ_GL=software ./scripts/start_course_demo.sh aeb      # software
+ros2 launch robot_bringup av_stack.launch.py gz_gl:=gpu     # stack only
+GZ_GL=gpu ./scripts/run_headless_lap.sh novlm my_lap        # headless lap
+```
+
+The demo prints the selected mode when it starts (`Gazebo rendering: gpu (Mesa d3d12 on the WSLg GPU)`) and again in pane 2, and rejects any value other than `gpu` or `software`.
+
+On one measured aeb-setup `urban_course` lap per mode, `gpu` gave depth at 9.7 Hz instead of 8.6 Hz, 2 depth gaps over 0.3 s instead of 18, and roughly half the Gazebo CPU load (about 195 % instead of 420 %), with the same lap metrics.
+The stack-only launch and the headless laps stay on `software` so new laps remain comparable with the recorded baselines.
+
+Notes:
+
+- The mode only applies to the Gazebo process; RViz and every other node keep software GL.
+  Every rendering sensor lives in that one process, so the camera (and any future GPU lidar) always switch together.
+- `gpu` removes `LIBGL_ALWAYS_SOFTWARE` from Gazebo's environment and sets `GALLIUM_DRIVER=d3d12` and `MESA_EXTENSION_OVERRIDE=GL_ARB_copy_image`.
+  Mesa's d3d12 driver advertises only OpenGL 4.2, and without that extension Gazebo's renderer (Ogre-Next 2.2) aborts while creating the scene.
+- Launch Gazebo with `-r` (the launch files do), never with `--headless-rendering`: on WSL2 that freezes the camera feed after 40-90 s.
+- In the vlm setup Gazebo shares the GPU with the Qwen model.
+  If the camera rate drops or the VLM is slow to become ready, fall back to `DEMO_GZ_GL=software`.
+- Gazebo's server and GUI run in one `ign gazebo` process, so a GUI crash at startup takes the simulation down too.
+  The arbiter then stays in `fault_aeb_status` and the car never moves; close the window and start the demo again.
 
 ### Stack only (launch args directly)
 

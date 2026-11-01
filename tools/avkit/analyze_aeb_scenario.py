@@ -96,9 +96,16 @@ def obstacle_gt(ob, odom, to):
                    - ob['size'][0] / 2.0 - BUMPER_X for r in odom])
     # standoff only means something while the obstacle overlaps the car's
     # lateral extent; elsewhere (e.g. in the oncoming lane) the car can never
-    # reach it, so the along-road gap is masked to NaN.
+    # reach it, so the along-road gap is masked to NaN. The same holds once the
+    # car's rear is past the obstacle, or while the car drives across its
+    # heading: after a turn the course can cross the obstacle's lateral band
+    # far behind it, which would otherwise read as a large negative gap.
     lat = np.array([-(ob['x'] - r['x']) * hy + (ob['y'] - r['y']) * hx for r in odom])
-    in_path = np.abs(lat) < ob['size'][1] / 2.0 + HALF_WIDTH
+    dyaw = np.array([math.atan2(math.sin(r['yaw'] - ob['yaw']), math.cos(r['yaw'] - ob['yaw']))
+                     for r in odom])
+    in_path = ((np.abs(lat) < ob['size'][1] / 2.0 + HALF_WIDTH)
+               & (gt > -(ob['size'][0] + 2.0 * BUMPER_X))
+               & (np.abs(dyaw) < math.radians(60.0)))
     present = (to >= ob['t_spawn']) & (to <= ob['t_remove'])
     return np.where(in_path & present, gt, np.nan), lat, in_path & present
 

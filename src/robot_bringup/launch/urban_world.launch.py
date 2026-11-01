@@ -56,12 +56,33 @@ def setup(context):
         os.path.join(pkg_urban, 'models'),
         os.environ.get('IGN_GAZEBO_RESOURCE_PATH', '')])
 
+    # Gazebo's OpenGL backend. Every rendering sensor (RGB-D camera, and any
+    # gpu_lidar) lives in this one process's Sensors system, so this is all or
+    # nothing. software: Mesa llvmpipe (CPU). gpu: Mesa's d3d12 driver on the
+    # WSLg /dev/dxg GPU. ~/.bashrc exports LIBGL_ALWAYS_SOFTWARE=1, so gpu
+    # must remove it from the inherited environment, not just leave it unset.
+    # Mesa 23.2's d3d12 driver advertises only GL 4.2, without
+    # GL_ARB_copy_image; Ogre-Next 2.2's GL3Plus backend needs it for texture
+    # mipmaps and aborts the whole server during scene creation
+    # (UnimplementedException in GL3PlusTextureGpu::copyTo). The driver does
+    # implement the copy, so the extension is force-enabled.
+    gz_gl = context.launch_configurations['gz_gl']
+    gz_env = dict(os.environ, IGN_GAZEBO_RESOURCE_PATH=ign_resource_path)
+    if gz_gl == 'software':
+        gz_env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+    elif gz_gl == 'gpu':
+        gz_env.pop('LIBGL_ALWAYS_SOFTWARE', None)
+        gz_env['GALLIUM_DRIVER'] = 'd3d12'
+        gz_env['MESA_EXTENSION_OVERRIDE'] = ' '.join(
+            filter(None, [gz_env.get('MESA_EXTENSION_OVERRIDE'), 'GL_ARB_copy_image']))
+    else:
+        raise RuntimeError(f"gz_gl must be 'software' or 'gpu', got '{gz_gl}'")
+
     return [
-        # 1. Gazebo — server+run; NEVER --headless-rendering (WSL freeze)
+        # 1. Gazebo - server+run; NEVER --headless-rendering (WSL freeze)
         ExecuteProcess(
-            cmd=['ign', 'gazebo','-r', world_file],
-            additional_env={'LIBGL_ALWAYS_SOFTWARE': '1',
-                            'IGN_GAZEBO_RESOURCE_PATH': ign_resource_path},
+            cmd=['ign', 'gazebo', '-r', world_file],
+            env=gz_env,
             output='screen'),
 
         # 2. robot_state_publisher
@@ -164,5 +185,8 @@ def generate_launch_description():
                               description='RViz config path; empty = robot_bringup/config/av_stack.rviz'),
         DeclareLaunchArgument('ekf', default_value='true',
                               description='launch the robot_localization EKF (odom->base_link TF, /odom_ekf)'),
+        DeclareLaunchArgument('gz_gl', default_value='software',
+                              choices=['software', 'gpu'],
+                              description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
         OpaqueFunction(function=setup),
     ])

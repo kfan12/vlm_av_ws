@@ -36,6 +36,7 @@
 #   DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb  # cap the aeb-mode speed
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
+#   DEMO_GZ_GL=software ./scripts/start_course_demo.sh  # render Gazebo sensors with llvmpipe (default: gpu, WSLg d3d12)
 #   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
 # Teardown: close the terminator window (each pane's job dies with it).
 # ---------------------------------------------------------------------------
@@ -162,12 +163,22 @@ cat > "$CFG" <<EOF
 [keybindings]
 EOF
 
-export VLM_AV_WS="$WS" VLM_VENV="$VENV" DEMO_RUNDIR="$RUNDIR" DEMO_MODE DEMO_WORLD
+# Gazebo OpenGL backend: resolved (and validated) here once, so the summary
+# below and pane 2's launch always agree on it.
+DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}"
+case "$DEMO_GZ_GL" in
+    gpu)      GL_DESC="gpu (Mesa d3d12 on the WSLg GPU)" ;;
+    software) GL_DESC="software (llvmpipe, CPU)" ;;
+    *) echo "DEMO_GZ_GL must be 'gpu' or 'software', got '$DEMO_GZ_GL'" >&2; exit 1 ;;
+esac
+
+export VLM_AV_WS="$WS" VLM_VENV="$VENV" DEMO_RUNDIR="$RUNDIR" DEMO_MODE DEMO_WORLD DEMO_GZ_GL
 for v in DEMO_RVIZ DEMO_CURVE_SPLICE DEMO_SPEED STACK_NOWAIT; do
     if [ -n "${!v:-}" ]; then export "${v?}"; fi
 done
 
 echo "terminator 3x2 course demo   mode=$DEMO_MODE   rundir=$RUNDIR   world=$WORLD"
+echo "  Gazebo rendering: $GL_DESC   (DEMO_GZ_GL=gpu|software)"
 if [ "$DEMO_MODE" = aeb ]; then
     echo "  1 target_speed | 2 av_stack aeb:=true | 3 aeb_status | 4 arbiter | 5 health | 6 free"
 else

@@ -14,7 +14,7 @@
 #   LABEL       session label -> data/av_laps/<stamp>_<LABEL>/
 #   DURATION_S  wall-clock recording time (default 300)
 #   WORLD       default urban_course
-# Env: NOVLM_SPEED, VLM_VENV.
+# Env: NOVLM_SPEED, VLM_VENV, GZ_GL (software|gpu, default software: av_stack gz_gl).
 # Then: ./scripts/analyze_av_lap.sh latest --plots
 # Logs: log/headless_lap/<LABEL>/ (stack incl. aeb + arbiter in novlm, recorder, vlm).
 # Kills any running sim/stack processes first and again at the end.
@@ -62,7 +62,7 @@ elif [ "$MODE" != novlm ]; then
     echo "MODE must be novlm or vlm"; exit 2
 fi
 
-ros2 launch robot_bringup av_stack.launch.py world:="$WORLD" rviz:=false aeb:="$AEB" > "$LOG/stack.log" 2>&1 &
+ros2 launch robot_bringup av_stack.launch.py world:="$WORLD" rviz:=false aeb:="$AEB" gz_gl:="${GZ_GL:-software}" > "$LOG/stack.log" 2>&1 &
 sleep 26   # lane_node / local_planner / mpc_tracker_v2 (+ aeb_node / arbiter) up (launched at 12 s)
 echo "aeb_node instances: $(pgrep -fc 'av_safety_cpp/aeb_node')  arbiter: $(pgrep -fc 'av_control_cpp/control_arbiter_node')"
 

@@ -153,6 +153,7 @@ def setup(context):
                 'rviz_config': _setup_rviz_config(
                     os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
                 'ekf': LaunchConfiguration('ekf'),
+                'gz_gl': LaunchConfiguration('gz_gl'),
             }.items()),
 
         # Perception + planning + control. Started after EKF (urban_world starts
@@ -174,6 +175,9 @@ def generate_launch_description():
         DeclareLaunchArgument('world', default_value='urban_course'),
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('ekf', default_value='true'),
+        DeclareLaunchArgument('gz_gl', default_value='software',
+                              choices=['software', 'gpu'],
+                              description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
         DeclareLaunchArgument('mpc_config', default_value='',
                               description='mpc_tracker_v2 params yaml; '
                                           'empty = av_behavior_cpp/config/mpc_params.yaml'),
