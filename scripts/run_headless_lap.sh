@@ -18,6 +18,8 @@
 # Then: ./scripts/analyze_av_lap.sh latest --plots
 # Logs: log/headless_lap/<LABEL>/ (stack incl. aeb + arbiter in novlm, recorder, vlm).
 # Kills any running sim/stack processes first and again at the end.
+# No windows: rviz:=false and gz_gui:=false (closing a Gazebo GUI window stops
+# its server too, which would silently freeze the run).
 # ---------------------------------------------------------------------------
 MODE=${1:?usage: run_headless_lap.sh novlm|vlm LABEL [DURATION_S] [WORLD]}
 LABEL=${2:?usage: run_headless_lap.sh novlm|vlm LABEL [DURATION_S] [WORLD]}
@@ -38,6 +40,7 @@ cleanup() {
     pkill -f "$STACK_PROCS" 2>/dev/null
     sleep 3
     pkill -9 -f "$STACK_PROCS" 2>/dev/null
+    return 0   # pkill -9 finding nothing left (exit 1) is the normal case, not a failure
 }
 cleanup
 
@@ -62,7 +65,7 @@ elif [ "$MODE" != novlm ]; then
     echo "MODE must be novlm or vlm"; exit 2
 fi
 
-ros2 launch robot_bringup av_stack.launch.py world:="$WORLD" rviz:=false aeb:="$AEB" gz_gl:="${GZ_GL:-software}" > "$LOG/stack.log" 2>&1 &
+ros2 launch robot_bringup av_stack.launch.py world:="$WORLD" rviz:=false gz_gui:=false aeb:="$AEB" gz_gl:="${GZ_GL:-software}" > "$LOG/stack.log" 2>&1 &
 sleep 26   # lane_node / local_planner / mpc_tracker_v2 (+ aeb_node / arbiter) up (launched at 12 s)
 echo "aeb_node instances: $(pgrep -fc 'av_safety_cpp/aeb_node')  arbiter: $(pgrep -fc 'av_control_cpp/control_arbiter_node')"
 
@@ -75,6 +78,8 @@ if [ "$MODE" = novlm ]; then
         "{data: ${NOVLM_SPEED:-8.0}}" > /dev/null 2>&1 &
 fi
 wait "$REC"
+REC_RC=$?
 cat "$LOG/rec.log"
 echo "QP fallback switches: $(grep -c 'PROPORTIONAL fallback' "$LOG/stack.log")"
 cleanup
+exit "$REC_RC"   # the recorder's status, so callers can tell a failed lap from a clean one

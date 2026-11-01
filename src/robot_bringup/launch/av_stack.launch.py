@@ -154,6 +154,7 @@ def setup(context):
                     os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
                 'ekf': LaunchConfiguration('ekf'),
                 'gz_gl': LaunchConfiguration('gz_gl'),
+                'gz_gui': LaunchConfiguration('gz_gui'),
             }.items()),
 
         # Perception + planning + control. Started after EKF (urban_world starts
@@ -178,6 +179,10 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_gl', default_value='software',
                               choices=['software', 'gpu'],
                               description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
+        DeclareLaunchArgument('gz_gui', default_value='true',
+                              choices=['true', 'false'],
+                              description='open the Gazebo GUI; false = server only, so no window '
+                                          'can be closed mid-run (unattended laps)'),
         DeclareLaunchArgument('mpc_config', default_value='',
                               description='mpc_tracker_v2 params yaml; '
                                           'empty = av_behavior_cpp/config/mpc_params.yaml'),

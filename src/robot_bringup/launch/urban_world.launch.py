@@ -3,7 +3,8 @@ v1 launches untouched.
 
   ros2 launch robot_bringup urban_world.launch.py            # urban_course
   ros2 launch robot_bringup urban_world.launch.py world:=urban_2x2
-  ros2 launch robot_bringup urban_world.launch.py rviz:=false # headless
+  ros2 launch robot_bringup urban_world.launch.py rviz:=false # no RViz
+  ros2 launch robot_bringup urban_world.launch.py rviz:=false gz_gui:=false # no windows at all
   ros2 launch robot_bringup urban_world.launch.py ekf:=false  # no odom TF (run your own)
 """
 import json
@@ -78,10 +79,16 @@ def setup(context):
     else:
         raise RuntimeError(f"gz_gl must be 'software' or 'gpu', got '{gz_gl}'")
 
+    # gz_gui:=false runs the server only (-s). The GUI and server share one
+    # `ign gazebo` process, so closing the GUI window stops the server (SIGINT)
+    # and freezes the whole sim; unattended runs must not depend on a window.
+    # Sensors still render on the display's GL context either way.
+    gz_gui = context.launch_configurations['gz_gui'].lower() == 'true'
+
     return [
-        # 1. Gazebo - server+run; NEVER --headless-rendering (WSL freeze)
+        # 1. Gazebo - server(+GUI)+run; NEVER --headless-rendering (WSL freeze)
         ExecuteProcess(
-            cmd=['ign', 'gazebo', '-r', world_file],
+            cmd=['ign', 'gazebo', '-r'] + ([] if gz_gui else ['-s']) + [world_file],
             env=gz_env,
             output='screen'),
 
@@ -188,5 +195,8 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_gl', default_value='software',
                               choices=['software', 'gpu'],
                               description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
+        DeclareLaunchArgument('gz_gui', default_value='true',
+                              choices=['true', 'false'],
+                              description='open the Gazebo GUI; false = server only, for unattended runs'),
         OpaqueFunction(function=setup),
     ])
