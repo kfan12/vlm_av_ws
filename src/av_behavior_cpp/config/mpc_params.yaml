@@ -156,3 +156,5 @@
     goal_tolerance_m: 0.5                   # distance counted as "reached goal" [m]
     target_speed_accel_rate_mps2: 1.5       # target-speed ramp up rate [m/s^2]
     target_speed_decel_rate_mps2: 6.0       # target-speed ramp down rate [m/s^2]
+    hold_stop_speed_mps: 0.3                # at a 0 reference, below this measured speed publish a true
+                                            # zero cmd (the QP alone creeps on odom noise) [m/s]

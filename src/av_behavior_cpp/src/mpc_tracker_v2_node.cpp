@@ -77,6 +77,7 @@ public:
         goal_tol_ = declare_parameter("goal_tolerance_m", 0.5);
         accel_rate_ = declare_parameter("target_speed_accel_rate_mps2", 1.5);
         decel_rate_ = declare_parameter("target_speed_decel_rate_mps2", 6.0);
+        hold_stop_speed_ = declare_parameter("hold_stop_speed_mps", 0.3);
 
         sub_path_ = create_subscription<nav_msgs::msg::Path>(
             "/plan/path_odom", 10,
@@ -257,6 +258,20 @@ private:
         double step = (d >= 0.0 ? accel_rate_ : decel_rate_) * dt_tick;
         v_ref_cmd_ += std::clamp(d, -step, step);
 
+        // ---- commanded zero speed (hold without maneuver, a 0 setpoint, a 0
+        // profile at the foot point): once the reference has ramped to 0 and
+        // the car is nearly stopped, publish a true zero instead of solving.
+        // The QP's command is measured speed + accel * dt, and the measured
+        // speed is a magnitude (never negative) of noisy odometry, so at a 0
+        // reference it settles on a positive value and the car creeps forward
+        // (about 0.05-0.09 m/s with the 0.03 m/s odom noise). Above
+        // hold_stop_speed_mps the QP keeps braking as before.
+        if (desired <= 0.0 && v_ref_cmd_ <= 1e-6 && v_now < hold_stop_speed_)
+        {
+            stop_cmd();
+            return;
+        }
+
         // set solver speed
         solver_->set_target_speed(v_ref_cmd_);
         // heading lookahead: while turning use the fixed turn lookahead, else a
@@ -354,6 +369,7 @@ private:
     double prev_accel_ = 0, prev_steer_ = 0, v_ref_cmd_ = 0, steer_cmd_ = 0;
     double steer_tau_ = 0.0, steer_act_est_ = 0.0;
     double maneuver_speed_ = 0.0;
+    double hold_stop_speed_ = 0.3;
 
     VehicleParams vp_;
     std::unique_ptr<MpcSolver> solver_;
