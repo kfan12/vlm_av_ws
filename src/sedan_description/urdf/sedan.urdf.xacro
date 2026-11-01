@@ -48,6 +48,25 @@
     <xacro:property name="cam_z" value="1.4" />
     <xacro:property name="cam_pitch" value="0.06" />
 
+    <!-- front lidar (only built with lidar:=true). Extrinsic duplicated as
+       lidar_x / lidar_z parameters in every node that reads the cloud - keep
+       them in sync with these values, same rule as cam_*. Mounted 5 cm ahead
+       of the chassis collision box (ch_l/2 = 2.25) so no ray can hit the car
+       itself; no rotation, so the cloud's x/y/z are base_link-aligned.
+       16 channels over +/-10 deg (1.33 deg ring spacing) guarantee a 1 m tall
+       box at least one ring out to ~43 m, and the lowest ring reaches the road
+       only 3.4 m ahead, so ground returns stay few. 480 x 120 deg = 0.25 deg
+       per column. -->
+    <xacro:arg name="lidar" default="false" />
+    <xacro:property name="lidar_x" value="2.30" />
+    <xacro:property name="lidar_z" value="0.60" />
+    <xacro:property name="lidar_hfov" value="2.0944" />
+    <xacro:property name="lidar_hsamples" value="480" />
+    <xacro:property name="lidar_vhalf" value="0.1745" />
+    <xacro:property name="lidar_channels" value="16" />
+    <xacro:property name="lidar_rate" value="10" />
+    <xacro:property name="lidar_noise_m" value="0.02" />
+
     <!-- ===================== INERTIA MACROS ===================== -->
     <xacro:macro name="box_inertia" params="m x y z">
         <inertial>
@@ -481,6 +500,72 @@
             <ignition_frame_id>front_camera_optical_frame</ignition_frame_id>
         </sensor>
     </gazebo>
+
+    <!-- ===================== FRONT LIDAR (optional) ===================== -->
+    <!-- gpu_lidar is a rendering sensor: it shares the Gazebo process (and its
+         OpenGL backend) with the RGB-D camera, so it exists only when asked
+         for and the camera-only setups pay nothing for it. -->
+    <xacro:if value="$(arg lidar)">
+        <joint name="front_lidar_joint" type="fixed">
+            <parent link="chassis" />
+            <child link="front_lidar_link" />
+            <origin xyz="${lidar_x} 0 ${lidar_z - wheel_radius}" rpy="0 0 0" />
+        </joint>
+
+        <link name="front_lidar_link">
+            <visual>
+                <geometry>
+                    <box size="0.06 0.10 0.06" />
+                </geometry>
+                <material name="lidar_housing">
+                    <color rgba="0.1 0.1 0.1 1.0" />
+                </material>
+            </visual>
+            <inertial>
+                <mass value="0.3" />
+                <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+            </inertial>
+        </link>
+
+        <gazebo reference="front_lidar_link">
+            <sensor name="front_lidar" type="gpu_lidar">
+                <always_on>true</always_on>
+                <update_rate>${lidar_rate}</update_rate>
+                <!-- Gazebo publishes <topic> as a LaserScan (middle ring only)
+                     and <topic>/points as the full PointCloudPacked -->
+                <topic>lidar/front</topic>
+                <!-- frame_id of the published cloud; robot_state_publisher has
+                     this link, so RViz can draw the cloud without extra TF -->
+                <ignition_frame_id>front_lidar_link</ignition_frame_id>
+                <lidar>
+                    <scan>
+                        <horizontal>
+                            <samples>${lidar_hsamples}</samples>
+                            <resolution>1</resolution>
+                            <min_angle>${-lidar_hfov / 2}</min_angle>
+                            <max_angle>${lidar_hfov / 2}</max_angle>
+                        </horizontal>
+                        <vertical>
+                            <samples>${lidar_channels}</samples>
+                            <resolution>1</resolution>
+                            <min_angle>${-lidar_vhalf}</min_angle>
+                            <max_angle>${lidar_vhalf}</max_angle>
+                        </vertical>
+                    </scan>
+                    <range>
+                        <min>0.10</min>
+                        <max>60.0</max>
+                        <resolution>0.01</resolution>
+                    </range>
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0.0</mean>
+                        <stddev>${lidar_noise_m}</stddev>
+                    </noise>
+                </lidar>
+            </sensor>
+        </gazebo>
+    </xacro:if>
 
     <!-- ===================== GAZEBO: JOINT STATE PUBLISHER ===================== -->
     <gazebo>

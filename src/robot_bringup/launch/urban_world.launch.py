@@ -6,6 +6,7 @@ v1 launches untouched.
   ros2 launch robot_bringup urban_world.launch.py rviz:=false # no RViz
   ros2 launch robot_bringup urban_world.launch.py rviz:=false gz_gui:=false # no windows at all
   ros2 launch robot_bringup urban_world.launch.py ekf:=false  # no odom TF (run your own)
+  ros2 launch robot_bringup urban_world.launch.py lidar:=true # + front lidar, /lidar/front/points
 """
 import json
 import os
@@ -46,8 +47,14 @@ def setup(context):
     except OSError:
         pass
 
-    robot_description = ParameterValue(Command(['xacro ', urdf_file]),
-                                       value_type=str)
+    # The robot description carries the front lidar only when asked for: the
+    # setups that don't use it must not pay its rendering cost (it shares the
+    # Gazebo process with the RGB-D camera).
+    lidar = context.launch_configurations['lidar'].lower() == 'true'
+    bridge_lidar_cfg = os.path.join(pkg_bringup, 'config', 'bridge_lidar.yaml')
+    robot_description = ParameterValue(
+        Command(['xacro ', urdf_file, ' lidar:=', 'true' if lidar else 'false']),
+        value_type=str)
 
     # model:// resolution for the course-demo sign boards: urban_gazebo/models
     # (sign_*_urban) + robotcar_gazebo/models/signs (the v1 meshes/textures the
@@ -119,6 +126,12 @@ def setup(context):
                  name='gz_ros_bridge',
                  parameters=[{'config_file': bridge_cfg}],
                  output='screen'),
+            # front lidar cloud on its own bridge node, so it can be dropped
+            # alone without taking /clock, /cmd_vel and the camera with it
+            *([Node(package='ros_gz_bridge', executable='parameter_bridge',
+                    name='gz_ros_bridge_lidar',
+                    parameters=[{'config_file': bridge_lidar_cfg}],
+                    output='screen')] if lidar else []),
 
             # odom_noise: relays the bridge's pristine /odom_wheel_raw to /odom
             # (what the EKF/RViz/odom_compare expect) with Gaussian noise
@@ -195,6 +208,9 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_gl', default_value='software',
                               choices=['software', 'gpu'],
                               description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
+        DeclareLaunchArgument('lidar', default_value='false',
+                              choices=['true', 'false'],
+                              description='add the front lidar to the sedan and bridge /lidar/front/points'),
         DeclareLaunchArgument('gz_gui', default_value='true',
                               choices=['true', 'false'],
                               description='open the Gazebo GUI; false = server only, for unattended runs'),

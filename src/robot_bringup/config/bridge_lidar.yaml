@@ -1,0 +1,11 @@
+# ros_gz bridge for the optional front lidar (sedan.urdf.xacro lidar:=true).
+# Its own parameter_bridge node, not an entry in bridge_sedan.yaml: the lidar
+# can then be dropped on its own (sensor-dropout tests kill only this node)
+# without taking /clock, /cmd_vel and the camera down with it.
+# Only the full cloud is bridged; Gazebo's /lidar/front LaserScan carries just
+# the middle ring.
+- ros_topic_name: "/lidar/front/points"
+  gz_topic_name:  "/lidar/front/points"
+  ros_type_name:  "sensor_msgs/msg/PointCloud2"
+  gz_type_name:   "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS

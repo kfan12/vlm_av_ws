@@ -25,6 +25,8 @@ metres off the vehicle.
   # image + markers + arbiter label; vlm: /maneuver/debug_image) - edit the
   # base file, the copy in $TMPDIR is regenerated every launch.
   ros2 launch robot_bringup av_stack.launch.py aeb:=false
+  # front lidar on the sedan + /lidar/front/points (sensor only; nothing reads it yet)
+  ros2 launch robot_bringup av_stack.launch.py lidar:=true
 """
 import json
 import os
@@ -154,6 +156,7 @@ def setup(context):
                     os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
                 'ekf': LaunchConfiguration('ekf'),
                 'gz_gl': LaunchConfiguration('gz_gl'),
+                'lidar': LaunchConfiguration('lidar'),
                 'gz_gui': LaunchConfiguration('gz_gui'),
             }.items()),
 
@@ -179,6 +182,10 @@ def generate_launch_description():
         DeclareLaunchArgument('gz_gl', default_value='software',
                               choices=['software', 'gpu'],
                               description='Gazebo OpenGL backend: software (llvmpipe) or gpu (WSLg d3d12)'),
+        DeclareLaunchArgument('lidar', default_value='false',
+                              choices=['true', 'false'],
+                              description='add the front lidar and bridge /lidar/front/points '
+                                          '(sensor only; AEB still uses depth)'),
         DeclareLaunchArgument('gz_gui', default_value='true',
                               choices=['true', 'false'],
                               description='open the Gazebo GUI; false = server only, so no window '
