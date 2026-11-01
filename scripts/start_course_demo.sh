@@ -36,7 +36,8 @@
 #   DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb  # cap the aeb-mode speed
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
-#   DEMO_GZ_GL=software ./scripts/start_course_demo.sh  # render Gazebo sensors with llvmpipe (default: gpu, WSLg d3d12)
+#   DEMO_GZ_GL=gpu|software ./scripts/start_course_demo.sh  # Gazebo sensor rendering: gpu (WSLg d3d12) or
+#                                                         # software (llvmpipe); default: aeb gpu, vlm software
 #   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
 # Teardown: close the terminator window (each pane's job dies with it).
 # ---------------------------------------------------------------------------
@@ -164,8 +165,13 @@ cat > "$CFG" <<EOF
 EOF
 
 # Gazebo OpenGL backend: resolved (and validated) here once, so the summary
-# below and pane 2's launch always agree on it.
-DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}"
+# below and pane 2's launch always agree on it. gpu is for the short-track aeb
+# demo; the full-track vlm demo stays on software, like the recorded baselines.
+if [ "$DEMO_MODE" = aeb ]; then
+    DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}"
+else
+    DEMO_GZ_GL="${DEMO_GZ_GL:-software}"
+fi
 case "$DEMO_GZ_GL" in
     gpu)      GL_DESC="gpu (Mesa d3d12 on the WSLg GPU)" ;;
     software) GL_DESC="software (llvmpipe, CPU)" ;;

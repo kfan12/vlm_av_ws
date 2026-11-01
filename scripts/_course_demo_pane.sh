@@ -37,7 +37,8 @@
 #   DEMO_MODE      vlm|aeb                (default vlm)
 #   DEMO_WORLD     world / map name       (default urban_course)
 #   DEMO_RVIZ      true|false             (default true)
-#   DEMO_GZ_GL     gpu|software           (default gpu) Gazebo OpenGL backend (gpu: WSLg d3d12, software: llvmpipe)
+#   DEMO_GZ_GL     gpu|software           (launcher default: aeb gpu, vlm software; unset here: software)
+#                  Gazebo OpenGL backend (gpu: WSLg d3d12, software: llvmpipe)
 #   DEMO_CURVE_SPLICE true|false          (default false) local_planner curve splice
 #   DEMO_SPEED     aeb-mode target speed  (default 8.0, above the MPC cap)
 #   STACK_NOWAIT=1 vlm-mode pane 2 starts the stack without waiting for Qwen
@@ -108,7 +109,7 @@ case "$MODE:${1:-}" in
           AEB=false
           echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC (no AEB)"
       fi
-      echo "[2] Gazebo rendering: ${DEMO_GZ_GL:-gpu}   (DEMO_GZ_GL=gpu|software)"
+      echo "[2] Gazebo rendering: ${DEMO_GZ_GL:-software}   (DEMO_GZ_GL=gpu|software)"
       # a leftover gz server / stale daemon from a previous run breaks the boot
       pkill -9 -f 'ign gazebo|gz sim' 2>/dev/null || true
       pkill -9 -f 'ros2 daemon|_ros2_daemon' 2>/dev/null || true
@@ -119,7 +120,7 @@ case "$MODE:${1:-}" in
           echo "[2] Qwen up -> launching the stack"
       fi
       ros2 launch robot_bringup av_stack.launch.py \
-          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="${DEMO_GZ_GL:-gpu}" \
+          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="${DEMO_GZ_GL:-software}" \
           curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB"
       hold 2 ;;
 
