@@ -139,18 +139,24 @@ private:
         publish_markers(dcl, lcl);
     }
 
+    // Each sensor's cubes carry the stamp of the image / cloud they came from:
+    // RViz then places them with the TF at measurement time, and the stamp is
+    // on the stack's (sim) clock even though this node runs on the wall clock.
+    // Stamping with now() here gave wall-clock stamps that no TF lookup can
+    // reach ("Lookup would require extrapolation into the future").
     void publish_markers(const std::vector<av::safety::ObstacleCluster> &dcl,
                          const std::vector<av::safety::ObstacleCluster> &lcl)
     {
         visualization_msgs::msg::MarkerArray arr;
         int id = 0;
-        auto add = [&](const std::vector<av::safety::ObstacleCluster> &cl, const char *ns, float r, float g, float b)
+        auto add = [&](const std::vector<av::safety::ObstacleCluster> &cl, const builtin_interfaces::msg::Time &stamp,
+                       const char *ns, float r, float g, float b)
         {
             for (const auto &c : cl)
             {
                 visualization_msgs::msg::Marker m;
                 m.header.frame_id = "base_link";
-                m.header.stamp = now();
+                m.header.stamp = stamp;
                 m.ns = ns;
                 m.id = id++;
                 m.type = visualization_msgs::msg::Marker::CUBE;
@@ -167,8 +173,10 @@ private:
                 arr.markers.push_back(m);
             }
         };
-        add(dcl, "depth", 0.2f, 0.9f, 0.2f);
-        add(lcl, "lidar", 0.2f, 0.5f, 1.0f);
+        if (depth_)
+            add(dcl, depth_->header.stamp, "depth", 0.2f, 0.9f, 0.2f);
+        if (cloud_)
+            add(lcl, cloud_->header.stamp, "lidar", 0.2f, 0.5f, 1.0f);
         pub_markers_->publish(arr);
     }
 
