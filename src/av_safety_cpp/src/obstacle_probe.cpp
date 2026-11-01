@@ -24,11 +24,13 @@ namespace
         int n_points = 0;
         int n_clusters = 0;
         double ms = 0.0; // extractor wall time
+        bool stale = true; // no message within sensor_stale_sec: not extracted, not a detection or a miss
     };
 
     Nearest nearest_in_band(const std::vector<av::safety::ObstacleCluster> &cl, double half_band, double ms)
     {
         Nearest n;
+        n.stale = false;
         n.n_clusters = static_cast<int>(cl.size());
         n.ms = ms;
         for (const auto &c : cl)
@@ -43,9 +45,10 @@ namespace
 
     std::string json(const Nearest &n)
     {
-        char b[160];
-        std::snprintf(b, sizeof(b), "{\"x\": %.3f, \"y\": %.3f, \"n_points\": %d, \"n_clusters\": %d, \"ms\": %.2f}",
-                      n.x, n.y, n.n_points, n.n_clusters, n.ms);
+        char b[192];
+        std::snprintf(b, sizeof(b),
+                      "{\"x\": %.3f, \"y\": %.3f, \"n_points\": %d, \"n_clusters\": %d, \"ms\": %.2f, \"stale\": %s}",
+                      n.x, n.y, n.n_points, n.n_clusters, n.ms, n.stale ? "true" : "false");
         return b;
     }
 } // namespace
@@ -82,15 +85,20 @@ public:
 
         half_band_ = declare_parameter("lane_half_band_m", 1.2); // vehicle_width/2 + lateral_margin
         log_.open(declare_parameter("log_path", std::string("/tmp/obstacle_probe.jsonl")), std::ios::app);
+        // A sensor whose last message is older than this is stale: a frozen
+        // render would otherwise be re-extracted every tick and logged as a
+        // fresh sample. Arrival is timed on the steady clock, so this works
+        // whichever clock the node runs on. 0.5 s = aeb_node's depth_stale_sec.
+        stale_after_ = std::chrono::duration<double>(declare_parameter("sensor_stale_sec", 0.5));
 
         sub_depth_ = create_subscription<sensor_msgs::msg::Image>(
             "/camera/front/depth/image_raw", rclcpp::SensorDataQoS(),
             [this](sensor_msgs::msg::Image::ConstSharedPtr m)
-            { depth_ = m; });
+            { depth_ = m; depth_rx_ = std::chrono::steady_clock::now(); });
         sub_cloud_ = create_subscription<sensor_msgs::msg::PointCloud2>(
             "/lidar/front/points", rclcpp::SensorDataQoS(),
             [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr m)
-            { cloud_ = m; });
+            { cloud_ = m; cloud_rx_ = std::chrono::steady_clock::now(); });
         sub_truth_ = create_subscription<nav_msgs::msg::Odometry>(
             "/odom_truth", 10, [this](nav_msgs::msg::Odometry::ConstSharedPtr m)
             { truth_ = m; });
@@ -114,16 +122,19 @@ private:
     {
         if (!truth_)
             return;
-        Nearest d, l;
+        Nearest d, l; // stay stale unless their sensor delivered recently
         std::vector<av::safety::ObstacleCluster> dcl, lcl;
-        if (depth_)
+        const auto t_now = std::chrono::steady_clock::now();
+        const bool depth_fresh = depth_ && t_now - depth_rx_ < stale_after_;
+        const bool cloud_fresh = cloud_ && t_now - cloud_rx_ < stale_after_;
+        if (depth_fresh)
         {
             auto [cl, ms] = timed([&]
                                   { return av::safety::extract_clusters(depth_, pin_, T_base_cam_, fp_); });
             dcl = cl;
             d = nearest_in_band(cl, half_band_, ms);
         }
-        if (cloud_)
+        if (cloud_fresh)
         {
             auto [cl, ms] = timed([&]
                                   { return av::safety::extract_lidar_clusters(*cloud_, lp_, fp_); });
@@ -136,7 +147,7 @@ private:
         std::snprintf(head, sizeof(head), "{\"wall\": %.3f, \"car_x\": %.3f, \"car_y\": %.3f, ", wall, p.x, p.y);
         log_ << head << "\"depth\": " << json(d) << ", \"lidar\": " << json(l) << "}\n";
         log_.flush();
-        publish_markers(dcl, lcl);
+        publish_markers(dcl, depth_fresh, lcl, cloud_fresh);
     }
 
     // Each sensor's cubes carry the stamp of the image / cloud they came from:
@@ -144,8 +155,9 @@ private:
     // on the stack's (sim) clock even though this node runs on the wall clock.
     // Stamping with now() here gave wall-clock stamps that no TF lookup can
     // reach ("Lookup would require extrapolation into the future").
-    void publish_markers(const std::vector<av::safety::ObstacleCluster> &dcl,
-                         const std::vector<av::safety::ObstacleCluster> &lcl)
+    // A stale sensor draws nothing (its cubes expire after their lifetime).
+    void publish_markers(const std::vector<av::safety::ObstacleCluster> &dcl, bool depth_fresh,
+                         const std::vector<av::safety::ObstacleCluster> &lcl, bool cloud_fresh)
     {
         visualization_msgs::msg::MarkerArray arr;
         int id = 0;
@@ -173,9 +185,9 @@ private:
                 arr.markers.push_back(m);
             }
         };
-        if (depth_)
+        if (depth_fresh)
             add(dcl, depth_->header.stamp, "depth", 0.2f, 0.9f, 0.2f);
-        if (cloud_)
+        if (cloud_fresh)
             add(lcl, cloud_->header.stamp, "lidar", 0.2f, 0.5f, 1.0f);
         pub_markers_->publish(arr);
     }
@@ -189,6 +201,8 @@ private:
 
     sensor_msgs::msg::Image::ConstSharedPtr depth_;
     sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud_;
+    std::chrono::steady_clock::time_point depth_rx_, cloud_rx_; // arrival of depth_ / cloud_
+    std::chrono::duration<double> stale_after_{0.5};
     nav_msgs::msg::Odometry::ConstSharedPtr truth_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_cloud_;
