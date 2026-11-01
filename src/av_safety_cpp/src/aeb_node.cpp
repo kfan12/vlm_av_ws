@@ -340,7 +340,7 @@ private:
         }
         pub_cmd_->publish(cmd);
 
-        publish_debug_markers(clusters);
+        publish_debug_markers(clusters, depth_->header.stamp);
 
         DebugOverlay o;
         o.clusters = &clusters;
@@ -600,7 +600,14 @@ private:
         }
     }
 
-    void publish_debug_markers(const std::vector<av::safety::ObstacleCluster> &clusters)
+    // Both arrays carry the stamp of the depth frame the clusters came from.
+    // RViz looks the marker's frame up at exactly that stamp and does not
+    // wait; now() is always newer than the latest odom -> base_link (the EKF's
+    // TF trails by tens of ms), so now()-stamped markers failed with "Lookup
+    // would require extrapolation into the future". The corridor box shares
+    // the stamp so it is drawn at the same pose as the obstacles.
+    void publish_debug_markers(const std::vector<av::safety::ObstacleCluster> &clusters,
+                               const builtin_interfaces::msg::Time &stamp)
     {
         visualization_msgs::msg::MarkerArray obs_array;
         int id = 0;
@@ -609,7 +616,7 @@ private:
         {
             visualization_msgs::msg::Marker m;
             m.header.frame_id = "base_link";
-            m.header.stamp = now();
+            m.header.stamp = stamp;
             m.ns = "aeb_obstacles";
             m.id = id++;
             m.type = visualization_msgs::msg::Marker::SPHERE;
@@ -634,7 +641,7 @@ private:
         visualization_msgs::msg::MarkerArray corridor_array;
         visualization_msgs::msg::Marker box;
         box.header.frame_id = "base_link";
-        box.header.stamp = now();
+        box.header.stamp = stamp;
         box.ns = "aeb_corridor";
         box.id = 0;
         box.type = visualization_msgs::msg::Marker::CUBE;

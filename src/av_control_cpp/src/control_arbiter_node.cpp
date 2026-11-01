@@ -116,7 +116,12 @@ private:
 
         visualization_msgs::msg::Marker mk;
         mk.header.frame_id = "base_link"; // rides with the car, no pose bookkeeping
-        mk.header.stamp = now();
+        // Zero stamp = "latest transform": a now() stamp is newer than the
+        // latest odom -> base_link (the EKF's TF trails by tens of ms), and
+        // RViz's exact-stamp lookup then fails with "extrapolation into the
+        // future". frame_locked keeps the label on the car between messages.
+        mk.header.stamp = builtin_interfaces::msg::Time();
+        mk.frame_locked = true;
         mk.ns = "active_source";
         mk.id = 0;
         mk.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
