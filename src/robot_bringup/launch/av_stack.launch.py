@@ -33,6 +33,11 @@ metres off the vehicle.
   ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar
   # front lidar on the sedan + /lidar/front/points (sensor only; AEB stays on depth)
   ros2 launch robot_bringup av_stack.launch.py lidar:=true
+  # lidar setup + ACC: acc_node (lidar lead tracking) and the cruise target become
+  # VelocityConstraints that trajectory_coordinator merges into the plan; the MPC
+  # alone reads /planning/authorized/{path,speed_profile}, every other /plan/*
+  # consumer is unchanged. A required constraint going quiet holds the car at 0.
+  ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar acc:=true
 """
 import json
 import os
@@ -62,11 +67,13 @@ VLM_ONLY_DISPLAYS = {'maneuver/debug_image'}
 AEB_ONLY_DISPLAYS = {'aeb/debug_image', 'aeb/debug_obstacles', 'aeb/debug_corridor',
                      'control/active_source'}
 LIDAR_ONLY_DISPLAYS = {'lidar/points'}
+ACC_ONLY_DISPLAYS = {'acc/debug_markers'}
 
 
-def _setup_rviz_config(base_cfg, setup, lidar):
+def _setup_rviz_config(base_cfg, setup, lidar, acc):
     """setup: vlm | aeb | lidar. lidar: whether the sensor is rendered (an
-    explicit lidar:=true in the aeb setup also shows the cloud)."""
+    explicit lidar:=true in the aeb setup also shows the cloud). acc: whether
+    acc_node runs (lidar setup with acc:=true)."""
     with open(base_cfg) as f:
         cfg = yaml.safe_load(f)
     drop = set()
@@ -76,6 +83,8 @@ def _setup_rviz_config(base_cfg, setup, lidar):
         drop |= AEB_ONLY_DISPLAYS
     if not lidar:
         drop |= LIDAR_ONLY_DISPLAYS
+    if not acc:
+        drop |= ACC_ONLY_DISPLAYS
     displays = cfg['Visualization Manager']['Displays']
     cfg['Visualization Manager']['Displays'] = [d for d in displays if d.get('Name') not in drop]
     out = os.path.join(tempfile.gettempdir(), f'av_stack_{setup}.rviz')
@@ -144,12 +153,6 @@ def setup(context):
     # come as a pair. Off: neither runs and the MPC drives /cmd_vel itself -
     # keeping the arbiter without aeb_node would hold the car at 0 forever.
     aeb = _bool_arg(context, 'aeb')
-    control_nodes = [
-        Node(package='av_behavior_cpp', executable='mpc_tracker_v2',
-             name='mpc_tracker_v2', output='screen',
-             parameters=[mpc_config, {'use_sim_time': True}],
-             remappings=[('/cmd_vel', '/control/mpc_cmd')] if aeb else []),
-    ]
 
     # aeb_node's obstacle input: depth (default) or lidar. lidar needs aeb:=true,
     # since it selects the input of an aeb_node that only runs in the aeb setup.
@@ -159,6 +162,7 @@ def setup(context):
     # the lidar is rendered when lidar AEB needs it, or when asked for explicitly
     lidar = aeb_sensor == 'lidar' or _bool_arg(context, 'lidar')
 
+    control_nodes = []
     if aeb:
         control_nodes += [
             Node(package='av_safety_cpp', executable='aeb_node',
@@ -170,6 +174,42 @@ def setup(context):
                  parameters=[arbiter_config, {'use_sim_time': True}]),
         ]
 
+    # ACC: lidar lead tracking -> VelocityConstraint, merged with the cruise
+    # target by trajectory_coordinator; only the MPC is moved onto the
+    # authorized plan, every /plan/* consumer is unchanged.
+    acc = _bool_arg(context, 'acc')
+    # the lidar setup, not merely a rendered lidar: lidar:=true with depth AEB
+    # would otherwise pass, and ACC would run beside a depth AEB nobody tested
+    if acc and aeb_sensor != 'lidar':
+        raise RuntimeError('acc:=true needs the lidar setup (aeb_sensor:=lidar)')
+    mpc_remaps = [('/cmd_vel', '/control/mpc_cmd')] if aeb else []
+    acc_nodes = []
+    if acc:
+        mpc_remaps += [('/plan/path_odom', '/planning/authorized/path'),
+                       ('/plan/speed_profile', '/planning/authorized/speed_profile')]
+        pkg_coord = get_package_share_directory('av_planning_coordinator')
+        pkg_feat = get_package_share_directory('av_features_cpp')
+        acc_nodes = [
+            Node(package='av_planning_coordinator', executable='constraint_from_maneuver_node',
+                 name='cruise_constraint', output='screen',
+                 parameters=[{'source': 'cruise', 'use_sim_time': True}],
+                 remappings=[('constraint', '/feature/cruise/constraint')]),
+            Node(package='av_features_cpp', executable='acc_node', name='acc_node', output='screen',
+                 parameters=[os.path.join(pkg_feat, 'config', 'acc_params.yaml'), {'use_sim_time': True}]),
+            Node(package='av_planning_coordinator', executable='trajectory_coordinator_node',
+                 name='trajectory_coordinator', output='screen',
+                 parameters=[os.path.join(pkg_coord, 'config', 'coordinator_lidar_acc.yaml'),
+                             {'use_sim_time': True}]),
+        ]
+    control_nodes = [
+        Node(package='av_behavior_cpp', executable='mpc_tracker_v2',
+             name='mpc_tracker_v2', output='screen',
+             parameters=[mpc_config, {'use_sim_time': True}],
+             remappings=mpc_remaps),
+        *control_nodes,
+        *acc_nodes,
+    ]
+
     setup_name = 'vlm' if not aeb else ('lidar' if aeb_sensor == 'lidar' else 'aeb')
 
 
@@ -180,7 +220,7 @@ def setup(context):
                 'world': world,
                 'rviz': LaunchConfiguration('rviz'),
                 'rviz_config': _setup_rviz_config(
-                    os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), setup_name, lidar),
+                    os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), setup_name, lidar, acc),
                 'ekf': LaunchConfiguration('ekf'),
                 'gz_gl': LaunchConfiguration('gz_gl'),
                 # the computed value, not the raw arg: aeb_sensor:=lidar must
@@ -244,5 +284,9 @@ def generate_launch_description():
                               choices=['depth', 'lidar'],
                               description='aeb_node obstacle input; lidar also adds the front '
                                           'lidar and its bridge (implies lidar:=true)'),
+        DeclareLaunchArgument('acc', default_value='false',
+                              choices=['true', 'false'],
+                              description='lidar setup only: ACC + trajectory_coordinator in front of '
+                                          'the MPC (needs aeb_sensor:=lidar)'),
         OpaqueFunction(function=setup),
     ])

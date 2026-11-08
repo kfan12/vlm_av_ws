@@ -3,7 +3,7 @@
 # _course_demo_pane.sh  N
 #
 # One pane of the terminator 3x2 course demo (see start_course_demo.sh).
-# Sources ROS 2 + the workspace, then runs one piece of the V2 course demo.
+# Sources ROS 2 + the workspace, then runs one piece of the course demo.
 # Only vlm-mode pane 1 activates the torch venv (Qwen); every other pane is
 # system python so `ros2` CLI works normally.
 #
@@ -17,7 +17,7 @@
 #   3  /vlm/sign_maneuver narrative (maneuver / speed_cap / stop_dist / latch).
 #   4  /maneuver/state + /maneuver/target_speed + raw /vlm/sign, 1 Hz.
 #
-# DEMO_MODE=aeb panes (AEB + arbiter, no VLM):
+# DEMO_MODE=aeb panes (depth AEB + arbiter, no VLM):
 #   1  fixed /maneuver/target_speed (DEMO_SPEED) at 10 Hz - stands in for the
 #      sign chain; without it the MPC holds the car at 0.
 #   2  AV stack: `av_stack.launch.py aeb:=true`, no wait - the above plus
@@ -26,26 +26,37 @@
 #   4  /control/active_source + /cmd_vel + target_speed, same cadence.
 #
 # DEMO_MODE=lidar panes: the aeb panes, except that pane 2 launches with
-# aeb_sensor:=lidar (aeb_node reads the front lidar, which only this setup
-# renders) and pane 5 also watches /lidar/front/points.
+# aeb_sensor:=lidar (aeb_node reads the front lidar, which only the lidar
+# setups render) and pane 5 also watches /lidar/front/points.
+#
+# DEMO_MODE=acc panes: the lidar panes, plus ACC:
+#   1  waits for the stack (trajectory_coordinator's binding topic), bridges,
+#      spawns and drives the lead vehicle (tools/avkit/lead_vehicle.py; DEMO_LEAD=0
+#      skips it), then publishes the cruise target DEMO_SPEED.
+#   2  launches with aeb_sensor:=lidar acc:=true (acc_node + cruise_constraint +
+#      trajectory_coordinator in front of the MPC).
+#   3  ACC narrative: lead gap / lead speed / ACC cap, the binding constraint and
+#      the AEB state.
 #
 # Every mode:
-#   5  health: topic rates for the camera, depth (lane_node ticks on this),
-#      the lane path, and the sign reads (vlm) or [lidar +] AEB status +
-#      /cmd_vel (aeb, lidar).
+#   5  health: topic rates for what that setup depends on.
 #   6  free shell with the handy commands printed.
 #
 # Env (forwarded by start_course_demo.sh):
 #   VLM_AV_WS      workspace root         (default ~/vlm_av_ws)
 #   VLM_VENV       torch venv             (default ~/venvs/vlm_robot)
 #   DEMO_RUNDIR    per-run scratch dir    (set by the launcher)
-#   DEMO_MODE      vlm|aeb|lidar          (default vlm)
+#   DEMO_MODE      vlm|aeb|lidar|acc      (default vlm)
 #   DEMO_WORLD     world / map name       (default urban_course)
 #   DEMO_RVIZ      true|false             (default true)
-#   DEMO_GZ_GL     gpu|software           (launcher default: aeb/lidar gpu, vlm software; unset here: software)
+#   DEMO_GZ_GL     gpu|software           (launcher default: aeb/lidar gpu, vlm/acc software; unset here: software)
 #                  Gazebo OpenGL backend (gpu: WSLg d3d12, software: llvmpipe)
 #   DEMO_CURVE_SPLICE true|false          (default false) local_planner curve splice
-#   DEMO_SPEED     aeb/lidar target speed (default 8.0, above the MPC cap)
+#   DEMO_SPEED     aeb/lidar/acc target speed (default 8.0, above the MPC cap)
+#   DEMO_LEAD      acc: 1 = spawn + drive a lead vehicle, 0 = none (default 1)
+#   DEMO_LEAD_S    acc: lead spawn arc length [m] (default 25)
+#   DEMO_LEAD_PROFILE acc: lead speed profile "t0:v0,t1:v1,..." (sim s since
+#                  its driver started : m/s; default 0:1.5)
 #   STACK_NOWAIT=1 vlm-mode pane 2 starts the stack without waiting for Qwen
 # ---------------------------------------------------------------------------
 # no `set -u`: the ROS 2 setup scripts reference unbound vars
@@ -57,11 +68,25 @@ MODE="${DEMO_MODE:-vlm}"
 WORLD="${DEMO_WORLD:-urban_course}"
 CURVE_SPLICE="${DEMO_CURVE_SPLICE:-false}"
 SPEED="${DEMO_SPEED:-8.0}"
+LEAD="${DEMO_LEAD:-1}"
+LEAD_S="${DEMO_LEAD_S:-25}"
+LEAD_PROFILE="${DEMO_LEAD_PROFILE:-0:1.5}"
 PARAMS="$WS/src/vlm_planner_py/config/sign_maneuver_params.yaml"
 WATCH="$WS/scripts/_course_demo_watch.py"
 VLM_LOG="$RUNDIR/vlm_sign.log"
 VLM_READY="$RUNDIR/vlm_ready"
 mkdir -p "$RUNDIR"
+
+# What each mode runs: AEB + arbiter (every mode but vlm), AEB's obstacle
+# sensor, ACC. SAFE groups the panes the three AEB modes share.
+case "$MODE" in
+    vlm)   AEB=false; AEB_SENSOR=depth; ACC=false ;;
+    aeb)   AEB=true;  AEB_SENSOR=depth; ACC=false ;;
+    lidar) AEB=true;  AEB_SENSOR=lidar; ACC=false ;;
+    acc)   AEB=true;  AEB_SENSOR=lidar; ACC=true ;;
+    *)     echo "unknown DEMO_MODE '$MODE' (vlm|aeb|lidar|acc)"; exec bash ;;
+esac
+FAMILY=vlm; [ "$AEB" = true ] && FAMILY=safe
 
 # keep the stray ~/.local numpy 2.x out of the system-python ROS nodes
 export PYTHONNOUSERSITE=1
@@ -106,14 +131,55 @@ case "$MODE:${1:-}" in
       ros2 topic pub -r 10 /maneuver/target_speed std_msgs/msg/Float64 "{data: $SPEED}" > /dev/null
       hold 1 ;;
 
-  vlm:2|aeb:2|lidar:2)
-      AEB_SENSOR=depth
-      if [ "$MODE" != vlm ]; then
-          AEB=true
-          [ "$MODE" = lidar ] && AEB_SENSOR=lidar
+  acc:1)
+      # The lead's bridge and driver run in the background next to the speed
+      # publisher; every way out of this pane stops all three (the lead model
+      # itself goes with Gazebo, which pane 2 stops).
+      stop_lead() {
+          kill $(jobs -p) 2>/dev/null
+          pkill -f 'lead_vehicle.py drive' 2>/dev/null
+          pkill -f '/model/lead_vehicle/cmd_vel@' 2>/dev/null
+      }
+      trap 'stop_lead; exit 129' HUP
+      trap 'stop_lead' INT TERM
+      echo "[1] ACC demo: waiting for the stack (trajectory_coordinator's /planning/binding_constraint)..."
+      until timeout 5 ros2 topic echo --once /planning/binding_constraint std_msgs/msg/String \
+              > /dev/null 2>&1; do
+          sleep 2
+      done
+      if [ "$LEAD" = 1 ]; then
+          echo "[1] lead vehicle: bridge, spawn at s=$LEAD_S, drive profile $LEAD_PROFILE"
+          ros2 run ros_gz_bridge parameter_bridge \
+              "/model/lead_vehicle/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist" \
+              "/model/lead_vehicle/odometry@nav_msgs/msg/Odometry[ignition.msgs.Odometry" \
+              --ros-args -r /model/lead_vehicle/cmd_vel:=/lead/cmd_vel \
+              -r /model/lead_vehicle/odometry:=/lead/odom_truth > "$RUNDIR/lead_bridge.log" 2>&1 &
+          if python3 "$WS/tools/avkit/lead_vehicle.py" spawn --s "$LEAD_S" --world "$WORLD"; then
+              python3 "$WS/tools/avkit/lead_vehicle.py" drive --profile "$LEAD_PROFILE" --world "$WORLD" \
+                  --ros-args -p use_sim_time:=true > "$RUNDIR/lead_driver.log" 2>&1 &
+              echo "    driver log: $RUNDIR/lead_driver.log"
+              sleep 2   # the lead gets going before the ego is released
+          else
+              echo "[1] lead spawn failed - cruising without a lead (ACC should stay on 'no lead')"
+          fi
+      else
+          echo "[1] DEMO_LEAD=0: no lead vehicle (ACC should stay on 'no lead')"
+      fi
+      echo "[1] cruise target: /maneuver/target_speed = $SPEED m/s at 10 Hz"
+      echo "    (Ctrl-C here and the coordinator holds the car at 0: the cruise constraint is required)"
+      ros2 topic pub -r 10 /maneuver/target_speed std_msgs/msg/Float64 "{data: $SPEED}" > /dev/null &
+      wait $!
+      wait $! 2>/dev/null   # the first wait returns early when a trap fires
+      trap - HUP INT TERM
+      stop_lead
+      hold 1 ;;
+
+  vlm:2|aeb:2|lidar:2|acc:2)
+      if [ "$ACC" = true ]; then
+          echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + ACC + coordinator + MPC + aeb_node (lidar) + arbiter"
+      elif [ "$AEB" = true ]; then
           echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC + aeb_node ($AEB_SENSOR) + arbiter"
       else
-          AEB=false
           echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC (no AEB)"
       fi
       echo "[2] Gazebo rendering: ${DEMO_GZ_GL:-software}   (DEMO_GZ_GL=gpu|software)"
@@ -143,7 +209,7 @@ case "$MODE:${1:-}" in
       }
       ros2 launch robot_bringup av_stack.launch.py \
           world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="${DEMO_GZ_GL:-software}" \
-          curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB" aeb_sensor:="$AEB_SENSOR" &
+          curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB" aeb_sensor:="$AEB_SENSOR" acc:="$ACC" &
       LAUNCH=$!
       stop_stack() { kill -TERM "$LAUNCH" 2>/dev/null; wait "$LAUNCH" 2>/dev/null; stop_gazebo; }
       trap 'stop_stack; exit 129' HUP
@@ -169,6 +235,12 @@ case "$MODE:${1:-}" in
       python3 "$WATCH" aeb
       hold 3 ;;
 
+  acc:3)
+      echo "[3] ACC: lead gap / speed / cap, binding constraint, AEB state"
+      echo "    (>> = lead found or lost, binding source or AEB state changed; plus a 1 Hz heartbeat)"
+      python3 "$WATCH" acc
+      hold 3 ;;
+
   vlm:4)
       echo "[4] /maneuver setpoint + raw /vlm/sign  (1 Hz)"
       sleep 8
@@ -180,54 +252,55 @@ case "$MODE:${1:-}" in
           sleep 1
       done ;;
 
-  aeb:4|lidar:4)
+  aeb:4|lidar:4|acc:4)
       echo "[4] control_arbiter: who owns /cmd_vel  (>> = source change, plus a 1 Hz heartbeat)"
       python3 "$WATCH" ctrl
       hold 4 ;;
 
-  vlm:5|aeb:5|lidar:5)
-      if [ "$MODE" = lidar ]; then
-          topics="/camera/front/image_raw /camera/front/depth/image_raw /lidar/front/points /lane/path_odom /safety/aeb_status /cmd_vel"
-      elif [ "$MODE" = aeb ]; then
-          topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /safety/aeb_status /cmd_vel"
-      else
-          topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /vlm/sign"
-      fi
+  vlm:5|aeb:5|lidar:5|acc:5)
+      case "$MODE" in
+          vlm)   topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /vlm/sign" ;;
+          aeb)   topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /safety/aeb_status /cmd_vel" ;;
+          lidar) topics="/camera/front/image_raw /camera/front/depth/image_raw /lidar/front/points /lane/path_odom /safety/aeb_status /cmd_vel" ;;
+          acc)   topics="/camera/front/depth/image_raw /lidar/front/points /lane/path_odom /feature/acc/state /planning/authorized/speed_profile /lead/odom_truth /cmd_vel" ;;
+      esac
       echo "[5] health - topic rates"
       echo "    (lane_node ticks on /camera/front/depth/image_raw - watch it stall)"
       sleep 10
       while true; do
           for t in $topics; do
               hz=$(timeout 6 ros2 topic hz "$t" 2>/dev/null | grep -m1 'average rate' || echo 'no data')
-              printf '%-34s %s\n' "$t" "$hz"
+              printf '%-36s %s\n' "$t" "$hz"
           done
           echo '---'
       done ;;
 
-  vlm:6|aeb:6|lidar:6)
+  vlm:6|aeb:6|lidar:6|acc:6)
       echo "[6] free terminal.  Handy checks:"
       echo "     ros2 topic hz /camera/front/depth/image_raw     # lane_node's tick source"
-      echo "     ros2 topic info /cmd_vel -v                      # exactly one publisher: $([ "$MODE" != vlm ] && echo control_arbiter || echo mpc_tracker_v2)"
-      if [ "$MODE" != vlm ]; then
+      echo "     ros2 topic info /cmd_vel -v                      # exactly one publisher: $([ "$FAMILY" = safe ] && echo control_arbiter || echo mpc_tracker_v2)"
+      if [ "$FAMILY" = safe ]; then
           echo "     ros2 topic echo /safety/aeb_status               # full AEB status"
           echo "     ros2 topic pub -r 10 /safety/manual_estop std_msgs/msg/Bool '{data: true}'  # arbiter e-stop while running"
           echo "     RViz shows the arbiter's 'ctrl: <source>' label above the car"
-          if [ "$MODE" = lidar ]; then
+          if [ "$AEB_SENSOR" = lidar ]; then
               echo "     ros2 param get /aeb_node obstacle_source         # must say lidar"
               echo "     ros2 topic hz /lidar/front/points                # ~10 Hz; aeb_node FAULTs 'stale lidar' after 0.5 s without it"
+          fi
+          if [ "$ACC" = true ]; then
+              echo "     ros2 topic echo /planning/binding_constraint     # which constraint limits the speed (cruise / acc / hold)"
+              echo "     ros2 topic echo /feature/acc/constraint          # ACC's cap and its reason"
+              echo "     ros2 topic info /planning/authorized/path -v     # the MPC is its only subscriber"
+              echo "     python3 tools/avkit/lead_vehicle.py remove --world $WORLD   # take the lead away mid-run"
+              echo "     pkill -f av_features_cpp/acc_node                # required-source fail-safe: binding turns to hold, the car stops"
           fi
       else
           echo "     ros2 topic echo --full-length /vlm/sign          # raw Qwen labels"
           echo "     ros2 param set /vlm_sign vlm_query_enabled false  # pause Qwen live"
           echo "     add an Image display on /maneuver/debug_image in RViz for the annotated FPV"
       fi
-      case "$MODE" in
-          vlm)   HEADLESS_ARGS="aeb:=false" ;;
-          lidar) HEADLESS_ARGS="aeb:=true aeb_sensor:=lidar" ;;
-          *)     HEADLESS_ARGS="aeb:=true" ;;
-      esac
-      echo "     ros2 launch robot_bringup av_stack.launch.py rviz:=false $HEADLESS_ARGS   # headless"
+      echo "     ros2 launch robot_bringup av_stack.launch.py rviz:=false aeb:=$AEB aeb_sensor:=$AEB_SENSOR acc:=$ACC   # headless"
       exec bash ;;
 
-  *)  echo "usage: DEMO_MODE=vlm|aeb|lidar _course_demo_pane.sh <1..6>   (got '$MODE:${1:-}')"; exec bash ;;
+  *)  echo "usage: DEMO_MODE=vlm|aeb|lidar|acc _course_demo_pane.sh <1..6>   (got '$MODE:${1:-}')"; exec bash ;;
 esac

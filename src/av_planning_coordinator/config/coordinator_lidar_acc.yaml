@@ -1,0 +1,7 @@
+# trajectory_coordinator in the lidar setup with ACC: cruise target + ACC cap.
+# Both are required - if either stops publishing, the car is held.
+/**:
+  ros__parameters:
+    constraint_topics: ["/feature/cruise/constraint", "/feature/acc/constraint"]
+    required_constraint_topics: ["/feature/cruise/constraint", "/feature/acc/constraint"]
+    hold_without_constraints: true

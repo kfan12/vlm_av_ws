@@ -16,12 +16,17 @@ Session dir: data/aeb_scenarios/<YYYYmmdd_HHMMSS>_<label>/
   lane_path.jsonl    /lane/path_odom    {"t","n"}  arrival time + pose count
   plan_path.jsonl    /plan/path_odom    {"t","n"}
   target_speed.jsonl /maneuver/target_speed {"t","v"}
+  lead_truth.jsonl   /lead/odom_truth   {"t","x","y","yaw","v"}  world frame (lead_vehicle.py)
+  acc_state.jsonl    /feature/acc/state {"t","gap","v_lead","cap","has_lead"}
+  binding.jsonl      /planning/binding_constraint {"t","binding"}  coordinator's pick
   clock.jsonl        {"t","wall"}  sim time vs wall clock, every ~0.5 s wall
   meta.json          label, world, map road_block pose, --obstacle records,
                      target speed, row counts
 
 With aeb:=true (arbiter in the loop) active_source/mpc_cmd fill up; in the
 aeb:=false shadow setup they stay empty and /cmd_vel is the MPC's own command.
+lead_truth needs a spawned, bridged lead vehicle; acc_state and binding fill
+up only with acc:=true (acc_node + trajectory_coordinator).
 
 --obstacle NAME (repeatable) copies data/aeb_obstacles/NAME.json, written by
 scripts/spawn_aeb_obstacle.sh, into meta.json at the END of the run, so a box
@@ -45,11 +50,12 @@ from rclpy.qos import qos_profile_sensor_data
 from av_feature_msgs.msg import AebStatus
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry, Path
-from std_msgs.msg import Float64, String
+from std_msgs.msg import Float64, Float64MultiArray, String
 
 STATE_NAMES = ['INACTIVE', 'MONITORING', 'WARNING', 'BRAKING', 'STOP_HOLD', 'FAULT']
 STREAMS = ('aeb_status', 'aeb_cmd', 'mpc_cmd', 'cmd_vel', 'active_source', 'odom_truth',
-           'odom_ekf', 'lane_path', 'plan_path', 'target_speed', 'clock')
+           'odom_ekf', 'lane_path', 'plan_path', 'target_speed', 'clock',
+           'lead_truth', 'acc_state', 'binding')
 OBSTACLE_DIR = os.path.expanduser('~/vlm_av_ws/data/aeb_obstacles')
 
 
@@ -78,6 +84,9 @@ class AebScenarioRecorder(Node):
         self.create_subscription(Path, '/plan/path_odom', self._path_cb('plan_path'), 10)
         self.create_subscription(Float64, '/maneuver/target_speed', self._target_cb,
                                  qos_profile_sensor_data)
+        self.create_subscription(Odometry, '/lead/odom_truth', self._odom_cb('lead_truth'), 20)
+        self.create_subscription(Float64MultiArray, '/feature/acc/state', self._acc_cb, 10)
+        self.create_subscription(String, '/planning/binding_constraint', self._binding_cb, 10)
 
     def _t(self):
         return round(self.get_clock().now().nanoseconds * 1e-9, 3)
@@ -130,6 +139,15 @@ class AebScenarioRecorder(Node):
 
     def _target_cb(self, m):
         self._emit('target_speed', {'t': self._t(), 'v': round(m.data, 3)})
+
+    def _acc_cb(self, m):
+        # acc_node's layout: [gap_m, lead_speed_mps, cap_mps, has_lead (0/1)]
+        gap, v_lead, cap, has_lead = (list(m.data) + [0.0] * 4)[:4]
+        self._emit('acc_state', {'t': self._t(), 'gap': round(gap, 3), 'v_lead': round(v_lead, 3),
+                                 'cap': round(cap, 3), 'has_lead': bool(has_lead)})
+
+    def _binding_cb(self, m):
+        self._emit('binding', {'t': self._t(), 'binding': m.data})
 
     def close(self):
         for f in self.files.values():

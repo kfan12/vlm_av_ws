@@ -4,7 +4,8 @@ A ROS2 + Gazebo autonomous-driving simulation stack: vision-based lane perceptio
 A second pipeline layers a vision-language model on top: it reads road signs (stop / left / right / winding) from the front camera and turns them into speed caps and a stop, on top of the vision-only lane following.
 A third, independent layer adds safety: an automatic emergency braking (AEB) node that watches for obstacles in the car's predicted path, and a control arbiter that decides which command actually reaches the car.
 AEB reads either the depth camera or an optional front lidar; everything after the obstacle points (corridor, braking model, state machine, arbiter) is shared, so the two are interchangeable.
-The VLM pipeline and the AEB layer run in separate simulation setups, never together: `vlm`, `aeb` (depth AEB) and `lidar` (lidar AEB) (see [Running it](#running-it)).
+On top of the lidar setup, an adaptive cruise control feature (in development) follows a moving lead vehicle by lowering the speed limit through a composable velocity-constraint coordinator.
+The VLM pipeline and the AEB layer run in separate simulation setups, never together: `vlm`, `aeb` (depth AEB), `lidar` (lidar AEB) and `acc` (lidar AEB + ACC) (see [Running it](#running-it)).
 
 This project is a continuation of [kfan12/vlm_robot_public](https://github.com/kfan12/vlm_robot_public).
 It carries forward the same ROS2/Gazebo simulation approach, now built around a full-size sedan model (Ackermann steering, RGB-D front camera) instead of the original robot, and a more realistic generated road world with lane markings, curves, intersections, and street furniture.
@@ -33,7 +34,9 @@ Tuning and new features are ongoing; expect frequent changes to camera/perceptio
 | `vlm_planner_py` | VLM sign pipeline: `vlm_sign_node` (Qwen2.5-VL-3B sign reading) + `sign_maneuver_node` (board detection, sign-to-speed arbitration). Runs under a separate Python venv (torch); see below. |
 | `av_safety_cpp` | `aeb_node`: obstacle clusters from the depth camera or the lidar (`obstacle_source`), swept collision corridor along the predicted path, TTC / safe braking distance, six-state AEB state machine. Also `obstacle_probe`, a measurement node that runs both obstacle extractors side by side. |
 | `av_control_cpp` | `control_arbiter_node`: the single command authority for `/cmd_vel` when AEB is on (e-stop > AEB > fault stop > MPC). |
-| `av_feature_msgs` | Typed feature interfaces (`AebStatus.msg`). |
+| `av_feature_msgs` | Typed feature interfaces (`AebStatus.msg`, `VelocityConstraint.msg`). |
+| `av_planning_coordinator` | `trajectory_coordinator_node`: clamps the planner's speed profile to the strictest valid `VelocityConstraint` for the MPC; `constraint_from_maneuver_node` turns `/maneuver/target_speed` into one. ACC setup only. |
+| `av_features_cpp` | `acc_node`: lidar adaptive cruise control, a lead-vehicle tracker that publishes a speed limit as a `VelocityConstraint`. ACC setup only. |
 
 Perception, planning, and control run as separate ROS2 nodes at their own rates, tied together through `av_stack.launch.py`, which also fans out the map's spawn pose so every node agrees on the same odom-frame origin.
 The VLM pipeline runs as two extra nodes launched separately (not part of `av_stack.launch.py`, since it needs the torch venv) and only ever *caps* speed or adds a stop - it never steers, so the stack still drives lane-only with it off.
@@ -46,6 +49,12 @@ camera (RGB + depth) --> lane_node --> local_planner --> mpc_tracker_v2
                                                                    aeb_node --> /safety/aeb_status, /control/aeb_cmd --^
                                                                       ^
              depth image (aeb setup) or /lidar/front/points (lidar setup)
+
+acc setup (aeb_sensor:=lidar acc:=true), between the planner and the MPC:
+local_planner --/plan/*--> trajectory_coordinator --/planning/authorized/*--> mpc_tracker_v2
+                                   ^
+    /feature/cruise/constraint (cruise_constraint <-- /maneuver/target_speed)
+    /feature/acc/constraint    (acc_node <-- /lidar/front/points, /odom_ekf, /plan/path_odom)
 ```
 
 ## VLM sign pipeline
@@ -168,6 +177,46 @@ Like the camera, the lidar mount (`lidar_x` / `lidar_z` in `aeb_params.yaml`) is
 
 The simulated lidar is deliberately simple: an instantaneous snapshot with no scan-time motion distortion, constant intensity, and no material dropouts or weather.
 
+### Lidar adaptive cruise control (in development)
+
+The lidar setup can add adaptive cruise control (ACC): `av_stack.launch.py aeb_sensor:=lidar acc:=true`, or the `acc` demo setup.
+ACC follows a moving lead vehicle at a time gap by lowering the car's speed limit; it never steers, never raises the speed, and never brakes harder than the speed limit asks for - emergency braking stays with `aeb_node` and the arbiter, unchanged and above everything else.
+
+<!-- Snapshot: save the ACC demo screenshot as docs/snapshots/ACC_Lidar.png, then adjust the caption below to what it shows. -->
+![Lidar ACC following the lead truck: Gazebo, the AEB and lane debug images, and RViz with the lidar cloud and the ACC marker](docs/snapshots/ACC_Lidar.png)
+
+The acc demo on `urban_course`, following the lead truck.
+Caption to complete with the snapshot: Gazebo, the AEB debug image (`AEB lidar MONITORING`: the truck is ahead but outside the braking distance), the lane debug image, and RViz with the lidar cloud, the ACC marker on the tracked truck and the `ACC: lead ... m at ... m/s, want ... m` label above the car.
+
+**Speed limits as composable constraints.**
+Every feature that wants to limit the speed publishes an `av_feature_msgs/VelocityConstraint` (a maximum speed, the source, a reason and a `valid_until` time) instead of being wired into the MPC.
+`trajectory_coordinator` (`av_planning_coordinator`) takes the planner's path and speed profile, clamps the profile to the strictest constraint that is still valid, and publishes the result on `/planning/authorized/path` and `/planning/authorized/speed_profile`; only the MPC is remapped onto them, so every other reader of `/plan/*` is unchanged.
+It also says which constraint is limiting the speed on `/planning/binding_constraint` (`cruise: ...`, `acc: lead 8.0 m at 1.5 m/s, want 7.6 m`, or `planner` when nothing caps the profile).
+In this setup the cruise target and ACC are both required: if either one stops publishing, the coordinator holds the car at 0 (`hold: <topic>`), the same fail-safe direction as the arbiter.
+The fixed cruise target becomes a constraint through `cruise_constraint` (`constraint_from_maneuver_node`, reading `/maneuver/target_speed`).
+A second speed feature (a stop line, a zone limit) is one more constraint topic, not another `min()` in the MPC.
+
+**The ACC node** (`acc_node`, `av_features_cpp`, one tick per lidar cloud):
+
+- It clusters the lidar cloud with the same `av_common/point_cloud.hpp` code as AEB, and keeps the nearest cluster that is ahead of the car and within 1.3 m of the planned path (the lane), measuring the gap along the path from the front bumper.
+- An alpha-beta filter tracks that gap and its rate of change, which gives the lead's speed; a target is dropped after 0.5 s without a matching measurement, and a new target is first assumed to be standing still (the conservative guess).
+- Desired gap: 5 m + 1.8 s x the ego speed.
+  The speed limit is the lead's speed plus 0.3 /s x (gap - desired gap), never below 0, and 0 outright when the gap is under 3 m; with no lead it publishes no effective limit.
+- It publishes nothing until odometry and the planned path are fresh, so a stalled perception chain holds the car through the coordinator.
+- For RViz, `/feature/acc/debug_markers`: a blue cylinder on the tracked lead and an `ACC: ...` text label above the car (the `acc/debug_markers` display, shown only with `acc:=true`).
+  Parameters: `src/av_features_cpp/config/acc_params.yaml` (the lidar mount must match the URDF, like `aeb_params.yaml`).
+
+**The lead vehicle.**
+`tools/avkit/lead_vehicle.py` spawns a 6.0 x 2.1 x 3.0 m box truck (red cab, blue cargo box, rear underride bar) in the ego lane at a given arc length and drives it along the lane at a speed profile (`t0:v0,t1:v1,...`, sim seconds : m/s), steering by pure pursuit.
+Its colours are saturated on purpose: `lane_node` reads bright, unsaturated pixels as white paint.
+Its ground-truth odometry comes out on `/lead/odom_truth` for scoring.
+
+**Status.**
+In the first follow runs (lead at 1.5 m/s, cruise target 3.0 m/s) ACC closed up behind the truck and followed it through the right turn with no contact and no AEB intervention, at a steady time gap of 1.8-2.1 s against the 1.8 s target, and the car never exceeded the cruise target.
+On the straights its gap estimate is within about 0.1 m of the truth, but in short episodes it reads a few metres short; each one restarts the track as a standing lead and makes the car slow down sharply before it catches up again.
+That, and the remaining scenarios (lead braking to a stop, stop and go, cut-in, a full lap with no lead), are still open.
+
+
 ## Running it
 
 Build first:
@@ -181,7 +230,7 @@ source install/setup.bash
 chmod +x ./scripts/*.sh
 ```
 
-### Three simulation setups
+### Four simulation setups
 
 The VLM pipeline and the AEB layer never run together; pick one setup per run:
 
@@ -190,13 +239,15 @@ The VLM pipeline and the AEB layer never run together; pick one setup per run:
 | **vlm** | VLM sign chain (`/maneuver/target_speed` from `sign_maneuver_node`) | `aeb:=false` - no `aeb_node`, no arbiter | - | `mpc_tracker_v2` |
 | **aeb** | fixed `/maneuver/target_speed` (no VLM) | `aeb:=true` (default) - `aeb_node` + `control_arbiter` | depth camera | `control_arbiter` |
 | **lidar** | fixed `/maneuver/target_speed` (no VLM) | `aeb_sensor:=lidar` - as aeb, plus the front lidar and its bridge | front lidar | `control_arbiter` |
+| **acc** (in development) | fixed cruise target, capped by lidar adaptive cruise behind a lead vehicle | `aeb_sensor:=lidar acc:=true` - as lidar, plus `acc_node` and `trajectory_coordinator` in front of the MPC | front lidar | `control_arbiter` |
 
 Without anything on `/maneuver/target_speed`, the MPC deliberately holds the car at 0.
 
 ### Demo (terminator grid)
 
-`scripts/start_course_demo.sh [vlm|aeb|lidar]` lays out a 3x2 `terminator` grid (needs `terminator` and an X server; WSLg on Windows 11 provides one).
-The lidar setup uses the aeb panes, except that pane 2 launches with `aeb_sensor:=lidar` and pane 5 also watches `/lidar/front/points`:
+`scripts/start_course_demo.sh [vlm|aeb|lidar|acc]` lays out a 3x2 `terminator` grid (needs `terminator` and an X server; WSLg on Windows 11 provides one); `-h` prints every mode and option.
+The lidar setup uses the aeb panes, except that pane 2 launches with `aeb_sensor:=lidar` and pane 5 also watches `/lidar/front/points`.
+The acc setup uses the lidar panes, except pane 1, which waits for the stack, spawns and drives a lead vehicle in the ego lane (`tools/avkit/lead_vehicle.py`) and then publishes the cruise target, and pane 3, which follows ACC (lead gap, lead speed, ACC cap, the constraint currently limiting the speed, and the AEB state):
 
 | Pane | vlm setup | aeb setup |
 | --- | --- | --- |
@@ -218,7 +269,15 @@ DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb # lower speed cap (default 8.0
 DEMO_GZ_GL=software ./scripts/start_course_demo.sh aeb  # render Gazebo on the CPU instead of the GPU (see below)
 
 ./scripts/start_course_demo.sh lidar              # lidar setup, default world urban_course_roadblock
+
+./scripts/start_course_demo.sh acc                # acc setup, full urban_course, lead at s=25 m driving 1.5 m/s
+DEMO_LEAD_PROFILE=0:2.0,20:2.0,21:0.0,30:0.0,32:2.0 ./scripts/start_course_demo.sh acc   # lead stops, then goes again
+DEMO_LEAD_S=40 ./scripts/start_course_demo.sh acc # lead starts further ahead
+DEMO_LEAD=0 ./scripts/start_course_demo.sh acc    # no lead: ACC stays on "no lead", the car cruises
 ```
+
+The acc demo runs on the full `urban_course` with software rendering: on the roadblock track ACC would take the barrier for a stopped lead.
+ACC is still being validated: its gap estimate can briefly read a few metres short, which makes the car slow down behind a lead it was following steadily.
 
 RViz shows each setup's own views: the lane debug image in all of them, plus `/maneuver/debug_image` (VLM sign view) in the vlm setup, or `/safety/aeb/debug_image`, the AEB obstacle / corridor markers and the arbiter's `ctrl:` label in the aeb and lidar setups; the lidar setup also shows the point cloud, coloured by height.
 `av_stack.launch.py` writes one RViz config per setup (`$TMPDIR/av_stack_{vlm,aeb,lidar}.rviz`) from `src/robot_bringup/config/av_stack.rviz`, dropping the other setups' displays by name; edit the base file, not the copies.
@@ -273,6 +332,10 @@ ros2 launch robot_bringup av_stack.launch.py world:=urban_course_roadblock aeb_s
 # the lidar as a sensor only, with AEB still on the depth camera
 ros2 launch robot_bringup av_stack.launch.py lidar:=true
 
+# acc setup: lidar AEB + ACC + trajectory_coordinator (full course; the cruise target is required)
+ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar acc:=true
+python3 tools/avkit/lead_vehicle.py spawn --s 25 --world urban_course   # a lead truck (bridge it first, see run_acc_scenario.sh)
+
 # a tighter-radius course, a barrier world, or without RViz
 ros2 launch robot_bringup av_stack.launch.py world:=urban_tight
 ros2 launch robot_bringup av_stack.launch.py world:=urban_course_roadblock
@@ -295,6 +358,9 @@ See the docstring of `src/robot_bringup/launch/av_stack.launch.py` for the full 
 | `scripts/record_aeb_scenario.sh --label L --duration S --world W --target-speed V` | Records an AEB scenario (status, distance, TTC, commands) into `data/aeb_scenarios/<session>/`. |
 | `scripts/analyze_aeb_scenario.sh latest --plots` | Metrics for a recorded scenario (AEB distance vs. ground-truth bumper gap to the obstacle, measured along the lane, state timeline, arbiter hand-offs) -> `metrics.json`, `report.md`, plots. |
 | `scripts/run_aeb_scenario.sh ROW SPEED` | One headless closed-loop AEB scenario end to end on `urban_course` (box in the lane, half in it, beside it, in the oncoming lane, on the turn, appearing suddenly, MPC killed, lidar dropout), recorded and analyzed. `AEB_SENSOR=lidar` runs it in the lidar setup (session label suffix `_lidar`). |
+| `scripts/run_acc_scenario.sh ROW [SET_SPEED]` | One headless ACC scenario in the acc setup on `urban_course` with a driven lead truck (`follow`, `lead_brake`, `stop_go`, `curve`, `cut_in`), recorded and analyzed with both the AEB and the ACC metrics. |
+| `tools/avkit/analyze_acc_run.py latest --plots` | ACC metrics for a recorded session: true gap to the lead, steady-state gap and time gap, ACC's gap and lead-speed error, cap reaction, restart lag, binding-constraint counts -> `acc_metrics.json`, `acc.png`. |
+| `tools/avkit/lead_vehicle.py spawn\|drive\|remove` | Spawns, drives (speed profile, pure pursuit along the lane) or removes the lead truck. |
 | `tools/avkit/compare_aeb_sessions.py --since STAMP` | Depth vs lidar table: pairs each lidar scenario session with the newest depth session of the same row and speed. |
 | `scripts/probe_obstacle_range.sh` | Standstill detection range of the depth and lidar obstacle extractors: spawns a box at increasing distances in front of the parked car and tabulates what each sensor sees. |
 | `tools/avkit/sensor_rates.py --duration S` | Wall-clock rate, worst gap and sim real-time factor for the camera, depth, lidar, lane path and AEB status topics. |
@@ -307,6 +373,8 @@ See the docstring of `src/robot_bringup/launch/av_stack.launch.py` for the full 
 ./scripts/run_aeb_scenario.sh inlane 2.0                          # depth AEB, box in the lane
 AEB_SENSOR=lidar ./scripts/run_aeb_scenario.sh inlane 2.0         # the same with lidar AEB
 AEB_SENSOR=lidar ./scripts/run_aeb_scenario.sh sensor_dropout 2.0 # lidar bridge killed mid-approach
+
+./scripts/run_acc_scenario.sh follow 3.0                          # ACC behind a 1.5 m/s lead truck
 ```
 
 `tools/avkit/aeb_test_driver.py` drives AEB scenarios: a fixed target speed, optional stop at a given x or on BRAKING, barrier removal after a hold, and resume.
@@ -314,4 +382,4 @@ AEB_SENSOR=lidar ./scripts/run_aeb_scenario.sh sensor_dropout 2.0 # lidar bridge
 ## Roadmap
 
 This is a work in progress.
-Planned areas of continued work include further MPC/perception tuning, further VLM sign-arbitration robustness (board latch, ROI hand-off) tuning, a composable velocity-constraint coordinator with lidar adaptive cruise control as its first feature (following a moving lead vehicle, so features like ACC or a stop line plug in without another `min()` in the MPC), a more realistic lidar model (a real unit's scan pattern, scan-time motion distortion, material and weather effects), additional road-world variety, and expanded sensing/behavior features.
+Planned areas of continued work include further MPC/perception tuning, further VLM sign-arbitration robustness (board latch, ROI hand-off) tuning, finishing and validating lidar adaptive cruise control on the velocity-constraint coordinator (then more constraint features such as a stop line or traffic light), a more realistic lidar model (a real unit's scan pattern, scan-time motion distortion, material and weather effects), additional road-world variety, and expanded sensing/behavior features.

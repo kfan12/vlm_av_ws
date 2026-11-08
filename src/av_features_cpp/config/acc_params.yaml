@@ -1,0 +1,29 @@
+# acc_node. lidar_x / lidar_z mirror sedan.urdf.xacro (same as aeb_params.yaml).
+# Sync trap: only lidar_x / lidar_z / lidar_min_range_m share names with
+# aeb_params.yaml. max_range_m, min_height_m, minimum_cluster_points here are
+# ACC's own (AEB: lidar_max_range_m, min_obstacle_height_m,
+# lidar_minimum_cluster_points) and differ on purpose; a mount change still
+# has to be made in both files and in sedan.urdf.xacro.
+/**:
+  ros__parameters:
+    lidar_x: 2.30
+    lidar_z: 0.60
+    lidar_min_range_m: 0.3
+    max_range_m: 45.0
+    max_lateral_m: 6.0
+    min_height_m: 0.3       # higher than AEB's 0.15: ACC follows vehicles, not debris
+    max_height_m: 3.0
+    cluster_voxel_m: 0.5
+    minimum_cluster_points: 3
+    lane_half_width_m: 1.3
+    bumper_x_m: 2.25
+    time_gap_sec: 1.8
+    standstill_gap_m: 5.0
+    min_gap_m: 3.0
+    gap_gain_per_sec: 0.3
+    tracker_alpha: 0.4
+    tracker_beta: 0.1
+    tracker_gate_m: 3.0
+    lost_after_sec: 0.5
+    constraint_validity_sec: 0.3   # 3 cloud periods
+    input_stale_sec: 0.5

@@ -53,7 +53,8 @@ STATE_ORDER = ['INACTIVE', 'MONITORING', 'WARNING', 'BRAKING', 'STOP_HOLD', 'FAU
 SOURCE_ORDER = ['mpc', 'aeb', 'fault_aeb_cmd_stale', 'fault_aeb_status',
                 'stop_no_fresh_source', 'estop']
 STREAMS = ('aeb_status', 'aeb_cmd', 'mpc_cmd', 'cmd_vel', 'active_source', 'odom_truth',
-           'odom_ekf', 'lane_path', 'plan_path', 'target_speed', 'clock')
+           'odom_ekf', 'lane_path', 'plan_path', 'target_speed', 'clock',
+           'lead_truth', 'acc_state', 'binding')
 
 
 def load_jsonl(path):

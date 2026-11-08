@@ -24,11 +24,16 @@
 # Env: DUR (recording seconds, wall; default per row), SUDDEN_X (truth x that
 # triggers the sudden spawn; default from SPEED), AEB_SENSOR (depth|lidar,
 # default depth; lidar sessions get a _lidar label suffix).
+# STACK_ARGS (extra av_stack.launch.py args, see _av_stack_common.sh; refused
+# if it sets aeb_sensor, which is AEB_SENSOR's job and decides the label).
 # Logs: log/aeb_scenario/<LABEL>/. Kills any running sim/stack first and at the end.
 # ---------------------------------------------------------------------------
 ROW=${1:?usage: run_aeb_scenario.sh ROW SPEED [LABEL]}
 V=${2:?usage: run_aeb_scenario.sh ROW SPEED [LABEL]}
 AEB_SENSOR=${AEB_SENSOR:-depth}
+case "$STACK_ARGS" in
+    *aeb_sensor:=*) echo "STACK_ARGS must not set aeb_sensor (use AEB_SENSOR=depth|lidar): $STACK_ARGS"; exit 2 ;;
+esac
 LABEL=${3:-${ROW}_${V}mps$([ "$AEB_SENSOR" = lidar ] && echo _lidar)}
 
 WS="${VLM_AV_WS:-$HOME/vlm_av_ws}"
@@ -38,6 +43,7 @@ export PYTHONNOUSERSITE=1
 # no `set -u`: the ROS 2 setup scripts reference unbound vars
 source /opt/ros/humble/setup.bash
 source "$WS/install/setup.bash"
+source "$WS/scripts/_av_stack_common.sh"
 cd "$WS" || exit 1
 
 S=45; LAT=""; BRAKES=1
@@ -59,60 +65,8 @@ if [ -z "$DUR" ]; then
     if [ -z "$S" ]; then DUR=40; else DUR=$(awk -v s="$S" -v v="$V" 'BEGIN{printf "%d", 35 + s / v}'); fi
 fi
 
-STACK_PROCS='ign gazebo|gz sim|aeb_node|control_arbiter_node|lane_node|local_planner|mpc_tracker_v2|ekf_node|parameter_bridge|odom_compare|odom_noise|robot_state_publisher|ros2 topic pub|ros2 topic echo|ros2 launch|record_aeb_scenario'
-cleanup() {
-    pkill -f "$STACK_PROCS" 2>/dev/null
-    sleep 3
-    pkill -9 -f "$STACK_PROCS" 2>/dev/null
-}
-cleanup
-
-sim_sec() {
-    timeout 10 ros2 topic echo --once /clock rosgraph_msgs/msg/Clock --field clock 2>/dev/null \
-        | awk '/^sec:/{s=$2} /^nanosec:/{n=$2} END{if (s != "") printf "%.3f", s + n * 1e-9}'
-}
-# The software-GL sim can freeze right after start (/clock stuck, no odom or
-# depth) while every node keeps publishing on the frozen sim time - and then
-# nothing ever looks stale. Only record once sim time advances and odometry
-# and depth flow; relaunch otherwise. Every echo names its message type, so
-# it works even when the ros2 daemon is stale (it then lists no topics).
-stack_healthy() {
-    local c1 c2
-    c1=$(sim_sec); sleep 4; c2=$(sim_sec)
-    [ -n "$c1" ] && [ -n "$c2" ] && awk -v a="$c1" -v b="$c2" 'BEGIN{exit !(b - a > 1.0)}' || {
-        echo "sim time not advancing ($c1 -> $c2)"; return 1; }
-    timeout 10 ros2 topic echo --once /odom_truth nav_msgs/msg/Odometry --field header.stamp > /dev/null 2>&1 || {
-        echo "no /odom_truth"; return 1; }
-    timeout 10 ros2 topic echo --once /camera/front/depth/image_raw sensor_msgs/msg/Image --field header.stamp > /dev/null 2>&1 || {
-        echo "no depth image"; return 1; }
-    if [ "$AEB_SENSOR" = lidar ]; then
-        timeout 10 ros2 topic echo --once /lidar/front/points sensor_msgs/msg/PointCloud2 --field header.stamp \
-            > /dev/null 2>&1 || { echo "no lidar cloud"; return 1; }
-    fi
-    # checked last, after the waits above: a node that crashes on its first
-    # full tick has had time to die by now
-    pgrep -f 'av_safety_cpp/aeb_node' > /dev/null || { echo "aeb_node not running (crashed? see stack.log)"; return 1; }
-}
-
-for attempt in 1 2 3; do
-    ros2 launch robot_bringup av_stack.launch.py world:=urban_course rviz:=false \
-        aeb_sensor:="$AEB_SENSOR" > "$LOG/stack.log" 2>&1 &
-    for _ in $(seq 1 60); do
-        grep -qs "control source: .* -> mpc" "$LOG/stack.log" && break
-        sleep 2
-    done
-    if ! grep -qs "control source: .* -> mpc" "$LOG/stack.log"; then
-        # the arbiter holds fault_aeb_status until aeb_node's input flows
-        echo "arbiter never handed over to mpc in 120 s (aeb_node input missing? see $LOG/stack.log)"
-    elif stack_healthy; then
-        break
-    fi
-    echo "stack attempt $attempt unhealthy - relaunching"
-    cp "$LOG/stack.log" "$LOG/stack_failed_$attempt.log"
-    cleanup
-    [ "$attempt" = 3 ] && { echo "stack never came up healthy"; exit 1; }
-done
-echo "stack up: aeb_node $(pgrep -fc 'av_safety_cpp/aeb_node')  arbiter $(pgrep -fc 'av_control_cpp/control_arbiter_node')"
+av_cleanup
+av_launch urban_course || exit 1
 
 OBST=""; [ -n "$S" ] && OBST="--obstacle aeb_test_box"
 "$WS/scripts/record_aeb_scenario.sh" --label "$LABEL" --duration "$DUR" --world urban_course \
@@ -120,7 +74,7 @@ OBST=""; [ -n "$S" ] && OBST="--obstacle aeb_test_box"
 REC=$!
 T0=$(date +%s)
 sleep 3
-kill -0 "$REC" 2>/dev/null || { echo "recorder died:"; cat "$LOG/rec.log"; cleanup; exit 1; }
+kill -0 "$REC" 2>/dev/null || { echo "recorder died:"; cat "$LOG/rec.log"; av_cleanup; exit 1; }
 ros2 topic pub -r 10 /maneuver/target_speed std_msgs/msg/Float64 "{data: $V}" > /dev/null 2>&1 &
 
 case "$ROW" in
@@ -160,9 +114,8 @@ if [ -n "$S" ]; then
 fi
 wait "$REC"
 cat "$LOG/rec.log"
-grep -q "'odom_truth': 0," "$LOG/rec.log" && echo "INVALID RUN: no /odom_truth recorded (sim froze mid-run?)"
-grep -q "'aeb_status': 0," "$LOG/rec.log" && echo "INVALID RUN: no /safety/aeb_status recorded (aeb_node died? see $LOG/stack.log)"
+av_check_recording "$LOG/rec.log"
 grep "control source" "$LOG/stack.log"
-cleanup
+av_cleanup
 "$WS/scripts/analyze_aeb_scenario.sh" latest --plots > "$LOG/report.md" 2>&1
 tail -n +1 "$LOG/report.md" | grep -E 'session|source_sequence|command_gate|false_positive_brakes|"contact"|\*\*contact|first_braking|source_events|min_gt_standoff|fault_reasons|final_truth'

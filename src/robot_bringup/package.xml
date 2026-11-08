@@ -27,6 +27,8 @@
     <exec_depend>av_behavior_cpp</exec_depend>
     <exec_depend>av_safety_cpp</exec_depend>
     <exec_depend>av_control_cpp</exec_depend>
+    <exec_depend>av_planning_coordinator</exec_depend>
+    <exec_depend>av_features_cpp</exec_depend>
 
     <export>
         <build_type>ament_cmake</build_type>

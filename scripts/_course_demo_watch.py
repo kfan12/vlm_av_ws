@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""_course_demo_watch.py aeb|ctrl - event-driven watchers for the aeb demo panes.
+"""_course_demo_watch.py aeb|ctrl|acc - event-driven watchers for the aeb / lidar / acc demo panes.
 
 AEB transitions (WARNING -> BRAKING -> STOP_HOLD) can last well under a
 second, so a 1 Hz `ros2 topic echo --once` poll misses them. These print a
@@ -7,9 +7,12 @@ second, so a 1 Hz `ros2 topic echo --once` poll misses them. These print a
 
   aeb   /safety/aeb_status: state, emergency flag, distance, TTC, d_safe, decel
   ctrl  /control/active_source (who owns /cmd_vel) + /cmd_vel + target_speed
+  acc   /feature/acc/state (lead gap, lead speed, ACC cap) + the coordinator's
+        binding constraint + the AEB state; '>>' when the lead is found or
+        lost, the binding constraint's source changes, or the AEB state changes
 
 System python (rclpy + the workspace's av_feature_msgs), started by
-_course_demo_pane.sh panes 3 and 4 in aeb mode.
+_course_demo_pane.sh panes 3 and 4 (aeb, lidar, acc modes).
 """
 import math
 import sys
@@ -18,7 +21,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float64, String
+from std_msgs.msg import Float64, Float64MultiArray, String
 
 from av_feature_msgs.msg import AebStatus
 
@@ -42,6 +45,12 @@ class Watch(Node):
         self.last_print = 0.0
         if mode == 'aeb':
             self.create_subscription(AebStatus, '/safety/aeb_status', self._aeb_cb, 10)
+        elif mode == 'acc':
+            self.binding = 'none yet'
+            self.aeb_state = '?'
+            self.create_subscription(String, '/planning/binding_constraint', self._binding_cb, 10)
+            self.create_subscription(AebStatus, '/safety/aeb_status', self._aeb_state_cb, 10)
+            self.create_subscription(Float64MultiArray, '/feature/acc/state', self._acc_cb, 10)
         else:
             self.cmd = Twist()
             self.target = float('nan')
@@ -66,6 +75,21 @@ class Watch(Node):
                    f'd_safe={_num(m.safe_braking_distance_m, 5, 2)} '
                    f'decel={_num(m.requested_deceleration_mps2, 4, 1)}  {m.reason}')
 
+    def _binding_cb(self, m):
+        self.binding = m.data
+
+    def _aeb_state_cb(self, m):
+        self.aeb_state = STATE_NAMES.get(m.state, str(m.state))
+
+    def _acc_cb(self, m):
+        # acc_node's layout: [gap_m, lead_speed_mps, cap_mps, has_lead (0/1)]
+        gap, v_lead, cap, has_lead = (list(m.data) + [0.0] * 4)[:4]
+        lead = (f'lead gap={gap:5.1f} m v={v_lead:4.2f} m/s cap={cap:4.2f}' if has_lead
+                else f'{"no lead":<36}')
+        source = self.binding.split(':')[0]
+        self._emit((bool(has_lead), source, self.aeb_state),
+                   f'{lead}  AEB={self.aeb_state:<10} binding={self.binding}')
+
     def _cmd_cb(self, m):
         self.cmd = m
 
@@ -81,8 +105,8 @@ class Watch(Node):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else ''
-    if mode not in ('aeb', 'ctrl'):
-        sys.exit('usage: _course_demo_watch.py aeb|ctrl')
+    if mode not in ('aeb', 'ctrl', 'acc'):
+        sys.exit('usage: _course_demo_watch.py aeb|ctrl|acc')
     rclpy.init()
     try:
         rclpy.spin(Watch(mode))
