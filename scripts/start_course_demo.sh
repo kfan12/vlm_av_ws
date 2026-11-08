@@ -7,37 +7,40 @@
 # grid of 6 panes. Column 1 is the two things that must be started by hand -
 # the speed source and the ROS launch; columns 2-3 are watchers.
 #
-# Two setups, never both at once (MODE = first arg, or DEMO_MODE, default vlm):
-#   vlm  VLM sign chain sets the speed cap; av_stack runs with aeb:=false
-#        (no aeb_node, no control_arbiter - the MPC publishes /cmd_vel)
-#   aeb  no VLM; a fixed /maneuver/target_speed (DEMO_SPEED, default 8.0 =
-#        above the MPC cap, so the planner profile governs) and av_stack with
-#        aeb:=true (aeb_node + control_arbiter own /cmd_vel). Default world
-#        urban_course_roadblock, so there is something to brake for.
+# Three setups, never more than one at once (MODE = first arg, or DEMO_MODE, default vlm):
+#   vlm    VLM sign chain sets the speed cap; av_stack runs with aeb:=false
+#          (no aeb_node, no control_arbiter - the MPC publishes /cmd_vel)
+#   aeb    no VLM; a fixed /maneuver/target_speed (DEMO_SPEED, default 8.0 =
+#          above the MPC cap, so the planner profile governs) and av_stack with
+#          aeb:=true (aeb_node + control_arbiter own /cmd_vel). Default world
+#          urban_course_roadblock, so there is something to brake for.
+#   lidar  as aeb, but AEB reads the front lidar (av_stack aeb_sensor:=lidar);
+#          the lidar exists in the robot model only in this setup
 #
-#   pane              vlm                              aeb
+#   pane              vlm                              aeb | lidar
 #   col1 top     1    vlm_sign_node -> "VLM ready"     target_speed publisher
 #                     -> sign_maneuver_node (venv)
-#   col1 bottom  2    av_stack aeb:=false, held        av_stack aeb:=true
+#   col1 bottom  2    av_stack aeb:=false, held        av_stack aeb:=true (lidar: aeb_sensor:=lidar)
 #                     until Qwen is loaded
 #   col2 top     3    /vlm/sign_maneuver narrative     /safety/aeb_status narrative
 #   col2 bottom  4    /maneuver setpoint + /vlm/sign   arbiter source + /cmd_vel
-#   col3 top     5    topic-rate health (camera / depth / lane path / sign or aeb)
+#   col3 top     5    topic-rate health (camera / depth [/ lidar] / lane path / sign or aeb)
 #   col3 bottom  6    free shell
 #
 # The av_stack launch file and the RViz config are assumed to already exist
 # and be good - this script does not touch them.
 #
 # Usage:
-#   ./scripts/start_course_demo.sh [vlm|aeb]
+#   ./scripts/start_course_demo.sh [vlm|aeb|lidar]
 #   STACK_NOWAIT=1 ./scripts/start_course_demo.sh     # vlm: don't wait for Qwen
 #   ./scripts/start_course_demo.sh aeb                # roadblock world, AEB on
+#   ./scripts/start_course_demo.sh lidar              # roadblock world, lidar AEB
 #   DEMO_WORLD=urban_course_roadblock_oncoming ./scripts/start_course_demo.sh aeb
 #   DEMO_SPEED=2.0 ./scripts/start_course_demo.sh aeb  # cap the aeb-mode speed
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
 #   DEMO_GZ_GL=gpu|software ./scripts/start_course_demo.sh  # Gazebo sensor rendering: gpu (WSLg d3d12) or
-#                                                         # software (llvmpipe); default: aeb gpu, vlm software
+#                                                         # software (llvmpipe); default: aeb/lidar gpu, vlm software
 #   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
 # Teardown: close the terminator window (each pane's job dies with it).
 # ---------------------------------------------------------------------------
@@ -57,24 +60,26 @@ DEMO_MODE="${1:-${DEMO_MODE:-vlm}}"
 case "$DEMO_MODE" in
     vlm) [ -d "$VENV" ] || echo "warn: venv $VENV missing - pane 1 will fail"
          DEMO_WORLD="${DEMO_WORLD:-urban_course}" ;;
-    aeb) DEMO_WORLD="${DEMO_WORLD:-urban_course_roadblock}" ;;
-    *)   echo "usage: start_course_demo.sh [vlm|aeb]   (got '$DEMO_MODE')"; exit 2 ;;
+    aeb|lidar) DEMO_WORLD="${DEMO_WORLD:-urban_course_roadblock}" ;;
+    *)   echo "usage: start_course_demo.sh [vlm|aeb|lidar]   (got '$DEMO_MODE')"; exit 2 ;;
 esac
 WORLD="$DEMO_WORLD"
 [ -f "$WS/maps/$WORLD.json" ] || echo "warn: maps/$WORLD.json missing - regenerate the world first"
 
-# DDS should be pinned to loopback (WSL mirrored networking: default Cyclone binds the
-# Wi-Fi eth1, and a reconnect mid-run kills every node's sockets and stops the car).
-# Unset falls back to Cyclone defaults (works, but Wi-Fi-fragile); any other file is refused.
-# All panes inherit this shell's environment, so checking here covers the whole stack.
+# DDS runs on Cyclone defaults (CYCLONEDDS_URI unset). Under WSL
+# networkingMode=nat they bind the virtual eth0, which a host Wi-Fi reconnect
+# does not touch. The loopback-only cyclonedds_localhost.xml freezes
+# lane_node's camera subscriptions right after startup, so it only gets a
+# warning; any other file is refused. All panes inherit this shell's
+# environment, so checking here covers the whole stack.
 DDS_CFG="$WS/src/robot_bringup/config/cyclonedds_localhost.xml"
 if [ "${RMW_IMPLEMENTATION:-}" != "rmw_cyclonedds_cpp" ]; then
     echo "error: RMW_IMPLEMENTATION='${RMW_IMPLEMENTATION:-}' (need rmw_cyclonedds_cpp) - set it in ~/.bashrc and open a new shell"; exit 1
 fi
-if [ -z "${CYCLONEDDS_URI:-}" ]; then
-    echo "warn: CYCLONEDDS_URI unset - DDS on Cyclone defaults, a Wi-Fi reconnect will break the run"
-elif [ "${CYCLONEDDS_URI}" != "file://$DDS_CFG" ]; then
-    echo "error: CYCLONEDDS_URI='${CYCLONEDDS_URI}' - unset it or use file://$DDS_CFG"; exit 1
+if [ "${CYCLONEDDS_URI:-}" = "file://$DDS_CFG" ]; then
+    echo "warn: CYCLONEDDS_URI is the loopback XML - lane_node's camera subscriptions freeze with it; unset it and open a new shell"
+elif [ -n "${CYCLONEDDS_URI:-}" ]; then
+    echo "error: CYCLONEDDS_URI='${CYCLONEDDS_URI}' - unset it (Cyclone defaults)"; exit 1
 fi
 
 mkdir -p "$RUNDIR"
@@ -166,12 +171,12 @@ EOF
 
 # Gazebo OpenGL backend: resolved (and validated) here once, so the summary
 # below and pane 2's launch always agree on it. gpu is for the short-track aeb
-# demo; the full-track vlm demo stays on software, like the recorded baselines.
-if [ "$DEMO_MODE" = aeb ]; then
-    DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}"
-else
-    DEMO_GZ_GL="${DEMO_GZ_GL:-software}"
-fi
+# and lidar demos; the full-track vlm demo stays on software, like the recorded
+# baselines.
+case "$DEMO_MODE" in
+    aeb|lidar) DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}" ;;
+    *)         DEMO_GZ_GL="${DEMO_GZ_GL:-software}" ;;
+esac
 case "$DEMO_GZ_GL" in
     gpu)      GL_DESC="gpu (Mesa d3d12 on the WSLg GPU)" ;;
     software) GL_DESC="software (llvmpipe, CPU)" ;;
@@ -185,8 +190,8 @@ done
 
 echo "terminator 3x2 course demo   mode=$DEMO_MODE   rundir=$RUNDIR   world=$WORLD"
 echo "  Gazebo rendering: $GL_DESC   (DEMO_GZ_GL=gpu|software)"
-if [ "$DEMO_MODE" = aeb ]; then
-    echo "  1 target_speed | 2 av_stack aeb:=true | 3 aeb_status | 4 arbiter | 5 health | 6 free"
+if [ "$DEMO_MODE" != vlm ]; then
+    echo "  1 target_speed | 2 av_stack aeb:=true aeb_sensor:=$([ "$DEMO_MODE" = lidar ] && echo lidar || echo depth) | 3 aeb_status | 4 arbiter | 5 health | 6 free"
 else
     echo "  1 vlm pipeline | 2 av_stack aeb:=false | 3 sign_maneuver | 4 setpoint | 5 health | 6 free"
 fi

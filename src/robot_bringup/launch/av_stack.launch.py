@@ -17,18 +17,22 @@ metres off the vehicle.
   ros2 launch robot_bringup av_stack.launch.py lane_debug_tap:=true lane_debug_markers:=false
   # local_planner: turn off the map-derived road-curvature assist (default true)
   ros2 launch robot_bringup av_stack.launch.py curve_splice_enable:=false
-  # safety chain (default true): aeb_node + control_arbiter own /cmd_vel and the
-  # MPC publishes /control/mpc_cmd. false = no aeb_node, no arbiter, the MPC
-  # publishes /cmd_vel directly - the VLM setup, since the two never run together
-  # (start_course_demo.sh vlm|aeb picks the matching value). RViz gets a copy
-  # of config/av_stack.rviz without the other setup's displays (aeb: AEB debug
-  # image + markers + arbiter label; vlm: /maneuver/debug_image) - edit the
-  # base file, the copy in $TMPDIR is regenerated every launch.
+  # Three setups, never more than one at once (start_course_demo.sh
+  # vlm|aeb|lidar picks the matching arguments):
+  #   vlm    aeb:=false - no aeb_node, no arbiter, the MPC publishes /cmd_vel
+  #   aeb    (default) aeb_node on the depth image + control_arbiter own
+  #          /cmd_vel; the MPC publishes /control/mpc_cmd
+  #   lidar  aeb_sensor:=lidar - as aeb, but aeb_node reads the front lidar,
+  #          which is rendered only in this setup (or with an explicit lidar:=true)
+  # RViz gets a copy of config/av_stack.rviz per setup ($TMPDIR/av_stack_<setup>.rviz)
+  # without the other setups' displays: vlm keeps /maneuver/debug_image, aeb and
+  # lidar keep the AEB debug image + markers + arbiter label, and the lidar/points
+  # cloud display stays only while the lidar is rendered. Edit the base file; the
+  # copies are regenerated every launch.
   ros2 launch robot_bringup av_stack.launch.py aeb:=false
+  ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar
   # front lidar on the sedan + /lidar/front/points (sensor only; AEB stays on depth)
   ros2 launch robot_bringup av_stack.launch.py lidar:=true
-  # AEB on the lidar cloud instead of the depth image (adds the lidar itself)
-  ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar
 """
 import json
 import os
@@ -52,20 +56,29 @@ def _bool_arg(context, name):
     return context.launch_configurations[name].lower() == 'true'
 
 
-# av_stack.rviz holds the displays of both setups; each setup gets a copy
-# without the other's (by display Name), so neither shows an empty panel.
+# av_stack.rviz holds the displays of every setup; each setup gets a copy
+# without the others' (by display Name), so none shows an empty panel.
 VLM_ONLY_DISPLAYS = {'maneuver/debug_image'}
 AEB_ONLY_DISPLAYS = {'aeb/debug_image', 'aeb/debug_obstacles', 'aeb/debug_corridor',
                      'control/active_source'}
+LIDAR_ONLY_DISPLAYS = {'lidar/points'}
 
 
-def _setup_rviz_config(base_cfg, aeb):
+def _setup_rviz_config(base_cfg, setup, lidar):
+    """setup: vlm | aeb | lidar. lidar: whether the sensor is rendered (an
+    explicit lidar:=true in the aeb setup also shows the cloud)."""
     with open(base_cfg) as f:
         cfg = yaml.safe_load(f)
-    drop = VLM_ONLY_DISPLAYS if aeb else AEB_ONLY_DISPLAYS
+    drop = set()
+    if setup != 'vlm':
+        drop |= VLM_ONLY_DISPLAYS
+    if setup == 'vlm':
+        drop |= AEB_ONLY_DISPLAYS
+    if not lidar:
+        drop |= LIDAR_ONLY_DISPLAYS
     displays = cfg['Visualization Manager']['Displays']
     cfg['Visualization Manager']['Displays'] = [d for d in displays if d.get('Name') not in drop]
-    out = os.path.join(tempfile.gettempdir(), f"av_stack_{'aeb' if aeb else 'vlm'}.rviz")
+    out = os.path.join(tempfile.gettempdir(), f'av_stack_{setup}.rviz')
     with open(out, 'w') as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
     return out
@@ -157,6 +170,9 @@ def setup(context):
                  parameters=[arbiter_config, {'use_sim_time': True}]),
         ]
 
+    setup_name = 'vlm' if not aeb else ('lidar' if aeb_sensor == 'lidar' else 'aeb')
+
+
     return [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(world_launch),
@@ -164,7 +180,7 @@ def setup(context):
                 'world': world,
                 'rviz': LaunchConfiguration('rviz'),
                 'rviz_config': _setup_rviz_config(
-                    os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
+                    os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), setup_name, lidar),
                 'ekf': LaunchConfiguration('ekf'),
                 'gz_gl': LaunchConfiguration('gz_gl'),
                 # the computed value, not the raw arg: aeb_sensor:=lidar must

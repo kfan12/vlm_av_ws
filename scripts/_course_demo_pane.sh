@@ -25,22 +25,27 @@
 #   3  /safety/aeb_status, every state change + 1 Hz heartbeat.
 #   4  /control/active_source + /cmd_vel + target_speed, same cadence.
 #
-# Both modes:
+# DEMO_MODE=lidar panes: the aeb panes, except that pane 2 launches with
+# aeb_sensor:=lidar (aeb_node reads the front lidar, which only this setup
+# renders) and pane 5 also watches /lidar/front/points.
+#
+# Every mode:
 #   5  health: topic rates for the camera, depth (lane_node ticks on this),
-#      the lane path, and the sign reads (vlm) or AEB status + /cmd_vel (aeb).
+#      the lane path, and the sign reads (vlm) or [lidar +] AEB status +
+#      /cmd_vel (aeb, lidar).
 #   6  free shell with the handy commands printed.
 #
 # Env (forwarded by start_course_demo.sh):
 #   VLM_AV_WS      workspace root         (default ~/vlm_av_ws)
 #   VLM_VENV       torch venv             (default ~/venvs/vlm_robot)
 #   DEMO_RUNDIR    per-run scratch dir    (set by the launcher)
-#   DEMO_MODE      vlm|aeb                (default vlm)
+#   DEMO_MODE      vlm|aeb|lidar          (default vlm)
 #   DEMO_WORLD     world / map name       (default urban_course)
 #   DEMO_RVIZ      true|false             (default true)
-#   DEMO_GZ_GL     gpu|software           (launcher default: aeb gpu, vlm software; unset here: software)
+#   DEMO_GZ_GL     gpu|software           (launcher default: aeb/lidar gpu, vlm software; unset here: software)
 #                  Gazebo OpenGL backend (gpu: WSLg d3d12, software: llvmpipe)
 #   DEMO_CURVE_SPLICE true|false          (default false) local_planner curve splice
-#   DEMO_SPEED     aeb-mode target speed  (default 8.0, above the MPC cap)
+#   DEMO_SPEED     aeb/lidar target speed (default 8.0, above the MPC cap)
 #   STACK_NOWAIT=1 vlm-mode pane 2 starts the stack without waiting for Qwen
 # ---------------------------------------------------------------------------
 # no `set -u`: the ROS 2 setup scripts reference unbound vars
@@ -95,16 +100,18 @@ case "$MODE:${1:-}" in
           --params-file "$PARAMS" -p use_sim_time:=true
       hold 1 ;;
 
-  aeb:1)
+  aeb:1|lidar:1)
       echo "[1] no VLM: /maneuver/target_speed = $SPEED m/s at 10 Hz"
       echo "    (stands in for sign_maneuver_node; Ctrl-C here and the MPC holds the car at 0)"
       ros2 topic pub -r 10 /maneuver/target_speed std_msgs/msg/Float64 "{data: $SPEED}" > /dev/null
       hold 1 ;;
 
-  vlm:2|aeb:2)
-      if [ "$MODE" = aeb ]; then
+  vlm:2|aeb:2|lidar:2)
+      AEB_SENSOR=depth
+      if [ "$MODE" != vlm ]; then
           AEB=true
-          echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC + aeb_node + arbiter"
+          [ "$MODE" = lidar ] && AEB_SENSOR=lidar
+          echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC + aeb_node ($AEB_SENSOR) + arbiter"
       else
           AEB=false
           echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC (no AEB)"
@@ -119,9 +126,32 @@ case "$MODE:${1:-}" in
           while [ ! -e "$VLM_READY" ]; do sleep 2; done
           echo "[2] Qwen up -> launching the stack"
       fi
+      # Shutdown has to be driven from here. Closing the demo window hangs up
+      # this pane's terminal; left alone, ros2 launch and the `ign gazebo`
+      # wrapper die from SIGHUP with no shutdown, and with the GUI the wrapper
+      # runs `ign gazebo server` / `gui` in process groups of their own, so
+      # those two never get the hangup and keep running orphaned.
+      # So the launch runs in the background (a trap can interrupt `wait`, not
+      # a foreground child), and every way out - window closed, Ctrl-C, launch
+      # ending on its own - stops the launch with SIGTERM (a background job
+      # starts with SIGINT ignored; launch shuts its processes down cleanly on
+      # TERM) and then any Gazebo process it left behind.
+      stop_gazebo() {
+          pkill -INT -f 'ign gazebo (server|gui)' 2>/dev/null || true
+          sleep 3
+          pkill -9 -f 'ign gazebo (server|gui)' 2>/dev/null || true
+      }
       ros2 launch robot_bringup av_stack.launch.py \
           world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="${DEMO_GZ_GL:-software}" \
-          curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB"
+          curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB" aeb_sensor:="$AEB_SENSOR" &
+      LAUNCH=$!
+      stop_stack() { kill -TERM "$LAUNCH" 2>/dev/null; wait "$LAUNCH" 2>/dev/null; stop_gazebo; }
+      trap 'stop_stack; exit 129' HUP
+      trap 'stop_stack' INT TERM
+      wait "$LAUNCH"
+      wait "$LAUNCH" 2>/dev/null   # the first wait returns early when a trap fires
+      trap - HUP INT TERM
+      stop_gazebo   # the launch also ends on its own (e.g. a Gazebo crash): never leave a server behind
       hold 2 ;;
 
   vlm:3)
@@ -134,7 +164,7 @@ case "$MODE:${1:-}" in
           sleep 1
       done ;;
 
-  aeb:3)
+  aeb:3|lidar:3)
       echo "[3] /safety/aeb_status  (>> = state change, plus a 1 Hz heartbeat)"
       python3 "$WATCH" aeb
       hold 3 ;;
@@ -150,13 +180,15 @@ case "$MODE:${1:-}" in
           sleep 1
       done ;;
 
-  aeb:4)
+  aeb:4|lidar:4)
       echo "[4] control_arbiter: who owns /cmd_vel  (>> = source change, plus a 1 Hz heartbeat)"
       python3 "$WATCH" ctrl
       hold 4 ;;
 
-  vlm:5|aeb:5)
-      if [ "$MODE" = aeb ]; then
+  vlm:5|aeb:5|lidar:5)
+      if [ "$MODE" = lidar ]; then
+          topics="/camera/front/image_raw /camera/front/depth/image_raw /lidar/front/points /lane/path_odom /safety/aeb_status /cmd_vel"
+      elif [ "$MODE" = aeb ]; then
           topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /safety/aeb_status /cmd_vel"
       else
           topics="/camera/front/image_raw /camera/front/depth/image_raw /lane/path_odom /vlm/sign"
@@ -172,21 +204,30 @@ case "$MODE:${1:-}" in
           echo '---'
       done ;;
 
-  vlm:6|aeb:6)
+  vlm:6|aeb:6|lidar:6)
       echo "[6] free terminal.  Handy checks:"
       echo "     ros2 topic hz /camera/front/depth/image_raw     # lane_node's tick source"
-      echo "     ros2 topic info /cmd_vel -v                      # exactly one publisher: $([ "$MODE" = aeb ] && echo control_arbiter || echo mpc_tracker_v2)"
-      if [ "$MODE" = aeb ]; then
+      echo "     ros2 topic info /cmd_vel -v                      # exactly one publisher: $([ "$MODE" != vlm ] && echo control_arbiter || echo mpc_tracker_v2)"
+      if [ "$MODE" != vlm ]; then
           echo "     ros2 topic echo /safety/aeb_status               # full AEB status"
           echo "     ros2 topic pub -r 10 /safety/manual_estop std_msgs/msg/Bool '{data: true}'  # arbiter e-stop while running"
           echo "     RViz shows the arbiter's 'ctrl: <source>' label above the car"
+          if [ "$MODE" = lidar ]; then
+              echo "     ros2 param get /aeb_node obstacle_source         # must say lidar"
+              echo "     ros2 topic hz /lidar/front/points                # ~10 Hz; aeb_node FAULTs 'stale lidar' after 0.5 s without it"
+          fi
       else
           echo "     ros2 topic echo --full-length /vlm/sign          # raw Qwen labels"
           echo "     ros2 param set /vlm_sign vlm_query_enabled false  # pause Qwen live"
           echo "     add an Image display on /maneuver/debug_image in RViz for the annotated FPV"
       fi
-      echo "     ros2 launch robot_bringup av_stack.launch.py rviz:=false aeb:=$([ "$MODE" = aeb ] && echo true || echo false)   # headless"
+      case "$MODE" in
+          vlm)   HEADLESS_ARGS="aeb:=false" ;;
+          lidar) HEADLESS_ARGS="aeb:=true aeb_sensor:=lidar" ;;
+          *)     HEADLESS_ARGS="aeb:=true" ;;
+      esac
+      echo "     ros2 launch robot_bringup av_stack.launch.py rviz:=false $HEADLESS_ARGS   # headless"
       exec bash ;;
 
-  *)  echo "usage: DEMO_MODE=vlm|aeb _course_demo_pane.sh <1..6>   (got '$MODE:${1:-}')"; exec bash ;;
+  *)  echo "usage: DEMO_MODE=vlm|aeb|lidar _course_demo_pane.sh <1..6>   (got '$MODE:${1:-}')"; exec bash ;;
 esac
