@@ -21,6 +21,10 @@
 #include "av_safety_cpp/depth_obstacle_extractor.hpp"
 #include <av_feature_msgs/msg/aeb_status.hpp>
 
+#include <stdexcept>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include "av_safety_cpp/lidar_obstacle_extractor.hpp"
+
 using av_feature_msgs::msg::AebStatus;
 
 enum class AebState : uint8_t
@@ -85,10 +89,32 @@ public:
         odom_stale_ = declare_parameter("odom_stale_sec", 0.3);
         depth_stale_ = declare_parameter("depth_stale_sec", 0.5);
 
-        sub_depth_ = create_subscription<sensor_msgs::msg::Image>(
-            "/camera/front/depth/image_raw", rclcpp::SensorDataQoS(),
-            [this](sensor_msgs::msg::Image::ConstSharedPtr m)
-            { depth_ = m; depth_t_ = now(); });
+        // =====Begin lidar parameters =====
+
+        obstacle_source_ = declare_parameter("obstacle_source", std::string("depth"));
+        if (obstacle_source_ != "depth" && obstacle_source_ != "lidar")
+            throw std::invalid_argument("obstacle_source must be 'depth' or 'lidar', got '" + obstacle_source_ + "'");
+        lidar_ = obstacle_source_ == "lidar";
+        lp_.mount_x = declare_parameter("lidar_x", 2.30);
+        lp_.mount_z = declare_parameter("lidar_z", 0.60);
+        lp_.min_range_m = declare_parameter("lidar_min_range_m", 0.3);
+        lp_.max_range_m = declare_parameter("lidar_max_range_m", 40.0);
+        lp_.min_cluster_points = declare_parameter("lidar_minimum_cluster_points", 3);
+        lidar_stale_ = declare_parameter("lidar_stale_sec", 0.5);
+
+        // =====End lidar parameters =======
+
+        if (lidar_)
+            sub_cloud_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+                "/lidar/front/points", rclcpp::SensorDataQoS(),
+                [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr m)
+                { cloud_ = m; sensor_t_ = now(); });
+        else
+            sub_depth_ = create_subscription<sensor_msgs::msg::Image>(
+                "/camera/front/depth/image_raw", rclcpp::SensorDataQoS(),
+                [this](sensor_msgs::msg::Image::ConstSharedPtr m)
+                { depth_ = m; sensor_t_ = now(); });
+        RCLCPP_INFO(get_logger(), "obstacle source: %s", obstacle_source_.c_str());
 
         sub_odom_ = create_subscription<nav_msgs::msg::Odometry>(
             "/odom_ekf", 10,
@@ -244,26 +270,35 @@ private:
 
     void tick()
     {
-        if (!odom_ || !depth_)
+
+        // ============= lidar or depth must be present and fresh, else FAULT =======
+        const bool have_sensor = lidar_ ? static_cast<bool>(cloud_) : static_cast<bool>(depth_);
+        if (!odom_ || !have_sensor)
         {
-            publish_fault("waiting for odom and depth");
+            publish_fault(lidar_ ? "waiting for odom and lidar" : "waiting for odom and depth");
             return;
         }
+
         if ((now() - odom_t_).seconds() > odom_stale_)
         {
             publish_fault("stale odom");
             return;
         }
-        if ((now() - depth_t_).seconds() > depth_stale_)
+
+        if ((now() - sensor_t_).seconds() > (lidar_ ? lidar_stale_ : depth_stale_))
         {
-            publish_fault("stale depth");
+            publish_fault(lidar_ ? "stale lidar" : "stale depth");
             return;
         }
 
         double v = std::hypot(odom_->twist.twist.linear.x, odom_->twist.twist.linear.y);
         double yaw_rate = odom_->twist.twist.angular.z;
 
-        auto clusters = av::safety::extract_clusters(depth_, pin_, T_base_cam_, fp_);
+        // Only the selected sensor's message exists: the other pointer stays
+        // null for the node's lifetime, so nothing below may touch it.
+        auto clusters = lidar_ ? av::safety::extract_lidar_clusters(*cloud_, lp_, fp_)
+                               : av::safety::extract_clusters(depth_, pin_, T_base_cam_, fp_);
+        const builtin_interfaces::msg::Time sensor_stamp = lidar_ ? cloud_->header.stamp : depth_->header.stamp;
 
         // Path A: MPC prediction, transformed odom -> base_link using THIS
         // tick's ego pose (good enough at AEB's few-metre, sub-second
@@ -340,7 +375,7 @@ private:
         }
         pub_cmd_->publish(cmd);
 
-        publish_debug_markers(clusters, depth_->header.stamp);
+        publish_debug_markers(clusters, sensor_stamp);
 
         DebugOverlay o;
         o.clusters = &clusters;
@@ -561,7 +596,7 @@ private:
 
             // banner: state + the numbers behind it
             cv::rectangle(img, {0, 0}, {img.cols, 42}, cv::Scalar(0, 0, 0), cv::FILLED);
-            cv::putText(img, std::string("AEB ") + state_name(state_), {6, 17}, cv::FONT_HERSHEY_SIMPLEX,
+            cv::putText(img, std::string("AEB ") + (lidar_ ? "lidar " : "") + state_name(state_), {6, 17}, cv::FONT_HERSHEY_SIMPLEX,
                         0.55, col_state, 2, cv::LINE_AA);
             char buf[128], ttc_buf[16];
             std::snprintf(buf, sizeof(buf), "v %.1f m/s", o.v);
@@ -682,7 +717,7 @@ private:
     sensor_msgs::msg::Image::ConstSharedPtr rgb_, last_debug_rgb_; // debug image only
     nav_msgs::msg::Odometry::ConstSharedPtr odom_;
     nav_msgs::msg::Path::ConstSharedPtr mpc_path_;
-    rclcpp::Time depth_t_{0, 0, RCL_ROS_TIME}, odom_t_{0, 0, RCL_ROS_TIME}, mpc_path_t_{0, 0, RCL_ROS_TIME};
+    rclcpp::Time odom_t_{0, 0, RCL_ROS_TIME}, mpc_path_t_{0, 0, RCL_ROS_TIME};
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_, sub_rgb_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
@@ -695,6 +730,15 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_debug_image_;
 
     rclcpp::TimerBase::SharedPtr timer_;
+
+    //======= Lidar parameters =====
+    std::string obstacle_source_ = "depth";
+    bool lidar_ = false;
+    av::safety::LidarParams lp_;
+    double lidar_stale_ = 0.5;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud_;
+    rclcpp::Time sensor_t_{0, 0, RCL_ROS_TIME};
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_cloud_;
 };
 
 int main(int argc, char **argv)

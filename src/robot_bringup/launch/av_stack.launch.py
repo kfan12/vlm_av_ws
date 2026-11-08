@@ -25,8 +25,10 @@ metres off the vehicle.
   # image + markers + arbiter label; vlm: /maneuver/debug_image) - edit the
   # base file, the copy in $TMPDIR is regenerated every launch.
   ros2 launch robot_bringup av_stack.launch.py aeb:=false
-  # front lidar on the sedan + /lidar/front/points (sensor only; nothing reads it yet)
+  # front lidar on the sedan + /lidar/front/points (sensor only; AEB stays on depth)
   ros2 launch robot_bringup av_stack.launch.py lidar:=true
+  # AEB on the lidar cloud instead of the depth image (adds the lidar itself)
+  ros2 launch robot_bringup av_stack.launch.py aeb_sensor:=lidar
 """
 import json
 import os
@@ -135,11 +137,20 @@ def setup(context):
              parameters=[mpc_config, {'use_sim_time': True}],
              remappings=[('/cmd_vel', '/control/mpc_cmd')] if aeb else []),
     ]
+
+    # aeb_node's obstacle input: depth (default) or lidar. lidar needs aeb:=true,
+    # since it selects the input of an aeb_node that only runs in the aeb setup.
+    aeb_sensor = context.launch_configurations['aeb_sensor']
+    if aeb_sensor == 'lidar' and not aeb:
+        raise RuntimeError('aeb_sensor:=lidar needs aeb:=true (it selects the AEB input)')
+    # the lidar is rendered when lidar AEB needs it, or when asked for explicitly
+    lidar = aeb_sensor == 'lidar' or _bool_arg(context, 'lidar')
+
     if aeb:
         control_nodes += [
             Node(package='av_safety_cpp', executable='aeb_node',
                  name='aeb_node', output='screen',
-                 parameters=[aeb_config, {'use_sim_time': True}],
+                 parameters=[aeb_config, {'obstacle_source': aeb_sensor, 'use_sim_time': True}],
                  remappings=[('nominal_cmd', '/control/mpc_cmd')]),
             Node(package='av_control_cpp', executable='control_arbiter_node',
                  name='control_arbiter', output='screen',
@@ -156,7 +167,9 @@ def setup(context):
                     os.path.join(pkg_bringup, 'config', 'av_stack.rviz'), aeb),
                 'ekf': LaunchConfiguration('ekf'),
                 'gz_gl': LaunchConfiguration('gz_gl'),
-                'lidar': LaunchConfiguration('lidar'),
+                # the computed value, not the raw arg: aeb_sensor:=lidar must
+                # also put the sensor in the model and start its bridge
+                'lidar': 'true' if lidar else 'false',
                 'gz_gui': LaunchConfiguration('gz_gui'),
             }.items()),
 
@@ -185,7 +198,7 @@ def generate_launch_description():
         DeclareLaunchArgument('lidar', default_value='false',
                               choices=['true', 'false'],
                               description='add the front lidar and bridge /lidar/front/points '
-                                          '(sensor only; AEB still uses depth)'),
+                                          '(sensor only; aeb_sensor:=lidar is what feeds it to AEB)'),
         DeclareLaunchArgument('gz_gui', default_value='true',
                               choices=['true', 'false'],
                               description='open the Gazebo GUI; false = server only, so no window '
@@ -211,5 +224,9 @@ def generate_launch_description():
                               description='local_planner: bridge turns with the '
                                           "map's course centerline (road-curvature "
                                           'assist); false = vision-only'),
+        DeclareLaunchArgument('aeb_sensor', default_value='depth',
+                              choices=['depth', 'lidar'],
+                              description='aeb_node obstacle input; lidar also adds the front '
+                                          'lidar and its bridge (implies lidar:=true)'),
         OpaqueFunction(function=setup),
     ])

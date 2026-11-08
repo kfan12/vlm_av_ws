@@ -22,7 +22,9 @@
 # ---------------------------------------------------------------------------
 ROW=${1:?usage: run_aeb_scenario.sh ROW SPEED [LABEL]}
 V=${2:?usage: run_aeb_scenario.sh ROW SPEED [LABEL]}
-LABEL=${3:-${ROW}_${V}mps}
+AEB_SENSOR=${AEB_SENSOR:-depth}
+LABEL=${3:-${ROW}_${V}mps$([ "$AEB_SENSOR" = lidar ] && echo _lidar)}
+
 WS="${VLM_AV_WS:-$HOME/vlm_av_ws}"
 LOG="$WS/log/aeb_scenario/$LABEL"
 mkdir -p "$LOG"
@@ -74,15 +76,26 @@ stack_healthy() {
         echo "no /odom_truth"; return 1; }
     timeout 10 ros2 topic echo --once /camera/front/depth/image_raw sensor_msgs/msg/Image --field header.stamp > /dev/null 2>&1 || {
         echo "no depth image"; return 1; }
+    if [ "$AEB_SENSOR" = lidar ]; then
+        timeout 10 ros2 topic echo --once /lidar/front/points sensor_msgs/msg/PointCloud2 --field header.stamp \
+            > /dev/null 2>&1 || { echo "no lidar cloud"; return 1; }
+    fi
+    # checked last, after the waits above: a node that crashes on its first
+    # full tick has had time to die by now
+    pgrep -f 'av_safety_cpp/aeb_node' > /dev/null || { echo "aeb_node not running (crashed? see stack.log)"; return 1; }
 }
 
 for attempt in 1 2 3; do
-    ros2 launch robot_bringup av_stack.launch.py world:=urban_course rviz:=false > "$LOG/stack.log" 2>&1 &
+    ros2 launch robot_bringup av_stack.launch.py world:=urban_course rviz:=false \
+        aeb_sensor:="$AEB_SENSOR" > "$LOG/stack.log" 2>&1 &
     for _ in $(seq 1 60); do
-        grep -q "control source: .* -> mpc" "$LOG/stack.log" && break
+        grep -qs "control source: .* -> mpc" "$LOG/stack.log" && break
         sleep 2
     done
-    if grep -q "control source: .* -> mpc" "$LOG/stack.log" && stack_healthy; then
+    if ! grep -qs "control source: .* -> mpc" "$LOG/stack.log"; then
+        # the arbiter holds fault_aeb_status until aeb_node's input flows
+        echo "arbiter never handed over to mpc in 120 s (aeb_node input missing? see $LOG/stack.log)"
+    elif stack_healthy; then
         break
     fi
     echo "stack attempt $attempt unhealthy - relaunching"
@@ -127,6 +140,7 @@ fi
 wait "$REC"
 cat "$LOG/rec.log"
 grep -q "'odom_truth': 0," "$LOG/rec.log" && echo "INVALID RUN: no /odom_truth recorded (sim froze mid-run?)"
+grep -q "'aeb_status': 0," "$LOG/rec.log" && echo "INVALID RUN: no /safety/aeb_status recorded (aeb_node died? see $LOG/stack.log)"
 grep "control source" "$LOG/stack.log"
 cleanup
 "$WS/scripts/analyze_aeb_scenario.sh" latest --plots > "$LOG/report.md" 2>&1

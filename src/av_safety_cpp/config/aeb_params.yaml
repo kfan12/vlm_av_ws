@@ -17,6 +17,24 @@
     ground_removal_threshold_m: 0.1
     cluster_voxel_m: 0.5
     minimum_cluster_points: 5
+    
+    # =============Begin lidar parameters =================
+    # obstacle input: depth (front RGB-D camera) | lidar (front lidar,
+    # sedan.urdf.xacro lidar:=true). av_stack.launch.py sets it from aeb_sensor.
+    obstacle_source: depth
+
+    # front lidar extrinsic - mirrors sedan.urdf.xacro lidar_x / lidar_z
+    # (unrotated mount; base_link is at ground level, chassis centre)
+    lidar_x: 2.30
+    lidar_z: 0.60
+    lidar_min_range_m: 0.3
+    lidar_max_range_m: 40.0
+    lidar_minimum_cluster_points: 3
+    lidar_stale_sec: 0.5   # cloud at 10 Hz; same margin as depth_stale_sec
+
+     # =============End lidar parameters =================
+
+
 
     prediction_time_sec: 3.0
     prediction_dt_sec: 0.1
