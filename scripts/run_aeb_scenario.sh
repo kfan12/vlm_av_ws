@@ -12,12 +12,18 @@
 #          curve         box mid right turn (s=74)
 #          sudden        box at s=45 spawned only once the car is ~2.5 m away
 #          mpc_timeout   no box; mpc_tracker_v2 is killed while driving
+#          sensor_dropout  box at s=45; ~8 s after it appears the lidar bridge is
+#                          killed mid-approach, before AEB sees the box
+#                          (AEB_SENSOR=lidar only: the depth camera shares its
+#                          bridge with /clock and /cmd_vel). The kill's wall
+#                          time goes to $LOG/dropout.json for scoring.
 #   SPEED  /maneuver/target_speed [m/s] (the MPC caps at 3.0)
 #   LABEL  session label (default ROW_SPEEDmps) -> data/aeb_scenarios/<stamp>_<LABEL>/
 # Rows that should brake remove the box 15 s before the recording ends, so
 # the STOP_HOLD release and the hand-back to the MPC are recorded too.
 # Env: DUR (recording seconds, wall; default per row), SUDDEN_X (truth x that
-# triggers the sudden spawn; default from SPEED).
+# triggers the sudden spawn; default from SPEED), AEB_SENSOR (depth|lidar,
+# default depth; lidar sessions get a _lidar label suffix).
 # Logs: log/aeb_scenario/<LABEL>/. Kills any running sim/stack first and at the end.
 # ---------------------------------------------------------------------------
 ROW=${1:?usage: run_aeb_scenario.sh ROW SPEED [LABEL]}
@@ -43,6 +49,9 @@ case "$ROW" in
     curve)        S=74 ;;
     sudden)       ;;
     mpc_timeout)  S="" ;;
+    sensor_dropout)
+        [ "$AEB_SENSOR" = lidar ] || { echo "sensor_dropout needs AEB_SENSOR=lidar"; exit 2; }
+        DUR=${DUR:-50} ;;
     *) echo "unknown ROW $ROW"; exit 2 ;;
 esac
 # long enough to reach the box at SPEED (start at s=3, ~6 s to speed) plus a 25 s hold/release
@@ -123,9 +132,21 @@ case "$ROW" in
         # bumper (x + 2.25) about 2.5 m + one second of travel short of the box face (s - 0.3)
         X=${SUDDEN_X:-$(awk -v s="$S" -v v="$V" 'BEGIN{printf "%.2f", s - 0.3 - 2.25 - 2.5 - v}')}
         echo "waiting for truth x >= $X"
-        timeout 90 ros2 topic echo /odom_truth nav_msgs/msg/Odometry --field pose.pose.position.x 2>/dev/null \
-            | awk -v x="$X" '$1+0 >= x {exit}'
-        "$WS/scripts/spawn_aeb_obstacle.sh" --s "$S" $LAT ;;
+        # unbuffered: piped, ros2's Python stdout is block-buffered and awk would
+        # see the position seconds late; --world skips the spawn's world lookup
+        # (an extra `ign service -l`), so the box appears close to the trigger
+        PYTHONUNBUFFERED=1 timeout 90 ros2 topic echo /odom_truth nav_msgs/msg/Odometry \
+            --field pose.pose.position.x 2>/dev/null | awk -v x="$X" '$1+0 >= x {exit}'
+        "$WS/scripts/spawn_aeb_obstacle.sh" --s "$S" $LAT --world urban_course ;;
+    sensor_dropout)
+        sleep 7
+        "$WS/scripts/spawn_aeb_obstacle.sh" --s "$S" $LAT
+        sleep 8
+        # only the lidar's own bridge: /clock, /cmd_vel and the camera stay up
+        T_KILL=$(date +%s.%N)
+        pkill -f '__node:=gz_ros_bridge_lidar'
+        echo "killed the lidar bridge at wall $T_KILL"
+        printf '{"kill_wall": %.3f}\n' "$T_KILL" > "$LOG/dropout.json" ;;
     *)
         sleep 7
         "$WS/scripts/spawn_aeb_obstacle.sh" --s "$S" $LAT ;;

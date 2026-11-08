@@ -15,6 +15,16 @@ bumper to an obstacle's near face is
 
 with ego_xy from /odom_truth (absolute world frame, same frame as the map).
 BUMPER_X = ch_l/2 = 2.25 m (sedan.urdf.xacro; base_link is chassis centre).
+When the obstacle record carries its course lateral offset (spawn_aeb_obstacle.sh
+--s/--lateral, the map's road_block) and the map has a course centerline, both
+tests are measured along the course instead:
+  - in path while |lat_ego - lat_obs| < obs_width/2 + HALF_WIDTH, lat from
+    projecting onto the centerline exactly as aeb_obstacle.py placed the box;
+  - gt_standoff = s_obs - s_ego - obs_depth/2 - BUMPER_X, with s the arc length
+    along the obstacle's own lane (the centerline offset by lat_obs), because on
+    a bend the inner lane is shorter than the centerline.
+On a straight this equals the formula above; on a bend the straight-line frame of
+the box mis-reads a car stopped a few metres short as offset sideways by the bend.
 With several obstacles the nearest one in the car's path counts; a spawned box
 only counts between its spawn and remove times (wall clock, mapped to sim time
 through clock.jsonl). This is what AEB's own obstacle_distance_m is measured
@@ -88,9 +98,60 @@ def wall_to_sim(wall, clock, before, after):
     return float(np.interp(wall, [c['wall'] for c in clock], [c['t'] for c in clock]))
 
 
-def obstacle_gt(ob, odom, to):
+def load_course(world):
+    """Course centerline of maps/<world>.json as an (N, 2) array, or None."""
+    path = os.path.expanduser(f'~/vlm_av_ws/maps/{world}.json')
+    try:
+        with open(path) as f:
+            pts = np.asarray(json.load(f)['course']['centerline'], dtype=float)
+    except (OSError, KeyError, TypeError, ValueError):
+        return None
+    return pts if pts.ndim == 2 and len(pts) >= 2 else None
+
+
+def offset_polyline(pts, lat):
+    """The polyline shifted `lat` to the left of travel (right-hand lane: lat < 0)."""
+    t = np.gradient(pts, axis=0)
+    t /= np.maximum(np.hypot(t[:, 0], t[:, 1]), 1e-12)[:, None]
+    return pts + lat * np.column_stack([-t[:, 1], t[:, 0]])
+
+
+def project_course(pts, xs, ys):
+    """Arc length and left-positive lateral offset of each point on the polyline:
+    the nearest point over all segments, the same rule as aeb_obstacle.project()."""
+    d = np.diff(pts, axis=0)
+    s0 = np.concatenate([[0.0], np.cumsum(np.hypot(d[:, 0], d[:, 1]))[:-1]])
+    x0, y0, dx, dy = pts[:-1, 0], pts[:-1, 1], d[:, 0], d[:, 1]
+    L2 = np.maximum(dx * dx + dy * dy, 1e-12)
+    out_s = np.empty(len(xs))
+    out_lat = np.empty(len(xs))
+    for i, (x, y) in enumerate(zip(xs, ys)):
+        t = np.clip(((x - x0) * dx + (y - y0) * dy) / L2, 0.0, 1.0)
+        px, py = x0 + t * dx, y0 + t * dy
+        j = int(np.argmin((x - px) ** 2 + (y - py) ** 2))
+        h = math.atan2(dy[j], dx[j])
+        out_s[i] = s0[j] + t[j] * math.sqrt(L2[j])
+        out_lat[i] = -(x - px[j]) * math.sin(h) + (y - py[j]) * math.cos(h)
+    return out_s, out_lat
+
+
+def obstacle_gt(ob, odom, to, course=None):
     """Per-sample bumper-to-face gap for one obstacle (NaN while out of path or absent),
-    plus the lateral offset of the obstacle from the car."""
+    plus the lateral offset of the obstacle from the car.
+
+    course: (centerline points, ego x array, ego y array, ego (s, lat) on the
+    centerline); used when the obstacle record has its course lateral offset
+    (see the module docstring)."""
+    present = (to >= ob['t_spawn']) & (to <= ob['t_remove'])
+    if course is not None and ob.get('lateral') is not None:
+        pts, ex, ey, (_, lat_ego) = course
+        lane = offset_polyline(pts, ob['lateral'])
+        s_ego, _ = project_course(lane, ex, ey)
+        s_obs = project_course(lane, np.array([ob['x']]), np.array([ob['y']]))[0][0]
+        gt = s_obs - s_ego - ob['size'][0] / 2.0 - BUMPER_X
+        lat = lat_ego - ob['lateral']
+        in_path = (np.abs(lat) < ob['size'][1] / 2.0 + HALF_WIDTH) & (gt > -(ob['size'][0] + 2.0 * BUMPER_X))
+        return np.where(in_path & present, gt, np.nan), lat, in_path & present, gt
     hx, hy = math.cos(ob['yaw']), math.sin(ob['yaw'])
     gt = np.array([(ob['x'] - r['x']) * hx + (ob['y'] - r['y']) * hy
                    - ob['size'][0] / 2.0 - BUMPER_X for r in odom])
@@ -106,8 +167,7 @@ def obstacle_gt(ob, odom, to):
     in_path = ((np.abs(lat) < ob['size'][1] / 2.0 + HALF_WIDTH)
                & (gt > -(ob['size'][0] + 2.0 * BUMPER_X))
                & (np.abs(dyaw) < math.radians(60.0)))
-    present = (to >= ob['t_spawn']) & (to <= ob['t_remove'])
-    return np.where(in_path & present, gt, np.nan), lat, in_path & present
+    return np.where(in_path & present, gt, np.nan), lat, in_path & present, gt
 
 
 def main():
@@ -156,9 +216,15 @@ def main():
         targets.append(dict(ob, t_spawn=wall_to_sim(ob.get('spawned_wall'), L['clock'], -math.inf, math.inf),
                             t_remove=wall_to_sim(ob.get('removed_wall'), L['clock'], -math.inf, math.inf)))
     if targets and odom:
+        pts = load_course(meta['world']) if meta.get('world') else None
+        course = None
+        if pts is not None:
+            ex, ey = np.array([r['x'] for r in odom]), np.array([r['y'] for r in odom])
+            course = (pts, ex, ey, project_course(pts, ex, ey))
+        m['gt_frame'] = 'course' if course is not None else 'obstacle'
         per = []
         for ob in targets:
-            g, lat, reach = obstacle_gt(ob, odom, to)
+            g, lat, reach, raw = obstacle_gt(ob, odom, to, course)
             per.append(g)
             if ob['name'] == 'road_block':
                 m['road_block'] = rb
@@ -171,6 +237,10 @@ def main():
                     't_spawn': r3(ob['t_spawn']) if math.isfinite(ob['t_spawn']) else None,
                     't_remove': r3(ob['t_remove']) if math.isfinite(ob['t_remove']) else None,
                     'in_ego_path': bool(reach.any()),
+                    # bumper-to-face gap when the spawn was requested (the box
+                    # appears a little later): what a sudden-appearance row tests
+                    'standoff_at_spawn_m': r3(np.interp(ob['t_spawn'], to, raw))
+                    if math.isfinite(ob['t_spawn']) and len(to) else None,
                     'min_lateral_offset_m': r3(np.abs(lat[(to >= ob['t_spawn']) & (to <= ob['t_remove'])]).min())
                     if ((to >= ob['t_spawn']) & (to <= ob['t_remove'])).any() else None})
         gt = np.fmin.reduce(np.vstack(per), axis=0)   # nearest reachable obstacle, NaN if none
