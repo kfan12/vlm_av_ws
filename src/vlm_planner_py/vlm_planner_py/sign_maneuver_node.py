@@ -30,7 +30,7 @@ reads — this node never touches the GPU):
     source ~/venvs/vlm_robot/bin/activate
     python3 -m vlm_planner_py.sign_maneuver_node --ros-args \
         --params-file src/vlm_planner_py/config/sign_maneuver_params.yaml
-    python3 -m vlm_planner_py.vlm_sign_node --ros-args -p vlm_query_rate_hz:=0.5
+    python3 -m vlm_planner_py.vlm_sign_node --ros-args
 
 All tunables live in config/sign_maneuver_params.yaml (defaults match the code);
 copy it per tuning cycle and point --params-file at the copy.
@@ -120,7 +120,8 @@ class SignManeuverNode(Node):
         # that several VLM inferences land in it on approach; at cruise_speed
         # 1.5 m/s and vlm_query_rate_hz 0.5 (~2 s Qwen latency) a 3 m window
         # caught ~1 read with no retry margin, so the first sign (approached at
-        # full cruise) was routinely lost. 10 m window is ~6-7 reads. The floor
+        # full cruise) was routinely lost. 10 m window is ~6-7 reads at
+        # that rate; vlm_sign_node now reads back to back (about 1.5 s each). The floor
         # stays well above the ~2.5 m board-top crop distance.
         self.label_band = (float(p('sign_label_min_dist_m', 4.0).value),
                            float(p('sign_label_max_dist_m', 14.0).value))

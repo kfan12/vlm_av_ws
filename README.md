@@ -232,7 +232,8 @@ DEMO_GZ_GL=software ./scripts/start_course_demo.sh lidar                      # 
 DEMO_RVIZ=false ./scripts/start_course_demo.sh aeb                            # no RViz
 ```
 
-**Rendering.** The short-track `aeb` and `lidar` demos render Gazebo on the GPU (Mesa d3d12 under WSLg), which roughly halves Gazebo's CPU load; `vlm` and `acc` use software rendering (`DEMO_GZ_GL=gpu|software` overrides either).
+**Rendering.** Every demo renders Gazebo on the GPU (Mesa d3d12 under WSLg), which roughly halves Gazebo's CPU load; `DEMO_GZ_GL=software` renders on the CPU instead.
+Headless laps and scenario runs stay on software rendering, because the recorded baselines they are compared against are software.
 If Gazebo's window fails to start (`[QT] Failed to create OpenGL context`), close the demo and start it again.
 
 **The VLM mode** needs a Python venv with `torch`, `transformers` and `bitsandbytes` (default `~/venvs/vlm_robot`, override with `VLM_VENV`) and, in practice, a CUDA GPU; the demo waits for Qwen to load (about 2-3 minutes) before starting the simulation.

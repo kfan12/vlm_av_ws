@@ -37,7 +37,7 @@ Four setups, never more than one at once; which one is the first question to set
 ./scripts/start_course_demo.sh -h            # every pane, env var and default
 ```
 
-Defaults: vlm and acc on the full `urban_course` with software GL; aeb and lidar on `urban_course_roadblock` with gpu GL.
+Defaults: vlm and acc on the full `urban_course`, aeb and lidar on `urban_course_roadblock`; every mode renders with gpu GL (`DEMO_GZ_GL=software` for the CPU).
 Env vars: `DEMO_WORLD`, `DEMO_SPEED`, `DEMO_GZ_GL=gpu|software`, `DEMO_RVIZ=false`, `STACK_NOWAIT=1` (vlm), `DEMO_LEAD=0`, `DEMO_LEAD_S`, `DEMO_LEAD_PROFILE` (acc).
 In the vlm setup the car does not move until pane 1 prints "VLM ready" (2-3 min cold load); not a hang.
 In the acc setup pane 1 waits for the stack, spawns and drives the lead truck, then publishes the cruise target.
@@ -59,7 +59,7 @@ The docstring of `src/robot_bringup/launch/av_stack.launch.py` lists every argum
 
 ```bash
 source ~/venvs/vlm_robot/bin/activate
-python3 -m vlm_planner_py.vlm_sign_node --ros-args -p use_sim_time:=true -p vlm_query_rate_hz:=0.5
+python3 -m vlm_planner_py.vlm_sign_node --ros-args -p use_sim_time:=true
 python3 -m vlm_planner_py.sign_maneuver_node --ros-args --params-file src/vlm_planner_py/config/sign_maneuver_params.yaml -p use_sim_time:=true
 ```
 

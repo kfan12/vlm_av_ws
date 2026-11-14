@@ -1,13 +1,19 @@
 """VLM sign node - Qwen sign reading, decoupled from the path planner.
 
 Subscribes to the front camera, classifies the nearest road sign with
-Qwen2.5-VL-3B on its OWN timer, and publishes the result:
+Qwen2.5-VL-3B in its OWN worker thread (back to back by default), and publishes
+the result:
   /vlm/sign        std_msgs/String  - JSON {"sign": <label>, "stamp": <capture sec>}
                    where label is one of {right,left,winding,stop,none,unparsed} and
                    stamp is the classified FRAME's image-header time. Inference takes
-                   ~2 s, so by arrival the car has moved - the stamp lets the
+                   ~1.5 s, so by arrival the car has moved - the stamp lets the
                    consumer attribute the label to the board distance AT CAPTURE
                    (sign_latch.SignLabelLatch).
+
+Threading: the ROS side spins a SingleThreadedExecutor and inference runs in a
+plain thread. A MultiThreadedExecutor's idle worker threads contend for the GIL
+with Qwen's Python-driven generate loop and made each read ~10x slower (about
+11 s instead of about 1.1 s, measured with the sim running).
   /vlm/sign_image  sensor_msgs/Image - the camera frame with the label drawn on it
 
 READ-ONLY: it never publishes a path or a speed. It must run under the torch
@@ -15,7 +21,7 @@ venv, launched as a module (NOT `ros2 run`, whose console-script shebang is the
 system python -> no torch):
 
     source ~/venvs/vlm_robot/bin/activate
-    python3 -m vlm_planner_py.vlm_sign_node --ros-args -p vlm_query_rate_hz:=0.5
+    python3 -m vlm_planner_py.vlm_sign_node --ros-args -p use_sim_time:=true
 
 The model loads at STARTUP (not on the first camera frame): the cold load pegs
 the CPU for a few minutes, and on the WSL software-GL setup that starves the
@@ -34,8 +40,7 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
@@ -60,9 +65,9 @@ class VlmSignNode(Node):
         # in-world, so this is off by default; real gating is geometry +
         # temporal consistency in the consumer.
         self.vlm_conf_min = float(self.declare_parameter('vlm_confidence_min', 0.0).value)
-        # 0.5 Hz is near the ceiling for ~2 s Qwen inference; the sign_maneuver
-        # label band is sized assuming this rate (see its label_band comment).
-        self.vlm_query_rate_hz = float(self.declare_parameter('vlm_query_rate_hz', 0.5).value)
+        # Maximum read rate [Hz, wall clock]; 0 = start the next read as soon as
+        # the previous one finishes (about 1.5 s per read with the sim running).
+        self.vlm_query_rate_hz = float(self.declare_parameter('vlm_query_rate_hz', 0.0).value)
         # Live ON/OFF switch, read fresh each tick.
         self.declare_parameter('vlm_query_enabled', True)
         # ROI crop hand-off from sign_maneuver_node (publishes the latched
@@ -96,16 +101,17 @@ class VlmSignNode(Node):
         self.latest_sign = None
 
 
-        # VLM query on its own callback group; MultiThreadedExecutor in main()
-        # lets the image subscription keep updating latest_image during the
-        # ~2 s inference, and MutuallyExclusive prevents a tick re-entering
-        # while one is still running.
-        self.vlm_cb_group = MutuallyExclusiveCallbackGroup()
-        self.vlm_timer = self.create_timer(1.0 / self.vlm_query_rate_hz, self._sign_tick,
-                                           callback_group=self.vlm_cb_group)
+        # Inference runs in a plain thread (see the module docstring for why
+        # not an executor callback); the single-threaded executor in main()
+        # keeps latest_image and latest_roi fresh meanwhile. One thread, so a
+        # read never overlaps the next.
+        self._stop = threading.Event()
+        self._infer_thread = threading.Thread(target=self._infer_loop, name='vlm-infer',
+                                              daemon=True)
 
-        state = ('%.2f Hz' % self.vlm_query_rate_hz
-                 if bool(self.get_parameter('vlm_query_enabled').value)
+        rate = ('%.2f Hz max' % self.vlm_query_rate_hz if self.vlm_query_rate_hz > 0.0
+                else 'back to back')
+        state = (rate if bool(self.get_parameter('vlm_query_enabled').value)
                  else 'DISABLED (vlm_query_enabled=false)')
         self.get_logger().info(
             f'VLM sign node up: reading {self.image_topic} -> {self.sign_topic} '
@@ -126,6 +132,27 @@ class VlmSignNode(Node):
         self._model_lock = threading.Lock()
         threading.Thread(target=self._ensure_model, name='vlm-preload',
                          daemon=True).start()
+        self._infer_thread.start()
+
+    def _infer_loop(self):
+        """Read signs until shutdown: one _sign_tick at a time, paced to at most
+        vlm_query_rate_hz (wall clock) when that is > 0. Idles while there is
+        no frame or the query is disabled (_sign_tick logs why)."""
+        period = 1.0 / self.vlm_query_rate_hz if self.vlm_query_rate_hz > 0.0 else 0.0
+        while not self._stop.is_set() and rclpy.ok():
+            t0 = time.time()
+            try:
+                ran = self._sign_tick()
+            except Exception as e:  # the loop must survive anything a read throws
+                self.get_logger().error(f'VLM tick failed: {e}', throttle_duration_sec=5.0)
+                ran = False
+            wait = max(period - (time.time() - t0), 0.0) if ran else 0.2
+            if wait > 0.0:
+                self._stop.wait(wait)
+
+    def destroy_node(self):
+        self._stop.set()
+        return super().destroy_node()
 
 
     def _image_cb(self, msg):
@@ -214,15 +241,16 @@ class VlmSignNode(Node):
         return result
     
     def _sign_tick(self):
+        """One read of the latest frame. Returns True if a read ran."""
         if not self._query_enabled():
             self.get_logger().info('VLM query disabled (vlm_query_enabled=false), skipping.',
                                    throttle_duration_sec=10.0)
-            return
+            return False
         if self.latest_image is None:
             self.get_logger().info('VLM tick: no image yet, skipping.',
                                    throttle_duration_sec=5.0)
-            return
-        # Snapshot the frame ONCE: the ~2 s inference must classify, stamp and
+            return False
+        # Snapshot the frame ONCE: the inference must classify, stamp and
         # overlay the SAME image (latest_image keeps updating underneath us).
         img_msg = self.latest_image
         stamp_sec = img_msg.header.stamp.sec + img_msg.header.stamp.nanosec * 1e-9
@@ -230,7 +258,7 @@ class VlmSignNode(Node):
             bgr = img_msg_to_bgr(img_msg)
         except Exception as e:
             self.get_logger().warn(f'Image decode failed: {e}', throttle_duration_sec=5.0)
-            return
+            return False
         infer_img, roi_used = self._crop_for_inference(bgr, stamp_sec)
         t0 = time.time()
         result = self._run_vlm(SIGN_PROMPT, infer_img)
@@ -251,6 +279,7 @@ class VlmSignNode(Node):
             except Exception as e:
                 self.get_logger().warn(f'Failed to publish sign overlay: {e}',
                                        throttle_duration_sec=5.0)
+        return True
 
     def _publish_overlay(self, bgr, action, cstr, latency, header=None, roi=None):
         """Draw the label (and the inference ROI, when one was used) on the
@@ -268,9 +297,9 @@ class VlmSignNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = VlmSignNode()
-    # MultiThreadedExecutor: the VLM timer (own group) runs the ~2 s inference
-    # on a separate thread while the image subscription keeps latest_image fresh.
-    executor = MultiThreadedExecutor()
+    # Single-threaded on purpose: inference has its own plain thread, and a
+    # MultiThreadedExecutor's workers starve it of the GIL (module docstring).
+    executor = SingleThreadedExecutor()
     executor.add_node(node)
     try:
         executor.spin()

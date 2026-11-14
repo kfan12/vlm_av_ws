@@ -704,7 +704,7 @@ nodes:
     - required-constraints-hold
   vlm_sign_node:
     package: vlm_planner_py
-    description: Qwen2.5-VL-3B sign classification from the front camera on its own timer; publishes /vlm/sign
+    description: Qwen2.5-VL-3B sign classification from the front camera in its own thread, back to back; publishes /vlm/sign
     source: src/vlm_planner_py/vlm_planner_py/vlm_sign_node.py
     publishes:
     - <self.sign_image_topic> Image

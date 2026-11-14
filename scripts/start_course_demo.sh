@@ -54,7 +54,7 @@
 #   DEMO_WORLD=urban_tight ./scripts/start_course_demo.sh
 #   DEMO_RVIZ=false ./scripts/start_course_demo.sh
 #   DEMO_GZ_GL=gpu|software ./scripts/start_course_demo.sh  # Gazebo sensor rendering: gpu (WSLg d3d12) or
-#                                                         # software (llvmpipe); default: aeb/lidar gpu, vlm/acc software
+#                                                         # software (llvmpipe); default gpu in every mode
 #   DEMO_CURVE_SPLICE=true ./scripts/start_course_demo.sh    # enable local_planner curve splice (off by default)
 # Teardown: close the terminator window (each pane's job dies with it).
 # ---------------------------------------------------------------------------
@@ -189,13 +189,10 @@ cat > "$CFG" <<EOF
 EOF
 
 # Gazebo OpenGL backend: resolved (and validated) here once, so the summary
-# below and pane 2's launch always agree on it. gpu is for the short-track aeb
-# and lidar demos; the full-track vlm and acc demos stay on software, like the
-# recorded baselines.
-case "$DEMO_MODE" in
-    aeb|lidar) DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}" ;;
-    *)         DEMO_GZ_GL="${DEMO_GZ_GL:-software}" ;;
-esac
+# below and pane 2's launch always agree on it. Every demo renders on the GPU;
+# headless laps and scenario runs stay on software GL, like the recorded
+# baselines they are compared against.
+DEMO_GZ_GL="${DEMO_GZ_GL:-gpu}"
 case "$DEMO_GZ_GL" in
     gpu)      GL_DESC="gpu (Mesa d3d12 on the WSLg GPU)" ;;
     software) GL_DESC="software (llvmpipe, CPU)" ;;

@@ -49,7 +49,7 @@
 #   DEMO_MODE      vlm|aeb|lidar|acc      (default vlm)
 #   DEMO_WORLD     world / map name       (default urban_course)
 #   DEMO_RVIZ      true|false             (default true)
-#   DEMO_GZ_GL     gpu|software           (launcher default: aeb/lidar gpu, vlm/acc software; unset here: software)
+#   DEMO_GZ_GL     gpu|software           (default gpu)
 #                  Gazebo OpenGL backend (gpu: WSLg d3d12, software: llvmpipe)
 #   DEMO_CURVE_SPLICE true|false          (default false) local_planner curve splice
 #   DEMO_SPEED     aeb/lidar/acc target speed (default 8.0, above the MPC cap)
@@ -112,7 +112,7 @@ case "$MODE:${1:-}" in
       # shellcheck disable=SC1091
       source "$VENV/bin/activate"
       stdbuf -oL -eL python3 -m vlm_planner_py.vlm_sign_node --ros-args \
-          -p use_sim_time:=true -p vlm_query_rate_hz:=0.5 2>&1 | tee "$VLM_LOG" &
+          -p use_sim_time:=true 2>&1 | tee "$VLM_LOG" &
       vlm_pid=$!
       echo "[1] waiting for 'VLM ready' (cold load ~2-3 min)..."
       until grep -q "VLM ready" "$VLM_LOG" 2>/dev/null; do
@@ -182,7 +182,8 @@ case "$MODE:${1:-}" in
       else
           echo "[2] AV stack: gazebo + bridge + EKF + RViz + lane + planner + MPC (no AEB)"
       fi
-      echo "[2] Gazebo rendering: ${DEMO_GZ_GL:-software}   (DEMO_GZ_GL=gpu|software)"
+      GZ_GL="${DEMO_GZ_GL:-gpu}"
+      echo "[2] Gazebo rendering: $GZ_GL   (DEMO_GZ_GL=gpu|software)"
       # a leftover gz server / stale daemon from a previous run breaks the boot
       pkill -9 -f 'ign gazebo|gz sim' 2>/dev/null || true
       pkill -9 -f 'ros2 daemon|_ros2_daemon' 2>/dev/null || true
@@ -208,7 +209,7 @@ case "$MODE:${1:-}" in
           pkill -9 -f 'ign gazebo (server|gui)' 2>/dev/null || true
       }
       ros2 launch robot_bringup av_stack.launch.py \
-          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="${DEMO_GZ_GL:-software}" \
+          world:="$WORLD" rviz:="${DEMO_RVIZ:-true}" gz_gl:="$GZ_GL" \
           curve_splice_enable:="$CURVE_SPLICE" aeb:="$AEB" aeb_sensor:="$AEB_SENSOR" acc:="$ACC" &
       LAUNCH=$!
       stop_stack() { kill -TERM "$LAUNCH" 2>/dev/null; wait "$LAUNCH" 2>/dev/null; stop_gazebo; }

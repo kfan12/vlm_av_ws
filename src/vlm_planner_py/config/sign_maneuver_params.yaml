@@ -85,7 +85,8 @@
                                # 0.5 (~2 s latency) a 3 m window caught ~1 read
                                # and routinely lost the first sign. Widen (and/or
                                # slow the approach / raise the query rate)
-                               # if labels still miss; tighten the floor toward
+                               # if labels still miss (vlm_sign_node now reads
+                               # back to back, about 1.5 s per read); tighten the floor toward
                                # the board-crop distance if close-range misreads
                                # of the NEXT sign start leaking in.
     sign_label_lock_dist_m: 3.8 # freeze the label (no more reads change it) once

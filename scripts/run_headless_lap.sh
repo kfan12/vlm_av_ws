@@ -50,7 +50,7 @@ if [ "$MODE" = vlm ]; then
     AEB=false
     ( source "$VENV/bin/activate"
       stdbuf -oL -eL python3 -m vlm_planner_py.vlm_sign_node --ros-args \
-          -p use_sim_time:=true -p vlm_query_rate_hz:=0.5 ) > "$LOG/vlm_sign.log" 2>&1 &
+          -p use_sim_time:=true ) > "$LOG/vlm_sign.log" 2>&1 &
     for _ in $(seq 1 120); do
         grep -q "VLM ready" "$LOG/vlm_sign.log" && break
         sleep 3
