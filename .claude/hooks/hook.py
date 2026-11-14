@@ -108,10 +108,33 @@ def post_edit(data):
         if code != 0:
             problems.append('scripts/check_param_sync.sh failed:\n' + out)
 
+    # 5. agent and skill frontmatter must be valid YAML (GitHub's preview and
+    # strict parsers reject an unquoted value containing ": ")
+    if re.match(r'^\.claude/(agents/[^/]+|skills/[^/]+/SKILL)\.md$', r) and os.path.exists(path):
+        problems += frontmatter_problems(path)
+
     if problems:
         sys.stderr.write(f'[hook post-edit] {r}\n' + '\n'.join(problems) + '\n')
         sys.stderr.write('Fix these before going on (no em dashes; no Day N / dayNN.md / local/plans references in shipped files).\n')
         sys.exit(2)
+
+
+def frontmatter_problems(path):
+    text = open(path).read()
+    if not text.startswith('---\n') or '\n---\n' not in text[4:]:
+        return ['no YAML frontmatter (--- ... ---) at the top']
+    head = text[4:].split('\n---\n', 1)[0]
+    try:
+        import yaml
+    except ImportError:
+        return []
+    try:
+        data = yaml.safe_load(head)
+    except yaml.YAMLError as e:
+        return ['frontmatter is not valid YAML (quote a value that contains ": "): ' + str(e).splitlines()[0]]
+    if not isinstance(data, dict) or not {'name', 'description'} <= set(data):
+        return ['frontmatter needs name and description']
+    return []
 
 
 def guard_bash(data):
