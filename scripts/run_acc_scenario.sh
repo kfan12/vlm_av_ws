@@ -9,8 +9,8 @@
 #        lead_brake  lead at s=25, 2.0 m/s, then 2 m/s^2 to a stop at t=20 s
 #        stop_go     lead at s=25, 2.0 -> stop (t=15-17) -> wait -> 2.0 (t=25-27)
 #        curve       lead at s=40, 1.5 m/s through the right turn (s=60-84)
-#        cut_in      lead appears at s=30, 1.0 m/s, once the ego passes x=14
-#                    (~12 m gap, ego already at speed)
+#        cut_in      lead appears at s=35, 1.0 m/s, once the ego passes x=14
+#                    (about 12 m gap after the ~1 s spawn, ego already at speed)
 #   (lead profile times are sim seconds since its driver started)
 #   SET_SPEED  cruise target, /maneuver/target_speed (default 3.0, the MPC cap)
 #   LABEL      session label (default acc_ROW_SET_SPEEDmps)
@@ -39,7 +39,7 @@ case "$ROW" in
     lead_brake) LEAD_S=25; PROFILE="0:2.0,20:2.0,21:0.0";                ROW_DUR=50 ;;
     stop_go)    LEAD_S=25; PROFILE="0:2.0,15:2.0,17:0.0,25:0.0,27:2.0";  ROW_DUR=70 ;;
     curve)      LEAD_S=40; PROFILE="0:1.5";                              ROW_DUR=90 ;;
-    cut_in)     LEAD_S=30; PROFILE="0:1.0";                              ROW_DUR=50 ;;
+    cut_in)     LEAD_S=35; PROFILE="0:1.0";                              ROW_DUR=50 ;;
     *) echo "unknown ROW $ROW"; exit 2 ;;
 esac
 DUR=${DUR:-$ROW_DUR}
@@ -61,9 +61,12 @@ sleep 3
 kill -0 "$REC" 2>/dev/null || { echo "recorder died:"; cat "$LOG/rec.log"; av_cleanup; exit 1; }
 
 start_lead() {
-    python3 tools/avkit/lead_vehicle.py spawn --s "$LEAD_S" --world "$WORLD" || return 1
+    # the driver first: it waits for the lead's odometry and starts the profile
+    # on the first message, so the lead moves as soon as it exists; started
+    # after the spawn, it left the lead standing for about 1.7 s
     python3 tools/avkit/lead_vehicle.py drive --profile "$PROFILE" --world "$WORLD" \
         --ros-args -p use_sim_time:=true > "$LOG/lead_driver.log" 2>&1 &
+    python3 tools/avkit/lead_vehicle.py spawn --s "$LEAD_S" --world "$WORLD" || return 1
 }
 
 if [ "$ROW" = cut_in ]; then

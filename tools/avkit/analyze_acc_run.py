@@ -138,9 +138,16 @@ def main():
     stopped = driven & (v_ego < STOPPED) & (v_lead < STOPPED)
     if stopped.any():
         m['standstill_gap_m'] = r3(np.median(gap[stopped]))
-        # restart: the lead moves off after a joint standstill; how long until
-        # the ego is back within 0.2 m/s of it (or at least at MOVING speed)
-        i_stop = int(np.argmax(stopped))
+    # restart: the lead stops after the ego has driven, then moves off; how long
+    # until the ego is back within 0.2 m/s of it. Measured from the lead's own
+    # stop, so a short stop the ego only slows for (never reaching 0) counts too.
+    # a lead that starts at rest (cut_in) is not a stop: it must have moved first
+    lead_moved = np.cumsum(v_lead > MOVING) > 0
+    lead_stopped = driven & lead_moved & (v_lead < STOPPED)
+    lead_stop = np.nonzero(lead_stopped)[0]
+    if lead_stop.size:
+        i_stop = lead_stop[0]
+        m['ego_min_speed_while_lead_stopped_mps'] = r3(v_ego[lead_stopped].min())
         go = np.nonzero((np.arange(len(t)) > i_stop) & (v_lead > MOVING))[0]
         if go.size:
             i_go = go[0]

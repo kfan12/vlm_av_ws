@@ -36,7 +36,7 @@ source /opt/ros/humble/setup.bash
 source "$WS/install/setup.bash"
 cd "$WS" || exit 1
 
-STACK_PROCS='ign gazebo|gz sim|aeb_node|control_arbiter_node|lane_node|local_planner|mpc_tracker_v2|ekf_node|parameter_bridge|odom_compare|odom_noise|vlm_sign_node|sign_maneuver_node|robot_state_publisher|ros2 topic pub|ros2 launch'
+STACK_PROCS='ign gazebo|gz sim|aeb_node|control_arbiter_node|lane_node|local_planner|mpc_tracker_v2|ekf_node|parameter_bridge|odom_compare|odom_noise|vlm_sign_node|sign_maneuver_node|trajectory_coordinator|constraint_from_maneuver|acc_node|robot_state_publisher|ros2 topic pub|ros2 launch'
 cleanup() {
     pkill -f "$STACK_PROCS" 2>/dev/null
     sleep 3

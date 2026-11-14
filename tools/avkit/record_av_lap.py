@@ -49,7 +49,7 @@ from std_msgs.msg import Float64, String
 
 AEB_STATE_NAMES = ['INACTIVE', 'MONITORING', 'WARNING', 'BRAKING', 'STOP_HOLD', 'FAULT']
 STREAMS = ('odom_truth', 'odom_ekf', 'cmd_vel', 'v_ref', 'target_speed', 'state',
-           'aeb_state', 'plan_path', 'lane_path')
+           'aeb_state', 'plan_path', 'lane_path', 'binding')
 
 
 def _yaw(q):
@@ -73,6 +73,8 @@ class LapRecorder(Node):
         self.create_subscription(AebStatus, '/safety/aeb_status', self._aeb_cb, 10)
         self.create_subscription(Path, '/plan/path_odom', self._path_cb('plan_path'), 10)
         self.create_subscription(Path, '/lane/path_odom', self._path_cb('lane_path'), 10)
+        # empty unless trajectory_coordinator runs (acc setup)
+        self.create_subscription(String, '/planning/binding_constraint', self._binding_cb, 10)
 
     def _t(self):
         return round(self.get_clock().now().nanoseconds * 1e-9, 3)
@@ -103,6 +105,9 @@ class LapRecorder(Node):
 
     def _state_cb(self, m):
         self._emit('state', {'t': self._t(), 'state': m.data})
+
+    def _binding_cb(self, m):
+        self._emit('binding', {'t': self._t(), 'binding': m.data})
 
     def _aeb_cb(self, m):
         self._emit('aeb_state', {

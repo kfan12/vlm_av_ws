@@ -270,6 +270,20 @@ def main():
              'reasons': e['reasons'][:3]}
             for e in episodes]
 
+    # trajectory_coordinator's pick (acc setup only): which constraint limits the
+    # speed, and whether it ever held the car once driving had started
+    binding = load_jsonl(os.path.join(sess, 'binding.jsonl'))
+    if binding:
+        kinds = {}
+        for r in binding:
+            k = r['binding'].split(':')[0]
+            kinds[k] = kinds.get(k, 0) + 1
+        m['binding_counts'] = kinds
+        first_ok = next((r['t'] for r in binding if not r['binding'].startswith('hold')), None)
+        m['binding_hold_after_start_ticks'] = 0 if first_ok is None else sum(
+            1 for r in binding if r['t'] > first_ok and r['binding'].startswith('hold'))
+        m['binding_acc_ticks'] = kinds.get('acc', 0)
+
     with open(os.path.join(sess, 'metrics.json'), 'w') as f:
         json.dump(m, f, indent=1)
 
