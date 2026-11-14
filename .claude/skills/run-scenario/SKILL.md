@@ -1,6 +1,6 @@
 ---
 name: run-scenario
-description: This skill should be used when the user asks to "run the inlane row", "run an AEB scenario", "run the lidar dropout test", "run the ACC follow scenario", "rerun row X", "run the matrix", or wants one recorded AEB or ACC scenario executed end to end and judged against the published reference row. Args: aeb|acc ROW [SPEED] [depth|lidar]. Last verified against the code 2026-11-13.
+description: "This skill should be used when the user asks to \"run the inlane row\", \"run an AEB scenario\", \"run the lidar dropout test\", \"run the ACC follow scenario\", \"rerun row X\", \"run the matrix\", or wants one recorded AEB or ACC scenario executed end to end and judged against the published reference row. Args: aeb|acc ROW [SPEED] [depth|lidar]. Last verified against the code 2026-11-13."
 ---
 
 # Run one scenario and judge it

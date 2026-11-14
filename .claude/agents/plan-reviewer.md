@@ -1,6 +1,6 @@
 ---
 name: plan-reviewer
-description: Read-only review of a plan step (local/plans/dayNN.md or local/plans/lidar/lN_*.md, one task or the whole file) against the current code before it is executed: topics, parameters, files and helpers it assumes, deviations recorded since it was written, and what must be revised. Use for "check if the plan still fits", "review L5 task 8 before I do it", "does day19 still apply".
+description: "Read-only review of a plan step (local/plans/dayNN.md or local/plans/lidar/lN_*.md, one task or the whole file) against the current code before it is executed: topics, parameters, files and helpers it assumes, deviations recorded since it was written, and what must be revised. Use for \"check if the plan still fits\", \"review L5 task 8 before I do it\", \"does day19 still apply\"."
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

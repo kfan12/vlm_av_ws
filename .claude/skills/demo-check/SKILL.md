@@ -1,6 +1,6 @@
 ---
 name: demo-check
-description: This skill should be used when the user asks to "check the demo", "verify the demo still works", "test the terminator demo", "check the panes", "check the RViz displays", or after a change to start_course_demo.sh, _course_demo_pane.sh, _course_demo_watch.py, the launch file or the RViz config. Args: mode (vlm|aeb|lidar|acc). Last verified against the code 2026-11-13.
+description: "This skill should be used when the user asks to \"check the demo\", \"verify the demo still works\", \"test the terminator demo\", \"check the panes\", \"check the RViz displays\", or after a change to start_course_demo.sh, _course_demo_pane.sh, _course_demo_watch.py, the launch file or the RViz config. Args: mode (vlm|aeb|lidar|acc). Last verified against the code 2026-11-13."
 ---
 
 # Checking a demo mode

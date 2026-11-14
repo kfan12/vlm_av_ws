@@ -1,6 +1,6 @@
 ---
 name: execute-plan-step
-description: This skill should be used when the user asks to "do task N of L5", "execute the next plan step", "implement day 19", "finish l5", "do steps 5-7 in the plan", or otherwise wants a task from a plan file under local/plans/ built, verified and accepted the way this project does it. Args: plan file and task number(s). Last verified 2026-11-13.
+description: "This skill should be used when the user asks to \"do task N of L5\", \"execute the next plan step\", \"implement day 19\", \"finish l5\", \"do steps 5-7 in the plan\", or otherwise wants a task from a plan file under local/plans/ built, verified and accepted the way this project does it. Args: plan file and task number(s). Last verified 2026-11-13."
 ---
 
 # Executing a plan step

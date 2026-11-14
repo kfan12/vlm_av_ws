@@ -1,6 +1,6 @@
 ---
 name: write-test-report
-description: This skill should be used when the user asks to "write up the results", "write the test report", "document the matrix", "create docs/reports/x.md", "summarize the ACC runs", or after a validation step produced sessions whose numbers must become a report. Args: report name and the sessions (a --since stamp or a list). Last verified 2026-11-13.
+description: "This skill should be used when the user asks to \"write up the results\", \"write the test report\", \"document the matrix\", \"create docs/reports/x.md\", \"summarize the ACC runs\", or after a validation step produced sessions whose numbers must become a report. Args: report name and the sessions (a --since stamp or a list). Last verified 2026-11-13."
 ---
 
 # Writing a test report under docs/reports/

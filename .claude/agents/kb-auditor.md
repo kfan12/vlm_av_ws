@@ -1,6 +1,6 @@
 ---
 name: kb-auditor
-description: Read-only audit of the knowledge base and harness against the code: finds skills, CLAUDE.md files, notes, README, plans and memory that claim something the code contradicts (a package "not built" that exists, a stale status row, a script that is gone, a mode not in the demo, an index entry without a source). Use for "audit the docs", "is the knowledge base in sync", "what is stale", or before committing a step.
+description: "Read-only audit of the knowledge base and harness against the code: finds skills, CLAUDE.md files, notes, README, plans and memory that claim something the code contradicts (a package \"not built\" that exists, a stale status row, a script that is gone, a mode not in the demo, an index entry without a source). Use for \"audit the docs\", \"is the knowledge base in sync\", \"what is stale\", or before committing a step."
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
