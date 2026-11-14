@@ -1,0 +1,89 @@
+# Numbers that are duplicated by hand across files and must agree.
+# scripts/check_param_sync.sh (tools/avkit/param_sync.py) reads this file; it is tracked so a
+# clean checkout can run the check.
+# Each rule: the owner (where the value is defined) and the copies that must
+# equal owner * scale. Regexes capture the value in group 1; a copy whose
+# pattern no longer matches is reported, so a renamed parameter shows up too.
+rules:
+  - name: cam_x
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="cam_x" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*cam_x:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("cam_x", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("cam_x", ([0-9.]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("cam_x", ([0-9.]+)\)'}
+      - {file: src/vlm_planner_py/config/sign_maneuver_params.yaml, regex: '^\s*cam_x:\s*([0-9.]+)'}
+  - name: cam_z
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="cam_z" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*cam_z:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("cam_z", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("cam_z", ([0-9.]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("cam_z", ([0-9.]+)\)'}
+      - {file: src/vlm_planner_py/config/sign_maneuver_params.yaml, regex: '^\s*cam_z:\s*([0-9.]+)'}
+  - name: cam_pitch
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="cam_pitch" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*cam_pitch:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("cam_pitch", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("cam_pitch", ([0-9.]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("cam_pitch", ([0-9.]+)\)'}
+      - {file: src/vlm_planner_py/config/sign_maneuver_params.yaml, regex: '^\s*cam_pitch:\s*([0-9.]+)'}
+  - name: camera_hfov
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: '<horizontal_fov>([0-9.]+)</horizontal_fov>'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*horizontal_fov:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("horizontal_fov", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("horizontal_fov", ([0-9.]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("camera_hfov", ([0-9.]+)\)'}
+      - {file: src/vlm_planner_py/config/sign_maneuver_params.yaml, regex: '^\s*hfov:\s*([0-9.]+)'}
+  - name: image_width
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: '<width>([0-9]+)</width>'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*image_width:\s*([0-9]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("image_width", ([0-9]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("image_width", ([0-9]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("camera_width", ([0-9]+)\)'}
+  - name: image_height
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: '<height>([0-9]+)</height>'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*image_height:\s*([0-9]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("image_height", ([0-9]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("image_height", ([0-9]+)\)'}
+      - {file: src/av_perception_cpp/src/lane_node.cpp, regex: 'declare_parameter\("camera_height", ([0-9]+)\)'}
+  - name: lidar_x
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="lidar_x" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*lidar_x:\s*([0-9.]+)'}
+      - {file: src/av_features_cpp/config/acc_params.yaml, regex: '^\s*lidar_x:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("lidar_x", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("lidar_x", ([0-9.]+)\)'}
+      - {file: src/av_features_cpp/src/acc_node.cpp, regex: 'declare_parameter\("lidar_x", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/include/av_safety_cpp/lidar_obstacle_extractor.hpp, regex: 'double mount_x = ([0-9.]+);'}
+  - name: lidar_z
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="lidar_z" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*lidar_z:\s*([0-9.]+)'}
+      - {file: src/av_features_cpp/config/acc_params.yaml, regex: '^\s*lidar_z:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("lidar_z", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/src/obstacle_probe.cpp, regex: 'declare_parameter\("lidar_z", ([0-9.]+)\)'}
+      - {file: src/av_features_cpp/src/acc_node.cpp, regex: 'declare_parameter\("lidar_z", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/include/av_safety_cpp/lidar_obstacle_extractor.hpp, regex: 'double mount_z = ([0-9.]+);'}
+  - name: vehicle_length
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="ch_l" value="([0-9.]+)"'}
+    copies:
+      - {file: src/av_safety_cpp/config/aeb_params.yaml, regex: '^\s*vehicle_length_m:\s*([0-9.]+)'}
+      - {file: src/av_safety_cpp/src/aeb_node.cpp, regex: 'declare_parameter\("vehicle_length_m", ([0-9.]+)\)'}
+      - {file: src/av_safety_cpp/include/av_safety_cpp/collision_corridor.hpp, regex: 'double vehicle_length_m = ([0-9.]+);'}
+  - name: front_half_length
+    owner: {file: src/sedan_description/urdf/sedan.urdf.xacro, regex: 'property name="ch_l" value="([0-9.]+)"'}
+    scale: 0.5
+    copies:
+      - {file: src/av_features_cpp/config/acc_params.yaml, regex: '^\s*bumper_x_m:\s*([0-9.]+)'}
+      - {file: src/av_features_cpp/src/acc_node.cpp, regex: 'declare_parameter\("bumper_x_m", ([0-9.]+)\)'}
+      - {file: tools/avkit/analyze_acc_run.py, regex: '^EGO_FRONT = ([0-9.]+)'}
+      - {file: scripts/run_aeb_scenario.sh, regex: 's - 0\.3 - ([0-9.]+) - 2\.5 - v'}
+  - name: lead_length
+    owner: {file: tools/avkit/lead_vehicle.py, regex: '^SIZE = \(([0-9.]+),'}
+    copies:
+      - {file: tools/avkit/analyze_acc_run.py, regex: '^LEAD_LENGTH = ([0-9.]+)'}
