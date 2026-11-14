@@ -17,7 +17,8 @@ Session dir: data/aeb_scenarios/<YYYYmmdd_HHMMSS>_<label>/
   plan_path.jsonl    /plan/path_odom    {"t","n"}
   target_speed.jsonl /maneuver/target_speed {"t","v"}
   lead_truth.jsonl   /lead/odom_truth   {"t","x","y","yaw","v"}  world frame (lead_vehicle.py)
-  acc_state.jsonl    /feature/acc/state {"t","gap","v_lead","cap","has_lead"}
+  acc_state.jsonl    /feature/acc/state {"t","gap","v_lead","cap","has_lead",
+                     + the gate diagnostics "cand_*", "lead_flags", ... (acc_state_row)
   binding.jsonl      /planning/binding_constraint {"t","binding"}  coordinator's pick
   clock.jsonl        {"t","wall"}  sim time vs wall clock, every ~0.5 s wall
   meta.json          label, world, map road_block pose, --obstacle records,
@@ -61,6 +62,25 @@ OBSTACLE_DIR = os.path.expanduser('~/vlm_av_ws/data/aeb_obstacles')
 
 def _yaw(q):
     return math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+
+ACC_STATE_FIELDS = ('gap', 'v_lead', 'cap', 'has_lead',
+                    'cand_gap', 'cand_v_along', 'cand_flags', 'n_tracks',
+                    'lead_flags', 'lead_v_along', 'lead_v_across', 'cand_extent', 'lead_extent')
+
+
+def acc_state_row(t, data):
+    """One acc_state row from acc_node's /feature/acc/state array: the lead
+    (gap, v_lead, cap, has_lead), then the nearest track accepted or not
+    (cand_*), the track count, the lead's flags and its ground speed along and
+    across the path, and both objects' bounding-box size. Flags: 1 seen moving,
+    2 seen inside the perceived path, 4 now beyond it, 8 now cut by the lateral
+    crop or the range limit. Shorter arrays (an older acc_node) pad 0."""
+    vals = (list(data) + [0.0] * len(ACC_STATE_FIELDS))[:len(ACC_STATE_FIELDS)]
+    row = {'t': t}
+    for k, v in zip(ACC_STATE_FIELDS, vals):
+        row[k] = bool(v) if k == 'has_lead' else int(v) if k in ('cand_flags', 'n_tracks', 'lead_flags') else round(v, 3)
+    return row
 
 
 def _stamp(h):
@@ -141,10 +161,7 @@ class AebScenarioRecorder(Node):
         self._emit('target_speed', {'t': self._t(), 'v': round(m.data, 3)})
 
     def _acc_cb(self, m):
-        # acc_node's layout: [gap_m, lead_speed_mps, cap_mps, has_lead (0/1)]
-        gap, v_lead, cap, has_lead = (list(m.data) + [0.0] * 4)[:4]
-        self._emit('acc_state', {'t': self._t(), 'gap': round(gap, 3), 'v_lead': round(v_lead, 3),
-                                 'cap': round(cap, 3), 'has_lead': bool(has_lead)})
+        self._emit('acc_state', acc_state_row(self._t(), m.data))
 
     def _binding_cb(self, m):
         self._emit('binding', {'t': self._t(), 'binding': m.data})

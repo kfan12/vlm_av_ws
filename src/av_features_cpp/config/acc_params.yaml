@@ -14,7 +14,8 @@
     min_height_m: 0.3       # higher than AEB's 0.15: ACC follows vehicles, not debris
     max_height_m: 3.0
     cluster_voxel_m: 0.5
-    minimum_cluster_points: 3
+    minimum_cluster_points: 3      # per object (connected cells), not per cell
+    max_vehicle_extent_m: 7.5      # larger objects (buildings) never count as moving
     lane_half_width_m: 1.3
     bumper_x_m: 2.25
     time_gap_sec: 1.8
@@ -24,6 +25,12 @@
     tracker_alpha: 0.4
     tracker_beta: 0.1
     tracker_gate_m: 3.0
+    association_gate_m: 2.0        # odom distance between a cluster and a track's predicted position
+    # past the perceived path, only objects seen moving over ground are leads
+    require_motion_beyond_path: true
+    moving_speed_mps: 1.0
+    moving_confirm_sec: 1.0        # ground speed above moving_speed_mps for this long
+    max_tracks: 32
     lost_after_sec: 0.5
     constraint_validity_sec: 0.3   # 3 cloud periods
     input_stale_sec: 0.5

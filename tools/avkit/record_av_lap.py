@@ -18,6 +18,9 @@ Session dir: data/av_laps/<YYYYmmdd_HHMMSS>_<label>/
                      (/safety/aeb_status, only if aeb_node runs)
   plan_path.jsonl    {"t","pts":[[x,y],...]}  (1 Hz snapshots, odom frame)
   lane_path.jsonl    same
+  binding.jsonl      {"t","binding"}  (/planning/binding_constraint, acc setup only)
+  acc_state.jsonl    /feature/acc/state, same row as record_aeb_scenario.py
+                     (acc setup only)
   meta.json          label, world, map seed, duration, per-signal row counts
 
 Every row is stamped with the node's clock at arrival (sim time with
@@ -45,11 +48,13 @@ from rclpy.node import Node
 from av_feature_msgs.msg import AebStatus
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry, Path
-from std_msgs.msg import Float64, String
+from std_msgs.msg import Float64, Float64MultiArray, String
+
+from record_aeb_scenario import acc_state_row
 
 AEB_STATE_NAMES = ['INACTIVE', 'MONITORING', 'WARNING', 'BRAKING', 'STOP_HOLD', 'FAULT']
 STREAMS = ('odom_truth', 'odom_ekf', 'cmd_vel', 'v_ref', 'target_speed', 'state',
-           'aeb_state', 'plan_path', 'lane_path', 'binding')
+           'aeb_state', 'plan_path', 'lane_path', 'binding', 'acc_state')
 
 
 def _yaw(q):
@@ -75,6 +80,8 @@ class LapRecorder(Node):
         self.create_subscription(Path, '/lane/path_odom', self._path_cb('lane_path'), 10)
         # empty unless trajectory_coordinator runs (acc setup)
         self.create_subscription(String, '/planning/binding_constraint', self._binding_cb, 10)
+        self.create_subscription(Float64MultiArray, '/feature/acc/state',
+                                 lambda m: self._emit('acc_state', acc_state_row(self._t(), m.data)), 10)
 
     def _t(self):
         return round(self.get_clock().now().nanoseconds * 1e-9, 3)

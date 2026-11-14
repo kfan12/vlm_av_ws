@@ -28,8 +28,8 @@ nodes:
     invariants: []
   acc_node:
     package: av_features_cpp
-    description: 'lidar adaptive cruise: nearest in-lane cluster ahead, alpha-beta gap tracker, time-gap speed limit as a
-      VelocityConstraint'
+    description: 'lidar adaptive cruise: tracks every in-lane object (connected voxel cells), past the perceived path only
+      objects seen moving are leads; alpha-beta gap tracker, time-gap speed limit as a VelocityConstraint'
     source: src/av_features_cpp/src/acc_node.cpp
     publishes:
     - /feature/acc/constraint VelocityConstraint
@@ -40,6 +40,7 @@ nodes:
     - /odom_ekf nav_msgs/Odometry
     - /plan/path_odom nav_msgs/Path
     parameters:
+    - association_gate_m
     - bumper_x_m
     - cluster_voxel_m
     - constraint_validity_sec
@@ -53,9 +54,14 @@ nodes:
     - max_height_m
     - max_lateral_m
     - max_range_m
+    - max_tracks
+    - max_vehicle_extent_m
     - min_gap_m
     - min_height_m
     - minimum_cluster_points
+    - moving_confirm_sec
+    - moving_speed_mps
+    - require_motion_beyond_path
     - standstill_gap_m
     - time_gap_sec
     - tracker_alpha
@@ -603,6 +609,7 @@ nodes:
     publishes: []
     subscribes:
     - /cmd_vel Twist
+    - /feature/acc/state Float64MultiArray
     - /lane/path_odom Path
     - /maneuver/state String
     - /maneuver/target_speed Float64
