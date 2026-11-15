@@ -2,10 +2,11 @@ build/
 install/
 data/
 __pycache__/
-# local/ is the private tutorial and knowledge base; the node index and the
-# decisions log travel with the code (the harness reads them)
+# local/ is the private tutorial and knowledge base; the node index travels
+# with the code (the harness reads it); the decisions log stays local
 local/*
 !local/kb/
+local/kb/decisions.md
 log/
 debug/
 docs/reports/
