@@ -4,7 +4,9 @@
   python3 hook.py post-edit      PostToolUse on Edit|Write|MultiEdit: exec bit, text lint,
                                  cv_bridge check, duplicated-parameter check
   python3 hook.py guard-bash     PreToolUse on Bash|PowerShell: refuse known-bad commands
-  python3 hook.py session-start  SessionStart: working tree, status rows, leftover processes
+  python3 hook.py session-start  SessionStart: working tree, status rows, leftover processes,
+                                 and the code commits since the last knowledge-base sync
+  python3 hook.py mark-synced    by hand, at the end of a sync: the knowledge base matches HEAD
   python3 hook.py stop-check     Stop: once per session, ask for a knowledge-base sync
                                  when code changed and no note did
 
@@ -173,7 +175,63 @@ def session_start(data):
     code, procs = run(['bash', '-c', "pgrep -af 'ign gazebo|parameter_bridge|lead_vehicle.py|ros2 launch|record_a' | grep -v pgrep || true"])
     out.append('leftover sim processes: ' + ('none' if not procs else '\n  ' + procs.replace('\n', '\n  ')))
     out.append('rules: CLAUDE.md (root + per directory), skills in .claude/skills (wsl-ros-ops for any WSL command).')
+    pending = unsynced_commits()
+    if pending:
+        out.append(pending)
     print('\n'.join(out))
+
+
+# the commit the knowledge base was last synced to; inside .git, so it is never tracked
+SYNC_PATHS = ['src', 'scripts', 'tools']
+
+
+def synced_head_file():
+    code, gitdir = run(['git', 'rev-parse', '--absolute-git-dir'])
+    return os.path.join(gitdir, 'kb_synced_head') if code == 0 else None
+
+
+def head():
+    code, sha = run(['git', 'rev-parse', 'HEAD'])
+    return sha if code == 0 else None
+
+
+def mark_synced(data=None, sha=None):
+    path, sha = synced_head_file(), sha or head()
+    if path and sha:
+        with open(path, 'w') as f:
+            f.write(sha + '\n')
+        print(f'knowledge base marked as synced to {sha[:7]}')
+
+
+def unsynced_commits():
+    """Commits since the last knowledge-base sync that touched code (the user commits by
+    hand between sessions). Empty when in sync; the marker moves on silently when the new
+    commits touched no code. The first run starts the marker at HEAD."""
+    path, now = synced_head_file(), head()
+    if not path or not now:
+        return ''
+    try:
+        last = open(path).read().strip()
+    except OSError:
+        mark_synced(sha=now)
+        return ''
+    if last == now:
+        return ''
+    if run(['git', 'merge-base', '--is-ancestor', last, now])[0] != 0:
+        return (f'KNOWLEDGE-BASE SYNC NEEDED: the last synced commit {last[:7]} is no longer an ancestor of HEAD '
+                f'(history was rewritten). Compare `git diff {last[:7]} HEAD --stat -- {" ".join(SYNC_PATHS)}`, '
+                'run the sync-knowledge-base skill for what changed, then `python3 .claude/hooks/hook.py mark-synced`.')
+    code, log = run(['git', 'log', '--oneline', '--no-merges', f'{last}..{now}', '--', *SYNC_PATHS])
+    if code != 0:
+        return ''
+    if not log:
+        mark_synced(sha=now)
+        return ''
+    commits = log.splitlines()
+    return ('KNOWLEDGE-BASE SYNC NEEDED: ' + str(len(commits)) + f' commit(s) since the last sync ({last[:7]}) touched code:\n  ' +
+            '\n  '.join(commits[:20]) +
+            f'\nBefore other work, run the sync-knowledge-base skill for `git log -p {last[:7]}..HEAD -- {" ".join(SYNC_PATHS)}`, '
+            'then `python3 .claude/hooks/hook.py mark-synced`. Commit nothing without asking.')
 
 
 def newest_mtime(subdirs, exts=('.md', '.yaml')):
@@ -267,7 +325,8 @@ def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else ''
     data = read_input()
     {'post-edit': post_edit, 'guard-bash': guard_bash,
-     'session-start': session_start, 'stop-check': stop_check}.get(cmd, lambda d: None)(data)
+     'session-start': session_start, 'stop-check': stop_check,
+     'mark-synced': mark_synced}.get(cmd, lambda d: None)(data)
 
 
 if __name__ == '__main__':

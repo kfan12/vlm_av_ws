@@ -24,7 +24,8 @@ The map, for orientation:
 | Code | Plans (`local/plans/`) | Notes and reports |
 | --- | --- | --- |
 | `av_common_cpp` geometry, projection, map I/O, debug tap | `day01.md` | `local/notes/ground_plane_theory_and_derivation.md` |
-| `av_common/point_cloud.hpp` (shared clustering) | `lidar/l1_lidar_obstacle_extractor.md` | `lidar_implementation.md` section 4 |
+| `av_common/point_cloud.hpp` (shared clustering, `connected_objects`) | `lidar/l1_lidar_obstacle_extractor.md`, `overtake/o1_truck_overtake.md` task 2 | `lidar_implementation.md` sections 4, 6.9, 6.10 |
+| overtake track (`OvertakeStatus.msg`, planned `av_overtake_cpp`) | `overtake/README.md`, `overtake/o1_truck_overtake.md` | `lidar_implementation.md` section 6.10, `local/reports/Automatic truck overtaking.md` |
 | `sedan_description` (URDF, camera and lidar mounts) | `day02.md`, `lidar/l0_lidar_sensor_spike.md` | `lidar_implementation.md` section 3 |
 | `urban_gazebo`, `scripts/generate_course_world.py`, signs | `day03.md` | - |
 | `robot_bringup` launch, bridges, RViz; `robotcar_localization` | `day04.md`, `day14.md`, `lidar/l3_lidar_setup_demo.md` | `map_sensor_fusion_localization_survey.md` |
@@ -42,6 +43,9 @@ The map, for orientation:
 | demo scripts (`start_course_demo.sh`, `_course_demo_pane.sh`, `_course_demo_watch.py`) | `day14.md`, `lidar/l3_lidar_setup_demo.md` | - |
 
 `local/plans/README.md` has the day index and ground rules; `local/plans/lidar/README.md` the lidar track's conventions; `local/kb/decisions.md` the user decisions that explain choices the code cannot.
+
+For orientation before reading a node, two generated pages (rebuilt from the code by the Stop hook): `local/kb/source_guide.html` gives each node's cycle step by step and every function with its line range (the text is in `local/kb/source_guide/descriptions.py`), and `local/kb/architecture.html` the topics between nodes per setup.
+Their descriptions are a summary; the code still decides.
 
 Large or non-Markdown sources, extract only the relevant part:
 

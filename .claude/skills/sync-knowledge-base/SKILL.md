@@ -36,4 +36,5 @@ grep -rn $'\xe2\x80\x94' local/notes/*.md local/kb/*.md CLAUDE.md */CLAUDE.md RE
 grep -rnE 'Day [0-9]|day[0-9]+\.md|local/plans/' src scripts tools README.md --include=*.py --include=*.cpp --include=*.hpp --include=*.sh --include=*.yaml --include=*.md   # no plan references in shipped files
 ```
 
+When every check passes, run `python3 .claude/hooks/hook.py mark-synced`: the SessionStart hook lists the code commits made after that point (the user commits by hand) and asks for the next sync.
 End with the list of files touched and the status rows changed.
