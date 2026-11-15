@@ -17,7 +17,7 @@ docs/baselines/
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
 # the hook wiring calls wsl.exe and /home/kefan/vlm_av_ws: machine-specific
-.claude/settings.json
+# .claude/settings.json
 .claude/worktrees/
 # Claude Code instructions stay on this machine
 CLAUDE.md

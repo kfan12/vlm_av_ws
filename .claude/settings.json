@@ -1,0 +1,50 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py post-edit' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py guard-bash' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py session-start' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py stop-check' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

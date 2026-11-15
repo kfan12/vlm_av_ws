@@ -18,7 +18,8 @@ import re
 import subprocess
 import sys
 
-WS = os.environ.get('VLM_AV_WS', '/home/kefan/vlm_av_ws')   # overridable for the hook's own tests
+# the workspace is two levels above this file (.claude/hooks/hook.py); overridable for the hook's own tests
+WS = os.environ.get('VLM_AV_WS', os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 EM_DASH = chr(0x2014)
 PLAN_REF = re.compile(r'\bDay \d+\b|\bday\d{2}\.md\b|local/plans/')
 # shipped files: never a plan reference; these prefixes and names may cite plans
