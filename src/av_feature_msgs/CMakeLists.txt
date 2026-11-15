@@ -18,6 +18,7 @@ find_package(builtin_interfaces REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AebStatus.msg"
   "msg/VelocityConstraint.msg"
+  "msg/OvertakeStatus.msg"
   DEPENDENCIES std_msgs builtin_interfaces
 )
 

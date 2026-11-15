@@ -107,4 +107,62 @@ namespace av::cloud
         return out;
     }
 
+    // Connected objects: 8-neighbour components of the occupied (x, y) voxel
+    // cells, as lists of point indices. Unlike voxel_clusters (one cluster per
+    // cell), a vehicle or a facade comes out as one object, so its extent and
+    // its nearest and farthest points mean something. Deterministic (cells are
+    // visited in (ix, iy) order).
+
+    inline std::vector<std::vector<size_t>> connected_objects(const std::vector<Eigen::Vector3d> &pts,
+                                                              double voxel_m)
+    {
+        using Cell = std::pair<int, int>;
+        std::map<Cell, std::vector<size_t>> cells;
+
+        for (size_t i = 0; i < pts.size(); ++i)
+        {
+            const auto &p = pts[i];
+            int ix = static_cast<int>(std::floor(p.x() / voxel_m));
+            int iy = static_cast<int>(std::floor(p.y() / voxel_m));
+            cells[{ix, iy}].push_back(i);
+        }
+
+        std::vector<std::vector<size_t>> out;
+        std::map<Cell, bool> done;
+
+        for (const auto &[cell, _] : cells)
+        {
+            if (done[cell])
+                continue;
+
+            std::vector<size_t> obj;
+            std::vector<Cell> stack{cell};
+            done[cell] = true;
+
+            while (!stack.empty())
+            {
+                const Cell c = stack.back();
+                stack.pop_back();
+                const auto &idx = cells.at(c);
+                obj.insert(obj.end(), idx.begin(), idx.end()); // add all points in this cell to the object
+                for (int dx = -1; dx <= 1; ++dx)
+                {
+                    for (int dy = -1; dy <= 1; ++dy)
+                    {
+                        const Cell n{c.first + dx, c.second + dy};
+                        if (cells.count(n) && !done[n])
+                        {
+                            stack.push_back(n);
+                            done[n] = true;
+                        }
+                    }
+                }
+            }
+
+            out.push_back(std::move(obj));
+        }
+
+        return out;
+    }
+
 } // namespace av::cloud
