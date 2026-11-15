@@ -186,8 +186,64 @@ def newest_mtime(subdirs, exts=('.md', '.yaml')):
     return newest
 
 
+# the two generated knowledge-base pages, their build, and what they are built from
+KB_PAGES = [
+    ('local/kb/architecture.html', ['python3', 'local/kb/architecture/build.py'],
+     ['src', 'tools/avkit', 'scripts', 'local/kb/index.yaml', 'local/kb/architecture']),
+    ('local/kb/source_guide.html', ['bash', 'local/kb/source_guide/build.sh'],
+     ['src', 'tools/avkit', 'scripts', 'local/kb/source_guide']),
+]
+KB_SRC_EXT = ('.cpp', '.hpp', '.h', '.py', '.yaml', '.txt', '.html', '.sh', '.xacro')
+
+
+def newest_source(paths):
+    newest = 0.0
+    for rel_path in paths:
+        p = os.path.join(WS, rel_path)
+        if os.path.isfile(p):
+            newest = max(newest, os.stat(p).st_mtime)
+            continue
+        for root, dirs, files in os.walk(p):
+            dirs[:] = [d for d in dirs if d not in ('__pycache__', 'build', 'install', 'log')]
+            for fn in files:
+                if fn.endswith(KB_SRC_EXT) and fn != 'extracted.json':
+                    newest = max(newest, os.stat(os.path.join(root, fn)).st_mtime)
+    return newest
+
+
+def kb_pages(sid):
+    """Rebuild a generated page when anything it is built from is newer than it. A build that
+    reports a gap (an edge with no route, a function without a description, ...) is shown to
+    Claude once per session per distinct report."""
+    reports = []
+    for page, cmd, sources in KB_PAGES:
+        out = os.path.join(WS, page)
+        if os.path.exists(out) and os.stat(out).st_mtime >= newest_source(sources):
+            continue
+        try:
+            r = subprocess.run(cmd, cwd=WS, capture_output=True, text=True, timeout=40)
+            code, text = r.returncode, (r.stdout + r.stderr).strip()
+        except subprocess.TimeoutExpired:
+            code, text = 1, 'build timed out'
+        if code != 0:
+            lines = [ln for ln in text.splitlines() if ln.startswith('  ') or 'problem' in ln or 'Error' in ln]
+            reports.append(f'{page} ({" ".join(cmd)}):\n' + '\n'.join(lines[-25:] or text.splitlines()[-10:]))
+    if not reports:
+        return
+    msg = '\n'.join(reports)
+    import hashlib
+    marker = f'/tmp/claude_kb_pages_{sid}_{hashlib.sha1(msg.encode()).hexdigest()[:12]}'
+    if os.path.exists(marker):
+        return
+    open(marker, 'w').close()
+    sys.stderr.write('[hook stop-check] a knowledge-base page was rebuilt and no longer matches the code:\n' + msg +
+                     '\nFix layout.py / descriptions.py (sync-knowledge-base skill, item 4), rebuild, then stop.\n')
+    sys.exit(2)
+
+
 def stop_check(data):
     sid = data.get('session_id', 'nosession')
+    kb_pages(sid)
     marker = f'/tmp/claude_stop_check_{sid}'
     if os.path.exists(marker):
         return

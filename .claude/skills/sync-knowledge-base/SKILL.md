@@ -15,6 +15,9 @@ A code change is finished when all four agree with it.
 2. **The note's body**: the section describing the changed node (architecture, parameters and sync rules, measurements, "How to run"); add a dated subsection for a new step, never rewrite history.
 3. **Deviations**: if the code now differs from a plan, a dated "Revised" line in the plan at that spot and a bullet in its revision block; the note's deviation section if the difference guards against a known bug.
 4. **Index**: `python3 tools/avkit/kb_index.py --update` for new or changed topics, parameters and launch remaps; hand-edit the `plans`, `notes`, `reports`, `invariants` fields of new nodes; `--check` must pass.
+   Then rebuild the two generated pages (the Stop hook does it too, when a source is newer than a page); both must exit 0:
+   `python3 local/kb/architecture/build.py` reports an edge with no route, a node in a demo setup with no position, a launch remap with no rule, or a planned node that now exists; fix it in `local/kb/architecture/layout.py` (a planned node drops `planned=True` and its `EXTERNAL` entry once built).
+   `bash local/kb/source_guide/build.sh` reports a node without a write-up, a cycle step that no longer resolves, or a function without a description; add it to `local/kb/source_guide/descriptions.py`, written from reading the code.
 5. **Sync rules**: a new duplicated number (an extrinsic, a length mirrored in a tool) gets an entry in `tools/avkit/param_sync_rules.yaml`; `scripts/check_param_sync.sh` must pass.
 6. **Per-directory `CLAUDE.md`**: a new invariant, pitfall or required check goes into the directory's file, not the root; the root only gets a new pointer if a new directory appears.
 7. **Decisions**: a user decision that the code cannot explain goes into `local/kb/decisions.md` with its date.

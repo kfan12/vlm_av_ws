@@ -1,0 +1,259 @@
+<title>vlm_av_ws Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a header with the setup switch, the schematic in a scrollable frame, then the node detail and the signal table. */
+:root {
+  --bg: #f3f5f4;
+  --panel: #ffffff;
+  --fg: #16201d;
+  --muted: #5a6964;
+  --line: #cfd8d4;
+  --sim: #e4ebe8;
+  --node: #ffffff;
+  --node-stroke: #8fa39c;
+  --accent: #0f7a63;
+  --sensor: #2a6fb0;
+  --path: #0f7a63;
+  --speed: #b7741a;
+  --cmd: #c2412d;
+  --fb: #7d8a86;
+  --planned: #7a4fb5;
+  --chip: #e8eeec;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101614; --panel: #17201d; --fg: #e3ebe8; --muted: #93a39e; --line: #2c3a36;
+    --sim: #1b2622; --node: #1d2824; --node-stroke: #4f645d; --accent: #3fc39f;
+    --sensor: #6aa8e6; --path: #3fc39f; --speed: #e3a54a; --cmd: #f0705a; --fb: #8e9b97;
+    --planned: #b08ae8; --chip: #22302b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101614; --panel: #17201d; --fg: #e3ebe8; --muted: #93a39e; --line: #2c3a36;
+  --sim: #1b2622; --node: #1d2824; --node-stroke: #4f645d; --accent: #3fc39f;
+  --sensor: #6aa8e6; --path: #3fc39f; --speed: #e3a54a; --cmd: #f0705a; --fb: #8e9b97;
+  --planned: #b08ae8; --chip: #22302b; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; display: grid; gap: 20px; }
+header { display: grid; gap: 8px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; letter-spacing: 0.005em; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }
+.lede { color: var(--muted); margin: 0; max-width: 68ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { font: 600 14px var(--mono); color: var(--muted); background: transparent; border: 0; padding: 8px 14px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.seg button:focus-visible, .toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+.toggle input { accent-color: var(--planned); width: 16px; height: 16px; }
+.toggle.off { opacity: 0.45; }
+.setup-note { font-size: 14px; color: var(--muted); margin: 0; max-width: 80ch; }
+.setup-note b { color: var(--fg); font-weight: 600; }
+.frame { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.frame svg { display: block; width: 100%; min-width: 860px; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 2.5px solid; }
+.legend i.dash { border-top-style: dashed; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.detail .name { font: 600 16px var(--mono); }
+.detail .pkg { font: 13px var(--mono); color: var(--muted); }
+.detail p { margin: 0; }
+.detail dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
+.detail dt { color: var(--muted); }
+.detail dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.topic { font-family: var(--mono); white-space: nowrap; }
+td.ft { font-family: var(--mono); color: var(--muted); }
+.kind { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+/* SVG */
+.n rect.box { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.2; }
+.n text.t { font: 600 12.5px var(--mono); fill: var(--fg); }
+.n text.s { font: 10.5px var(--body); fill: var(--muted); }
+.n { cursor: pointer; transition: opacity .2s; }
+.n.off { opacity: 0.16; }
+.n.sel rect.box { stroke: var(--accent); stroke-width: 2.4; }
+.n.planned rect.box { stroke: var(--planned); stroke-dasharray: 5 4; stroke-width: 1.6; }
+.n.planned text.tag { font: 600 9.5px var(--mono); fill: var(--planned); letter-spacing: 0.08em; }
+.n:focus-visible rect.box { stroke: var(--accent); stroke-width: 2.4; }
+.sim rect { fill: var(--sim); stroke: var(--node-stroke); stroke-width: 1.2; }
+.sim text.t { font: 700 14px var(--display); fill: var(--fg); }
+.sim text.s { font: 10.5px var(--body); fill: var(--muted); }
+.sim text.port { font: 10.5px var(--mono); fill: var(--muted); }
+.band text { font: 600 10.5px var(--body); fill: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.band rect { fill: none; stroke: var(--line); stroke-dasharray: 3 4; }
+.e path { fill: none; stroke-width: 2; }
+.e.fb path { stroke-width: 1.3; stroke-dasharray: 4 3; }
+.e.planned path { stroke-dasharray: 6 4; }
+.e text { font: 500 10px var(--mono); }
+.e rect.lb { fill: var(--panel); opacity: 0.92; }
+.e.off { display: none; }
+@media (prefers-reduced-motion: reduce) { .n { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>vlm_av_ws architecture</h1>
+    <p class="lede">ROS 2 Humble nodes and topics of the autonomous-driving stack, per demo setup. Pick a setup to see which nodes run and how the signals flow; tap a node for its topics.</p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Setup">
+      <button type="button" id="s-vlm" data-setup="vlm">vlm</button>
+      <button type="button" id="s-aeb" data-setup="aeb">aeb</button>
+      <button type="button" id="s-lidar" data-setup="lidar">lidar</button>
+      <button type="button" id="s-acc" data-setup="acc">acc</button>
+    </div>
+    <label class="toggle" id="ot-wrap"><input type="checkbox" id="ot"> show planned overtake_manager (acc)</label>
+  </div>
+  <p class="setup-note" id="note"></p>
+
+  <div class="frame"><svg id="svg" viewBox="0 0 1140 730" role="img" aria-label="Node and topic schematic"></svg></div>
+
+  <div class="legend">
+    <span><i style="border-color:var(--sensor)"></i>sensor data</span>
+    <span><i style="border-color:var(--path)"></i>path</span>
+    <span><i style="border-color:var(--speed)"></i>speed target or cap</span>
+    <span><i style="border-color:var(--cmd)"></i>command or safety status</span>
+    <span><i class="dash" style="border-color:var(--fb)"></i>feedback or side input</span>
+    <span><i class="dash" style="border-color:var(--planned)"></i>planned, not built</span>
+  </div>
+
+  <div class="cols">
+    <section class="card detail" id="detail" aria-live="polite"></section>
+    <section class="card">
+      <h2 id="tbl-title">Signals</h2>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Topic</th><th>From</th><th>To</th><th>Type</th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table></div>
+    </section>
+  </div>
+  <p class="hint" id="built"></p>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const SETUPS = ['vlm', 'aeb', 'lidar', 'acc'];
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const KCOL = { sensor: 'var(--sensor)', path: 'var(--path)', speed: 'var(--speed)', cmd: 'var(--cmd)', fb: 'var(--fb)' };
+
+const defs = el('defs', {}, svg);
+for (const k of [...Object.keys(KCOL), 'planned']) {
+  const m = el('marker', { id: 'ah-' + k, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', fill: k === 'planned' ? 'var(--planned)' : KCOL[k] }, m);
+}
+
+// simulator block
+const gz = D.nodes.gazebo;
+const sim = el('g', { class: 'sim' }, svg);
+el('rect', { x: gz.x, y: gz.y, width: gz.w, height: gz.h, rx: 8 }, sim);
+el('text', { x: gz.x + 12, y: gz.y + 24, class: 't' }, sim).textContent = gz.t;
+gz.s.split(', ').forEach((line, i) => { el('text', { x: gz.x + 12, y: gz.y + 40 + 14 * i, class: 's' }, sim).textContent = line + (i < 2 ? ',' : ''); });
+for (const [y, t] of D.ports) el('text', { x: gz.x + gz.w - 8, y: y - 6, class: 'port', 'text-anchor': 'end' }, sim).textContent = t;
+sim.style.cursor = 'pointer';
+sim.addEventListener('click', () => select('gazebo'));
+
+// edges (one SVG group per edge; the label text changes with the setup)
+const eg = el('g', {}, svg);
+const edgeEls = {};
+for (const e of D.edges) {
+  const g = el('g', { class: 'e' + (e.kind === 'fb' ? ' fb' : '') + (e.planned ? ' planned' : '') }, eg);
+  const col = e.planned ? 'var(--planned)' : KCOL[e.kind];
+  el('path', { d: e.d, stroke: col, 'marker-end': e.bus ? '' : `url(#ah-${e.planned ? 'planned' : e.kind})` }, g);
+  const rect = el('rect', { class: 'lb', rx: 3, height: 15 }, g);
+  const text = el('text', { x: e.lx, y: e.ly + 3.5, 'text-anchor': 'middle', fill: col }, g);
+  edgeEls[e.id] = { g, rect, text };
+}
+
+// nodes
+const ng = el('g', {}, svg);
+const nodeEls = {};
+for (const [k, n] of Object.entries(D.nodes)) {
+  if (n.sim) continue;
+  const g = el('g', { class: 'n' + (n.planned ? ' planned' : ''), tabindex: 0, role: 'button', 'aria-label': n.t }, ng);
+  el('rect', { class: 'box', x: n.x, y: n.y, width: n.w, height: n.h, rx: 7 }, g);
+  el('text', { class: 't', x: n.x + 10, y: n.y + (n.h > 55 ? 24 : 21) }, g).textContent = n.t;
+  el('text', { class: 's', x: n.x + 10, y: n.y + (n.h > 55 ? 42 : 38) }, g).textContent = n.s;
+  if (n.planned) el('text', { class: 'tag', x: n.x + n.w - 8, y: n.y + 14, 'text-anchor': 'end' }, g).textContent = 'PLANNED';
+  g.addEventListener('click', () => select(k));
+  g.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(k); } });
+  nodeEls[k] = g;
+}
+
+let setup = 'acc', showOT = false, selected = 'mpc_tracker_v2';
+const otBox = document.getElementById('ot'), otWrap = document.getElementById('ot-wrap');
+const key = () => (setup === 'acc' && showOT ? 'acc_ot' : setup);
+const NAME = (k) => k === '*' ? 'subscribers listed' : (D.nodes[k] ? D.nodes[k].t : k);
+
+function render() {
+  const K = key();
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setup === setup)));
+  otWrap.classList.toggle('off', setup !== 'acc');
+  otBox.disabled = setup !== 'acc';
+  for (const k in nodeEls) nodeEls[k].classList.toggle('off', !D.nodes[k].setups.includes(K));
+  for (const e of D.edges) {
+    const v = e.per[K], E = edgeEls[e.id];
+    E.g.classList.toggle('off', !v);
+    const label = v ? v.label : '';
+    E.text.textContent = label;
+    const w = label ? label.length * 6.1 + 8 : 0;
+    E.rect.setAttribute('x', e.lx - w / 2); E.rect.setAttribute('y', e.ly - 8); E.rect.setAttribute('width', w);
+  }
+  document.getElementById('note').innerHTML = D.notes[setup] + (K === 'acc_ot' ? ' ' + D.notes.acc_ot : '');
+  document.getElementById('tbl-title').textContent = `Signals in the ${setup}${K === 'acc_ot' ? ' + overtake' : ''} setup`;
+  const rows = [];
+  for (const e of D.edges) {
+    const v = e.per[K];
+    if (!v) continue;
+    const col = e.planned ? 'var(--planned)' : KCOL[e.kind];
+    for (const [t, ty] of v.topics)
+      rows.push(`<tr><td class="topic"><span class="kind" style="background:${col}"></span>${esc(t)}</td><td class="ft">${esc(NAME(e.frm))}</td><td class="ft">${esc(e.bus ? v.to : NAME(e.to))}</td><td class="ft">${esc(ty)}</td></tr>`);
+  }
+  document.getElementById('tbl').innerHTML = rows.join('');
+  if (!D.nodes[selected].setups.includes(K)) selected = 'mpc_tracker_v2';
+  showDetail();
+}
+function select(k) { selected = k; showDetail(); }
+function showDetail() {
+  const K = key();
+  for (const k in nodeEls) nodeEls[k].classList.toggle('sel', k === selected);
+  const n = D.nodes[selected];
+  const runs = n.setups.includes(K) ? '' : `<p class="hint">Not running in the ${setup} setup${n.planned ? ' (planned node: tick the overtake box in acc)' : ''}.</p>`;
+  const shown = n.setups.filter(s => s !== 'acc_ot').join(', ') || (n.planned ? 'acc (planned)' : '-');
+  document.getElementById('detail').innerHTML = `
+    <div><div class="name">${esc(n.t)}</div><div class="pkg">${esc(n.pkg)}</div></div>
+    ${runs}
+    <p>${esc(n.d)}</p>
+    <dl><dt>publishes</dt><dd>${n.pub.map(esc).join('<br>') || '-'}</dd><dt>subscribes</dt><dd>${n.sub.map(esc).join('<br>') || '-'}</dd><dt>setups</dt><dd>${esc(shown)}</dd></dl>
+    <p class="hint">Tap any node in the schematic to see its topics. Topics as written in the code, before launch remaps.</p>`;
+}
+
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  setup = b.dataset.setup;
+  try { history.replaceState(null, '', '#' + setup); } catch (e) { location.hash = setup; }
+  render();
+}));
+otBox.addEventListener('change', () => { showOT = otBox.checked; render(); });
+function fromHash() { const h = (location.hash || '').slice(1); if (SETUPS.includes(h)) setup = h; }
+window.addEventListener('hashchange', () => { fromHash(); render(); });
+fromHash();
+render();
+document.getElementById('built').textContent = `Generated ${D.built} from the code: publishers and subscribers from the sources, setups from the node index, launch remaps per setup.`;
+</script>

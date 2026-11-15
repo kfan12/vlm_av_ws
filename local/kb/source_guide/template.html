@@ -1,0 +1,216 @@
+<title>vlm_av_ws Source Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: node index on the left (a picker on phones), the selected node's cycle, files and functions on the right. */
+:root {
+  --bg: #f3f5f4; --panel: #ffffff; --fg: #16201d; --muted: #5a6964; --line: #d5ddd9;
+  --accent: #0f7a63; --accent-soft: #e1f0ea; --chip: #e8eeec; --hl: #fff4c9; --code: #f6f8f7;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101614; --panel: #17201d; --fg: #e3ebe8; --muted: #93a39e; --line: #2c3a36;
+    --accent: #3fc39f; --accent-soft: #183a30; --chip: #22302b; --hl: #3a3416; --code: #131b18; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101614; --panel: #17201d; --fg: #e3ebe8; --muted: #93a39e; --line: #2c3a36;
+  --accent: #3fc39f; --accent-soft: #183a30; --chip: #22302b; --hl: #3a3416; --code: #131b18; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 56px; display: grid; gap: 18px; }
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1.15; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 72ch; }
+.layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+aside { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 12px; max-height: calc(100vh - 24px); overflow-y: auto; padding-bottom: 8px; }
+.search { width: 100%; box-sizing: border-box; font: 14px var(--body); padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+.search:focus-visible, .nav button:focus-visible, .flow button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nav { display: grid; gap: 12px; }
+.nav h3 { margin: 0 0 4px; font: 600 11px var(--body); text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+.nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.nav button { width: 100%; text-align: left; font: 500 13px var(--mono); color: var(--fg); background: none; border: 0; border-radius: 6px; padding: 5px 8px; cursor: pointer; overflow-wrap: anywhere; }
+.nav button:hover { background: var(--chip); }
+.nav button[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.picker { display: none; }
+@media (max-width: 820px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside { position: static; max-height: none; overflow: visible; }
+  .nav { display: none; }
+  .picker { display: block; width: 100%; font: 500 14px var(--mono); padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); }
+}
+main { display: grid; gap: 18px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.node-title { font: 600 24px var(--mono); margin: 0; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--fg); font-weight: 600; }
+.role { margin: 0; font-size: 16px; max-width: 75ch; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0; }
+.trigger { margin: 0; color: var(--muted); font-size: 14px; }
+.flow { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.flow li { padding-left: 4px; }
+.flow button { font: 600 13px var(--mono); color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.flow span.nf { font: 600 13px var(--mono); }
+.file { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
+.file:first-of-type { border-top: 0; padding-top: 0; }
+.fhead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.fpath { font: 600 13.5px var(--mono); overflow-wrap: anywhere; }
+.flines { font: 12px var(--mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font: 500 11.5px var(--mono); background: var(--chip); color: var(--muted); border-radius: 4px; padding: 1px 7px; cursor: pointer; border: 0; }
+.frole { margin: 0; font-size: 14px; color: var(--muted); max-width: 80ch; }
+.items { display: grid; gap: 0; }
+.it { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 4px 16px; padding: 8px 6px; border-top: 1px dashed var(--line); border-radius: 4px; transition: background .6s; }
+.it.flash { background: var(--hl); }
+@media (max-width: 640px) { .it { grid-template-columns: minmax(0, 1fr); } }
+.iname { font: 600 13px var(--mono); overflow-wrap: anywhere; }
+.iname small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.idoc { margin: 0; font-size: 14px; }
+.idoc.none { color: var(--muted); font-style: italic; }
+.isig { grid-column: 1 / -1; font: 11.5px var(--mono); color: var(--muted); background: var(--code); border-radius: 4px; padding: 4px 8px; overflow-x: auto; white-space: pre; }
+@media (min-width: 641px) { .isig { grid-column: 2; } }
+.src { font: 10.5px var(--body); color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+.types { font-size: 13px; color: var(--muted); }
+.types code { font: 12px var(--mono); color: var(--fg); }
+.res { display: grid; gap: 6px; }
+.res .it { grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); cursor: pointer; }
+.empty { color: var(--muted); }
+footer { color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .it { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>vlm_av_ws source guide</h1>
+    <p class="lede">For each node: what one cycle does, the source files it is built from, and every function in them with its line range. Shared headers from av_common appear under each node that includes them.</p>
+  </header>
+  <div class="layout">
+    <aside>
+      <input class="search" id="q" type="search" placeholder="Search functions, e.g. corridor, profile" aria-label="Search functions">
+      <select class="picker" id="picker" aria-label="Node"></select>
+      <nav class="nav" id="nav"></nav>
+    </aside>
+    <main id="main"></main>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const slug = (n) => 'node-' + n.replace(/_/g, '-');
+const unslug = (h) => h.startsWith('node-') ? h.slice(5).replace(/-/g, '_') : null;
+let current = 'lane_node';
+
+// nav + picker
+const nav = $('nav'), picker = $('picker');
+for (const [g, names] of D.groups) {
+  const sec = document.createElement('div');
+  sec.innerHTML = `<h3>${esc(g)}</h3><ul>${names.map(n => `<li><button type="button" data-node="${n}">${esc(n)}</button></li>`).join('')}</ul>`;
+  nav.appendChild(sec);
+  const og = document.createElement('optgroup');
+  og.label = g;
+  for (const n of names) { const o = document.createElement('option'); o.value = n; o.textContent = n; og.appendChild(o); }
+  picker.appendChild(og);
+}
+nav.addEventListener('click', (e) => { const b = e.target.closest('button[data-node]'); if (b) go(b.dataset.node); });
+picker.addEventListener('change', () => go(picker.value));
+
+function go(n, fnTarget) {
+  current = n;
+  $('q').value = '';
+  try { history.replaceState(null, '', '#' + slug(n)); } catch (e) { location.hash = slug(n); }
+  render(fnTarget);
+}
+
+function itemRow(f, it) {
+  const lines = it.e && it.e !== it.l ? `L${it.l}-${it.e}` : `L${it.l}`;
+  const doc = it.d ? `<p class="idoc">${esc(it.d)}${it.h === 'comment' ? '<span class="src">source comment</span>' : ''}</p>` : '<p class="idoc none">No description.</p>';
+  return `<div class="it" id="${esc(rowId(f, it.n, it.l))}"><div class="iname">${esc(it.n)}<small>${lines}</small></div>${doc}<code class="isig">${esc(it.s)}</code></div>`;
+}
+const rowId = (f, n, l) => 'r-' + (f + '-' + n + '-' + l).replace(/[^A-Za-z0-9]/g, '-');
+
+function render(fnTarget) {
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', String(b.dataset.node === current)));
+  picker.value = current;
+  const N = D.nodes[current];
+  const flow = N.flow.map(s => `<li>${s.f ? `<button type="button" data-f="${esc(s.f)}" data-n="${esc(s.fn)}" data-l="${s.l}">${esc(s.fn)}</button>` : `<span class="nf">${esc(s.fn)}</span>`} - ${esc(s.t)}</li>`).join('');
+  const filesHtml = N.files.map(f => {
+    const F = D.files[f];
+    const fns = F.items.filter(i => i.k === 'fn');
+    const types = F.items.filter(i => i.k !== 'fn');
+    const others = F.users.filter(u => u !== current);
+    const typeHtml = types.length ? `<div class="types">Types: ${types.map(t => `<code title="${esc(t.d)}">${esc(t.n)}</code> <span>(L${t.l})</span>`).join(', ')}</div>` : '';
+    return `<section class="file">
+      <div class="fhead"><span class="fpath">${esc(f)}</span><span class="flines">${F.loc} lines, ${fns.length} functions</span></div>
+      ${others.length ? `<div class="chips"><span class="flines">also in:</span>${others.map(o => `<button type="button" class="chip" data-node="${o}">${esc(o)}</button>`).join('')}</div>` : ''}
+      ${F.role ? `<p class="frole">${esc(F.role)}</p>` : ''}
+      ${typeHtml}
+      <div class="items">${fns.map(i => itemRow(f, i)).join('') || '<p class="empty">No functions (declarations or data only).</p>'}</div>
+    </section>`;
+  }).join('');
+  $('main').innerHTML = `
+    <section class="card">
+      <h2 class="node-title">${esc(current)}</h2>
+      <div class="meta"><span><b>package</b> ${esc(N.pkg)}</span><span><b>setups</b> ${esc(N.setups)}</span><span><b>files</b> ${N.files.length}</span></div>
+      <p class="role">${esc(N.role)}</p>
+    </section>
+    <section class="card">
+      <h2>One cycle</h2>
+      <p class="trigger"><b>Runs on:</b> ${esc(N.trigger)}</p>
+      <ol class="flow">${flow}</ol>
+    </section>
+    <section class="card"><h2>Source files and functions</h2>${filesHtml}</section>`;
+  if (fnTarget) flash(fnTarget.f, fnTarget.n, fnTarget.l); else window.scrollTo({ top: 0 });
+}
+
+function flash(f, n, l) {
+  const F = D.files[f];
+  const it = F && F.items.find(i => i.l === Number(l)) || F && F.items.find(i => i.n === n || i.n.endsWith('::' + n) || i.n.endsWith('.' + n));
+  if (!it) return;
+  const el = document.getElementById(rowId(f, it.n, it.l));
+  if (!el) return;
+  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1600);
+}
+
+$('main').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-f]');
+  if (b) { flash(b.dataset.f, b.dataset.n, b.dataset.l); return; }
+  const c = e.target.closest('button[data-node]');
+  if (c) { go(c.dataset.node); return; }
+  const r = e.target.closest('.res .it');
+  if (r) go(r.dataset.node, { f: r.dataset.f, n: r.dataset.n, l: r.dataset.l });
+});
+
+// search across every file of every node
+$('q').addEventListener('input', () => {
+  const q = $('q').value.trim().toLowerCase();
+  if (!q) { render(); return; }
+  const out = [], seen = new Set();
+  for (const [node, N] of Object.entries(D.nodes)) for (const f of N.files) {
+    if (seen.has(f)) continue;
+    seen.add(f);
+    for (const it of D.files[f].items) {
+      if (it.k !== 'fn') continue;
+      if ((it.n + ' ' + it.d + ' ' + f).toLowerCase().includes(q)) out.push({ node: D.files[f].users[0], f, it });
+    }
+  }
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', 'false'));
+  $('main').innerHTML = `<section class="card"><h2>${out.length} function${out.length === 1 ? '' : 's'} matching "${esc(q)}"</h2><div class="res">${out.slice(0, 120).map(r =>
+    `<div class="it" data-node="${r.node}" data-f="${esc(r.f)}" data-n="${esc(r.it.n)}" data-l="${r.it.l}"><div class="iname">${esc(r.it.n)}<small>${esc(r.f.split('/').pop())} L${r.it.l}</small></div><p class="idoc">${esc(r.it.d || 'No description.')}</p></div>`).join('') || '<p class="empty">Nothing found.</p>'}</div></section>`;
+});
+
+const total = Object.values(D.files).reduce((a, F) => a + F.items.filter(i => i.k === 'fn').length, 0);
+$('foot').textContent = `${Object.keys(D.nodes).length} nodes, ${Object.keys(D.files).length} source files, ${total} functions. Built ${D.built} from the code; line numbers drift as it changes.`;
+function fromHash() { const n = unslug((location.hash || '').slice(1)); if (n && D.nodes[n]) current = n; }
+window.addEventListener('hashchange', () => { fromHash(); render(); });
+fromHash();
+render();
+</script>
