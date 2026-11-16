@@ -1,6 +1,6 @@
 ---
 name: check-param-sync
-description: This skill should be used when the user asks to "check the extrinsics", "verify the camera/lidar mount parameters match", "move the lidar/camera", "change the sedan dimensions", or whenever a value that is duplicated by hand across the xacro, the YAML configs, node defaults or the analysis tools is edited. Last verified 2026-11-13.
+description: This skill should be used when the user asks to "check the extrinsics", "verify the camera/lidar mount parameters match", "move the lidar/camera", "change the sedan dimensions", or whenever a value that is duplicated by hand across the xacro, the YAML configs, node defaults or the analysis tools is edited. Last verified 2026-11-16.
 ---
 
 # Duplicated numbers and how they are checked
@@ -20,12 +20,11 @@ Each copy lives in a different file, and a mismatch is silent: perception projec
 
 ## Adding a new duplicated value
 
-Add a rule to `param_sync_rules.yaml` in the same change as the new copy; the `param-sync` hook runs the check on every edit of a listed file.
+Add a rule to `param_sync_rules.yaml` in the same change as the new copy; the `post-edit` hook runs the check on every edit of a listed file.
 Prefer not to add copies at all: a tool can read the xacro property with a regex instead of hard-coding the number.
 
 ## How to check this skill is still right
 
 ```bash
-bash scripts/check_param_sync.sh && echo SYNC_OK
-python3 -c "import yaml; print(len(yaml.safe_load(open('tools/avkit/param_sync_rules.yaml'))['rules']), 'rules')"
+bash .claude/skills/check-param-sync/check.sh
 ```

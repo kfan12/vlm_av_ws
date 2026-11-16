@@ -1,6 +1,6 @@
 ---
 name: validate-av-lap
-description: This skill should be used when the user asks to "record a lap", "analyze lap metrics", "check for a regression", "validate the AV stack", "measure cross-track error", "compare against a baseline", "run the AEB matrix", "validate ACC", or wants quantified (not just visual) evidence that a change to the vlm_av_ws driving stack did or did not break something. Last verified against the code 2026-11-13.
+description: This skill should be used when the user asks to "record a lap", "analyze lap metrics", "check for a regression", "validate the AV stack", "measure cross-track error", "compare against a baseline", "run the AEB matrix", "validate ACC", or wants quantified (not just visual) evidence that a change to the vlm_av_ws driving stack did or did not break something. Last verified against the code 2026-11-16.
 ---
 
 # Validating a change to the vlm_av_ws driving stack
@@ -16,7 +16,7 @@ Reproduce the problem end to end before fixing it, and rerun the same scenario a
 | Did lane following or the MPC change? | one lap per affected setup, `run_headless_lap.sh` | `docs/baselines/README.md` (software GL, `urban_course`; noise about +/-0.02 m at 3 m/s) |
 | Did AEB change? | the scenario rows, `run_aeb_scenario.sh ROW SPEED`, with `AEB_SENSOR=lidar` for the lidar setup | `docs/reports/aeb_scenario_matrix.md`, `docs/reports/lidar_aeb_matrix.md` |
 | Did the lidar path change? | `AEB_SENSOR=lidar` rows plus `sensor_dropout 2.0`; the short-track lap pair (`run_headless_lap.sh novlm L 150 urban_course_roadblock` with and without `STACK_ARGS="aeb_sensor:=lidar"`) | `lidar_aeb_matrix.md` (matrix and the lap-pair table) |
-| Did ACC change? | `run_acc_scenario.sh follow|lead_brake|stop_go|curve|cut_in [SET_SPEED]`, plus a no-lead lap with `STACK_ARGS="aeb_sensor:=lidar acc:=true"` | the Accept table in `local/plans/lidar/l5_lidar_acc_coordinator.md`; `docs/reports/lidar_acc.md` once it exists |
+| Did ACC change? | `run_acc_scenario.sh follow|lead_brake|stop_go|curve|cut_in [SET_SPEED]`, plus a no-lead lap with `STACK_ARGS="aeb_sensor:=lidar acc:=true"` | `docs/reports/lidar_acc.md` (it reproduces the Accept table of `local/plans/lidar/l5_lidar_acc_coordinator.md`) |
 | Did a solver or weight change help? | `ros2 run av_behavior_cpp mpc_closed_loop_sim <lane.csv> v=3.0` first (`tools/avkit/export_lane_csv.py maps/<world>.json`), then a lap | the same sim on the previous code |
 
 Worlds: laps on `urban_course` (full) for the baselines, `urban_course_roadblock` for anything lidar that drives, except the approved exceptions (scenario rows and all ACC runs on `urban_course`); `run_headless_lap.sh` defaults to `urban_course`, so pass the world.
@@ -52,8 +52,7 @@ Build only what the question needs, in the shape of the existing kit (`tools/avk
 ## How to check this skill is still right
 
 ```bash
-ls docs/baselines docs/reports
-for f in scripts/run_aeb_scenario.sh scripts/run_acc_scenario.sh; do awk '/^case "\$ROW" in/{n++} n==1 && /^esac/{exit} n==1' "$f" | grep -oE '^\s+[a-z_]+\)'; done
+bash .claude/skills/validate-av-lap/check.sh
 ```
 
-The row lists above must match those `case` labels.
+A batch of runs goes through `scripts/run_scenario_batch.sh ROWS_FILE` (lines `aeb ROW SPEED [depth|lidar]`, `acc ROW [SPEED]`, `lap MODE LABEL DUR WORLD [STACK_ARGS]`), not a hand-written loop.

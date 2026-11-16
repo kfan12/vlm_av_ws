@@ -1,6 +1,6 @@
 ---
 name: demo-check
-description: "This skill should be used when the user asks to \"check the demo\", \"verify the demo still works\", \"test the terminator demo\", \"check the panes\", \"check the RViz displays\", or after a change to start_course_demo.sh, _course_demo_pane.sh, _course_demo_watch.py, the launch file or the RViz config. Args: mode (vlm|aeb|lidar|acc). Last verified against the code 2026-11-13."
+description: "This skill should be used when the user asks to \"check the demo\", \"verify the demo still works\", \"test the terminator demo\", \"check the panes\", \"check the RViz displays\", or after a change to start_course_demo.sh, _course_demo_pane.sh, _course_demo_watch.py, the launch file or the RViz config. Args: mode (vlm|aeb|lidar|acc). Last verified against the code 2026-11-16."
 ---
 
 # Checking a demo mode
@@ -47,6 +47,5 @@ Per pane: what it printed (one line) and pass/fail; the RViz and car items as th
 ## How to check this skill is still right
 
 ```bash
-./scripts/start_course_demo.sh -h | sed -n '/pane/,/col3 bottom/p'
-grep -nE '^  [a-z0-9:|]+\)' scripts/_course_demo_pane.sh      # every MODE:PANE case the pane script handles
+bash .claude/skills/demo-check/check.sh
 ```

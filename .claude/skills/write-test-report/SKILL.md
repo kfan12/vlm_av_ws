@@ -1,6 +1,6 @@
 ---
 name: write-test-report
-description: "This skill should be used when the user asks to \"write up the results\", \"write the test report\", \"document the matrix\", \"create docs/reports/x.md\", \"summarize the ACC runs\", or after a validation step produced sessions whose numbers must become a report. Args: report name and the sessions (a --since stamp or a list). Last verified 2026-11-13."
+description: "This skill should be used when the user asks to \"write up the results\", \"write the test report\", \"document the matrix\", \"create docs/reports/x.md\", \"summarize the ACC runs\", or after a validation step produced sessions whose numbers must become a report. Args: report name and the sessions (a --since stamp or a list). Last verified 2026-11-16."
 ---
 
 # Writing a test report under docs/reports/
@@ -41,11 +41,10 @@ Exclude sessions whose runner log carries `INVALID RUN`, and say how many were e
 
 ## 4. Afterwards
 
-Update the note's status table and `CLAUDE.md` pointers if the report closes a step (`sync-knowledge-base`); add the report path to the node's `reports` list in `local/kb/index.yaml`.
+Update the note's status table and `CLAUDE.md` pointers if the report closes a step (`sync-knowledge-base`); add the report path to the `reports` list of every node it measures in `local/kb/index.yaml` (or of a `packages` entry for tooling); `python3 tools/avkit/kb_index.py --check` fails while a report is named by no entry.
 
 ## How to check this skill is still right
 
 ```bash
-head -12 docs/reports/lidar_aeb_matrix.md
-grep -n '^## ' docs/reports/lidar_aeb_matrix.md
+bash .claude/skills/write-test-report/check.sh
 ```

@@ -22,6 +22,16 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py guard-edit' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 20
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -42,6 +52,17 @@
             "type": "command",
             "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py stop-check' _ \"$CLAUDE_PROJECT_DIR\"",
             "timeout": 90
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wsl.exe -d Ubuntu-22.04 --exec bash -c 'cd \"$(wslpath -u \"$1\" 2>/dev/null || pwd)\" && exec python3 .claude/hooks/hook.py subagent-stop' _ \"$CLAUDE_PROJECT_DIR\"",
+            "timeout": 30
           }
         ]
       }

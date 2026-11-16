@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""generate_course_world.py — v2 course demo world (v1 path-demo recreated urban).
+"""generate_course_world.py - v2 course demo world (v1 path-demo recreated urban).
 
 One two-way street (no intersections): straight -> right 90 -> straight ->
 winding S (3 arcs) -> straight -> left 90 -> final straight with a stop line.

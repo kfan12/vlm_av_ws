@@ -1,0 +1,26 @@
+# Names ref_lint.py accepts without finding them in the tree: files a run produces,
+# and examples. One per line.
+metrics.json
+acc_metrics.json
+meta.json
+report.md
+lap.png
+timeline.png
+acc.png
+rec.log
+stack.log
+clock.jsonl
+dropout.json
+lane.csv
+summary.md
+results.jsonl
+x.sh
+row.sh
+settings.local.json
+kb_synced_head
+.git/kb_synced_head
+camera_info
+/posix/path
+msg/Type
+map_origin_x/y/yaw
+av_safety_cpp/aeb_node

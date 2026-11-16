@@ -20,7 +20,7 @@ import sys
 
 import yaml
 
-WS = os.path.expanduser('~/vlm_av_ws')
+WS = os.environ.get('VLM_AV_WS') or os.path.expanduser('~/vlm_av_ws')  # overridable for the checkers' own tests
 RULES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'param_sync_rules.yaml')
 
 

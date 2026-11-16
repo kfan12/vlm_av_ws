@@ -1,0 +1,213 @@
+# The rule registry: every project rule, the file that owns its wording, where it is
+# restated, and what enforces it. Checked by `python3 .claude/hooks/invariants.py --check`
+# (each anchor must still be in its file); `--table` prints the coverage.
+# A decision that changes a rule is applied to the owner and to every restated_in file.
+# The ids are the ones nodes carry under `invariants:` in index.yaml.
+# enforced_by kinds: hook, script, launch, test, scenario (mechanical); eval; agent; none.
+invariants:
+  language-policy:
+    statement: the driving and safety chains are C++; Python only for the VLM chain, world generation and offline analysis
+    owner: CLAUDE.md
+    anchor: "Language policy"
+    enforced_by: ["agent: invariant-reviewer"]
+  no-cv-bridge:
+    statement: no cv_bridge anywhere
+    owner: CLAUDE.md
+    anchor: "No `cv_bridge` anywhere"
+    restated_in:
+      - {file: src/av_perception_cpp/CLAUDE.md, anchor: "No `cv_bridge`"}
+      - {file: src/vlm_planner_py/CLAUDE.md, anchor: "No `cv_bridge`"}
+      - {file: scripts/CLAUDE.md, anchor: "check_no_cv_bridge.sh"}
+    enforced_by: ["script: scripts/check_no_cv_bridge.sh", "hook: post-edit runs it on image code"]
+  derived-intrinsics:
+    statement: camera intrinsics are derived from image size and field of view, never read from camera_info
+    owner: CLAUDE.md
+    anchor: "Camera intrinsics are derived"
+    restated_in:
+      - {file: src/av_perception_cpp/CLAUDE.md, anchor: "Intrinsics are derived"}
+      - {file: src/av_safety_cpp/CLAUDE.md, anchor: "Intrinsics are derived from"}
+    enforced_by: ["agent: invariant-reviewer"]
+  duplicated-extrinsics:
+    statement: sensor extrinsics are duplicated by hand in every node's parameters and must equal the xacro; no TF lookup
+    owner: CLAUDE.md
+    anchor: "Extrinsics are duplicated by hand"
+    restated_in:
+      - {file: src/av_perception_cpp/CLAUDE.md, anchor: "Extrinsics are parameters duplicated"}
+      - {file: src/vlm_planner_py/CLAUDE.md, anchor: "Camera extrinsics in"}
+      - {file: src/av_safety_cpp/CLAUDE.md, anchor: "must equal `sedan_description/urdf/sedan.urdf.xacro`"}
+      - {file: src/av_features_cpp/CLAUDE.md, anchor: "Lidar extrinsics are duplicated"}
+      - {file: .claude/skills/check-param-sync/SKILL.md, anchor: "param_sync_rules.yaml"}
+    enforced_by: ["script: scripts/check_param_sync.sh", "hook: post-edit runs it on a listed file", "test: check-param-sync/check.sh"]
+  lead-length-sync:
+    statement: the analysis tools' vehicle lengths mirror the xacro and lead_vehicle.py
+    owner: tools/avkit/CLAUDE.md
+    anchor: "Lengths that mirror other files"
+    enforced_by: ["script: scripts/check_param_sync.sh"]
+  map-origin-owner:
+    statement: map_origin_* has exactly one owner, av_stack.launch.py
+    owner: CLAUDE.md
+    anchor: "has exactly one owner"
+    restated_in:
+      - {file: src/robot_bringup/CLAUDE.md, anchor: "owns `map_origin_*`"}
+      - {file: src/av_perception_cpp/CLAUDE.md, anchor: "arrives from `av_stack.launch.py`"}
+    enforced_by: ["agent: invariant-reviewer"]
+  features-only-cap-speed:
+    statement: features never steer and never raise speed; the exceptions are the MPC turn lookahead and the scoped overtake path owner
+    owner: CLAUDE.md
+    anchor: "Features never steer and never raise speed"
+    restated_in:
+      - {file: src/vlm_planner_py/CLAUDE.md, anchor: "The VLM only ever caps speed"}
+      - {file: src/av_behavior_cpp/src/mpc/CLAUDE.md, anchor: "one place a feature affects steering inside the MPC"}
+      - {file: src/av_features_cpp/CLAUDE.md, anchor: "ACC only lowers speed"}
+      - {file: src/av_planning_coordinator/CLAUDE.md, anchor: "Velocity only."}
+      - {file: .claude/skills/add-av-feature/SKILL.md, anchor: "4. Path-modifying"}
+      - {file: .claude/agents/invariant-reviewer.md, anchor: "features never steer"}
+    enforced_by: ["agent: invariant-reviewer", "eval: stop-line-feature"]
+  features-are-new-packages:
+    statement: a feature is a new package wired by launch remapping, never an edit to lane_node, local_planner or the MPC solver
+    owner: CLAUDE.md
+    anchor: "New features are new packages wired by launch remapping"
+    restated_in:
+      - {file: src/robot_bringup/CLAUDE.md, anchor: "Features are wired by remapping"}
+      - {file: .claude/skills/add-av-feature/SKILL.md, anchor: "never an edit to `lane_node.cpp`"}
+    enforced_by: ["hook: guard-edit asks before an edit of the driving chain", "eval: stop-line-feature", "agent: invariant-reviewer"]
+  single-cmd-vel-publisher:
+    statement: one /cmd_vel publisher per setup (control_arbiter, or the MPC in the vlm setup)
+    owner: src/av_control_cpp/CLAUDE.md
+    anchor: "only `/cmd_vel` publisher"
+    restated_in:
+      - {file: .claude/skills/add-av-feature/SKILL.md, anchor: "Never a second `/cmd_vel` publisher"}
+    enforced_by: ["agent: invariant-reviewer"]
+  fail-safe-stop:
+    statement: a missing or stale input stops or holds the car, never lets it drive on unprotected
+    owner: src/av_control_cpp/CLAUDE.md
+    anchor: "A missing safety channel is a fault"
+    restated_in:
+      - {file: .claude/skills/add-av-feature/SKILL.md, anchor: "Fail-safe direction"}
+      - {file: CLAUDE.md, anchor: "Nothing moves without"}
+    enforced_by: ["scenario: mpc_timeout and sensor_dropout rows of run_aeb_scenario.sh", "agent: invariant-reviewer"]
+  hold-without-maneuver:
+    statement: the MPC holds at 0 without a fresh target speed, and a stale plan is a hard stop
+    owner: src/av_behavior_cpp/src/mpc/CLAUDE.md
+    anchor: "hold_without_maneuver"
+    enforced_by: ["agent: invariant-reviewer"]
+  required-constraints-hold:
+    statement: a required constraint topic with no fresh constraint holds the car
+    owner: src/av_planning_coordinator/CLAUDE.md
+    anchor: "Required topics hold the car"
+    enforced_by: ["agent: invariant-reviewer"]
+  event-driven-coordinator:
+    statement: the coordinator publishes one output per incoming profile and never re-publishes on a timer
+    owner: src/av_planning_coordinator/CLAUDE.md
+    anchor: "Event-driven, one output per incoming profile"
+    enforced_by: ["agent: invariant-reviewer"]
+  plan-pair-equal-length:
+    statement: a path and profile of different lengths are a torn pair and are dropped
+    owner: src/av_planning_coordinator/CLAUDE.md
+    anchor: "Torn pairs are dropped"
+    enforced_by: []
+  fixes-a-f:
+    statement: aeb_node carries tested fixes the plan text lacks; plan code is never pasted over it
+    owner: src/av_safety_cpp/CLAUDE.md
+    anchor: "Never paste the plan over this code"
+    enforced_by: ["hook: guard-edit asks before an edit of aeb_node.cpp"]
+  sensor-touches-three-places:
+    statement: obstacle_source selects the subscription, the staleness check and the extractor; everything after the clusters is shared
+    owner: src/av_safety_cpp/CLAUDE.md
+    anchor: "The sensor touches exactly three places"
+    enforced_by: []
+  shared-clustering:
+    statement: acc_node's object grouping and av_common's connected_objects stay identical until the node is switched to the shared one
+    owner: src/av_features_cpp/CLAUDE.md
+    anchor: "must stay identical"
+    enforced_by: []
+  paint-colour-gates:
+    statement: nothing the camera sees may be white or yellow, or lane_node reads it as paint
+    owner: src/av_perception_cpp/CLAUDE.md
+    anchor: "Paint colour gates"
+    restated_in:
+      - {file: tools/avkit/CLAUDE.md, anchor: "non-yellow colours"}
+    enforced_by: []
+  offline-sim-first:
+    statement: a solver or weight change is checked in mpc_closed_loop_sim before a Gazebo lap
+    owner: src/av_behavior_cpp/src/mpc/CLAUDE.md
+    anchor: "Check a solver or weight change offline first"
+    restated_in:
+      - {file: .claude/skills/validate-av-lap/SKILL.md, anchor: "mpc_closed_loop_sim"}
+    enforced_by: []
+  recorder-shape:
+    statement: recorders spin against a wall-clock deadline and never shut rclpy down from a callback; numpy only
+    owner: tools/avkit/CLAUDE.md
+    anchor: "Recorder shape"
+    restated_in:
+      - {file: .claude/skills/validate-av-lap/SKILL.md, anchor: "never `rclpy.shutdown()` from a callback"}
+    enforced_by: ["agent: invariant-reviewer"]
+  streams-match-analyzer:
+    statement: the recorder and the analyzer list the same streams
+    owner: tools/avkit/CLAUDE.md
+    anchor: "`STREAMS` must match"
+    enforced_by: ["test: golden.py re-analyzes frozen sessions", "agent: invariant-reviewer"]
+  venv-only:
+    statement: the VLM nodes run in the torch venv, never inside av_stack.launch.py
+    owner: src/vlm_planner_py/CLAUDE.md
+    anchor: "Runs in the torch venv"
+    enforced_by: []
+  no-plan-references:
+    statement: shipped files never name a day, a plan file, local/plans or a track step
+    owner: CLAUDE.md
+    anchor: "No daily-plan references in shipped files"
+    restated_in:
+      - {file: scripts/CLAUDE.md, anchor: "No plan references"}
+      - {file: tools/avkit/CLAUDE.md, anchor: "No plan references"}
+    enforced_by: ["hook: post-edit lints the whole shipped file", "hook: the Stop sweep and the session-start commit lint", "test: .claude/hooks/tests/run.sh"]
+  quaternion-yaw-inline:
+    statement: quaternion to yaw is computed inline, no tf2
+    owner: CLAUDE.md
+    anchor: "Quaternion to yaw"
+    enforced_by: ["agent: invariant-reviewer"]
+  lidar-short-track:
+    statement: lidar runs that drive use urban_course_roadblock, except the approved full-track exceptions
+    owner: CLAUDE.md
+    anchor: "Lidar runs that drive use"
+    restated_in:
+      - {file: scripts/CLAUDE.md, anchor: "**Worlds:**"}
+      - {file: .claude/skills/validate-av-lap/SKILL.md, anchor: "`urban_course_roadblock` for anything lidar that drives"}
+      - {file: src/av_features_cpp/CLAUDE.md, anchor: "always on the full `urban_course`"}
+    enforced_by: ["eval: lidar-lap-world", "eval: lidar-row"]
+  demo-gpu-gl:
+    statement: every demo renders on gpu GL; the launch default, laps and scenarios stay on software GL
+    owner: CLAUDE.md
+    anchor: "demo renders on"
+    restated_in:
+      - {file: .claude/skills/run-av-stack/SKILL.md, anchor: "every mode renders with gpu GL"}
+    enforced_by: []
+  no-headless-rendering:
+    statement: Gazebo runs with -r, never --headless-rendering
+    owner: CLAUDE.md
+    anchor: "never `--headless-rendering`"
+    restated_in:
+      - {file: src/robot_bringup/CLAUDE.md, anchor: "never `--headless-rendering`"}
+    enforced_by: ["hook: guard-bash refuses the flag", "test: .claude/hooks/tests/run.sh"]
+  one-setup-at-a-time:
+    statement: never more than one setup at once, and the VLM and AEB never run together
+    owner: CLAUDE.md
+    anchor: "never more than one at once"
+    enforced_by: ["script: scripts/_av_stack_common.sh av_cleanup before every launch", "launch: av_stack.launch.py refuses inconsistent arguments"]
+  generated-files:
+    statement: generated pages, baseline sessions and recorded sessions are never edited by hand
+    owner: .claude/hooks/protected_paths.yaml
+    anchor: "generated page"
+    enforced_by: ["hook: guard-edit refuses the edit", "test: .claude/hooks/tests/run.sh"]
+  user-commits:
+    statement: the user commits and pushes by hand; a commit message never carries an agent co-author line
+    owner: .claude/skills/wsl-ros-ops/SKILL.md
+    anchor: "the user commits by hand"
+    enforced_by: ["hook: guard-bash asks on commit, push and history rewrites, refuses a co-author trailer", "test: .claude/hooks/tests/run.sh", "eval: no-commit"]
+  hand-build:
+    statement: code the user builds by hand from a plan is checked, not written, by Claude
+    owner: .claude/hooks/protected_paths.yaml
+    anchor: "hand_build: true"
+    restated_in:
+      - {file: .claude/skills/check-hand-build/SKILL.md, anchor: "it never edits the code"}
+      - {file: .claude/skills/write-plan-step/SKILL.md, anchor: "never implements it"}
+    enforced_by: ["hook: guard-edit asks before an edit of a hand-build target", "eval: plan-first"]

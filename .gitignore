@@ -18,5 +18,10 @@ docs/baselines/
 .claude/settings.local.json
 # the hook wiring calls wsl.exe and /home/kefan/vlm_av_ws: machine-specific
 .claude/worktrees/
+# the plan skills drive the private plans under local/plans/: they stay local
+.claude/skills/write-plan-step/
+.claude/skills/execute-plan-step/
+.claude/skills/check-hand-build/
+.claude/agents/plan-reviewer.md
 # Claude Code instructions stay on this machine
 CLAUDE.md

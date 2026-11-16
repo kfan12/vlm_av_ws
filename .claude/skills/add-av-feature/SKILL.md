@@ -1,6 +1,6 @@
 ---
 name: add-av-feature
-description: This skill should be used when the user asks to "add a safety feature", "add a speed constraint", "add a stop line / traffic light / zone limit feature", "add a new driving feature", "coordinate a new feature with the MPC", "add lane change / obstacle avoidance", or otherwise wants to extend the vlm_av_ws driving stack with new perception, safety or behavior capability. Last verified against the code 2026-11-13.
+description: This skill should be used when the user asks to "add a safety feature", "add a speed constraint", "add a stop line / traffic light / zone limit feature", "add a new driving feature", "coordinate a new feature with the MPC", "add lane change / obstacle avoidance", or otherwise wants to extend the vlm_av_ws driving stack with new perception, safety or behavior capability. Last verified against the code 2026-11-16.
 ---
 
 # Adding a new AV feature to vlm_av_ws
@@ -18,7 +18,7 @@ A feature's class decides where it plugs in; never "wire it into the MPC and `st
 | 1. Emergency override | AEB, manual e-stop, watchdog | Bypasses planning; publishes a candidate command that `control_arbiter` (`av_control_cpp`) selects by priority. Must work with the VLM, planner or MPC unhealthy. |
 | 2. Mandatory stop | red light, stop sign, blocked road | A stop point in the speed profile at an arc length: a `VelocityConstraint` with `stop_distance_m` (the message carries the field; the coordinator's merge does not use it yet, so this class needs the coordinator extended, not a new mechanism). |
 | 3. Restrictive speed cap | ACC, speed limit, curve speed, school zone, low VLM confidence | A `VelocityConstraint` (`maximum_speed_mps`, `valid_until`) on its own topic, listed in `trajectory_coordinator`'s `constraint_topics`. |
-| 4. Path-modifying | lane change, obstacle avoidance, intersection turn | Exclusive path arbitration; not designed in this repo beyond the review's sketch (section 14). Flag it as new design work. |
+| 4. Path-modifying | lane change, overtaking, obstacle avoidance, intersection turn | Exclusive path ownership: one node between `lane_node` and `local_planner`, wired by remapping the planner's input path, passing the lane path through unchanged when idle. It bends "features never steer", so it needs a scoped user decision in `local/kb/decisions.md` first; the overtake track (`local/plans/overtake/`) is the design to follow, and its state is in the status table. |
 
 Unsure: does it ever need to override the command regardless of planning?
 Then class 1.
@@ -51,7 +51,5 @@ Then update the notes' status table, the index (`local/kb/index.yaml`) and the p
 ## How to check this skill is still right
 
 ```bash
-ls src/ ; ls src/av_feature_msgs/msg
-grep -n 'constraint_topics' src/av_planning_coordinator/config/*.yaml src/av_planning_coordinator/src/*.cpp
-grep -n "acc = _bool_arg\|mpc_remaps" src/robot_bringup/launch/av_stack.launch.py
+bash .claude/skills/add-av-feature/check.sh
 ```

@@ -1,6 +1,6 @@
 ---
 name: feature-scout
-description: "This skill should be used when the user asks to \"research new features\", \"what features can we add\", \"scout features for the stack\", \"what should we build next\", \"find ADAS features to implement\", \"rank candidate features\", or otherwise wants candidate driving features found in outside sources (ADAS taxonomies, test protocols, open-source AV stacks, papers) and scored against what the vlm_av_ws stack can support. It researches and ranks; it never builds. Last verified against the code 2026-11-14."
+description: "This skill should be used when the user asks to \"research new features\", \"what features can we add\", \"scout features for the stack\", \"what should we build next\", \"find ADAS features to implement\", \"rank candidate features\", or otherwise wants candidate driving features found in outside sources (ADAS taxonomies, test protocols, open-source AV stacks, papers) and scored against what the vlm_av_ws stack can support. It researches and ranks; it never builds. Last verified against the code 2026-11-16."
 ---
 
 # Scouting new features for vlm_av_ws
@@ -75,15 +75,11 @@ Contents:
 ## Step 5: hand off
 
 Report the top of the ranking to the user and ask which one to build; do not start building.
-Once they choose, record the choice and its reason in `local/kb/decisions.md`, then follow `add-av-feature` (and the `Plan` agent for a plan file under `local/plans/`).
+Once they choose, record the choice and its reason in `local/kb/decisions.md`, then follow `add-av-feature` for where it plugs in and `write-plan-step` for the plan file under `local/plans/`.
 Never commit the report or the decision without asking.
 
 ## How to check this skill is still right
 
 ```bash
-ls src/ ; ls src/av_feature_msgs/msg
-grep -n 'Class\|class' .claude/skills/add-av-feature/SKILL.md | head
-ls local/kb/decisions.md local/notes/lidar_implementation.md local/notes/aeb_status_and_lessons.md
-ls src/sedan_description/urdf/sedan.urdf.xacro src/urban_gazebo/worlds
-git check-ignore local/reports local/research_notes
+bash .claude/skills/feature-scout/check.sh
 ```

@@ -1,0 +1,35 @@
+# Paths the guard-edit hook protects (PreToolUse on Edit|Write).
+# action deny: the edit is refused. action ask: the user is asked, with the reason shown.
+# paths are fnmatch patterns on the workspace-relative path; "*" also matches "/".
+# hand_build: true marks code the user writes by hand from a plan: the build-freshness
+# reminder skips it, and the check-hand-build skill is the way to review it.
+rules:
+  - action: deny
+    reason: generated page; change local/kb/architecture/layout.py or the code, then run python3 local/kb/architecture/build.py
+    paths: [local/kb/architecture.html]
+  - action: deny
+    reason: generated page; change local/kb/source_guide/descriptions.py or the code, then run bash local/kb/source_guide/build.sh
+    paths: [local/kb/source_guide.html, local/kb/source_guide/extracted.json]
+  - action: deny
+    reason: a recorded baseline session is evidence; record a new lap instead (docs/baselines/README.md is the only hand-written file there)
+    paths: ["docs/baselines/*/*"]
+  - action: deny
+    reason: recorded sessions under data/ are evidence; re-analyze with the analyzer, never edit a session file
+    paths: ["data/*"]
+  - action: deny
+    reason: auto-generated file; regenerate it from its source
+    paths: ["CHANGELOG.md", "*/CHANGELOG.md"]
+  - action: ask
+    reason: the driving chain is not edited to add a feature; a feature is a new package wired by launch remapping (add-av-feature skill). Approve only for a fix to this node itself.
+    paths:
+      - src/av_perception_cpp/src/lane_node.cpp
+      - src/av_behavior_cpp/src/local_planner.cpp
+      - src/av_behavior_cpp/src/mpc/mpc_solver.cpp
+      - src/av_behavior_cpp/src/mpc/mpc_solver.hpp
+  - action: ask
+    reason: aeb_node carries tested fixes A-F that the plan text does not have (src/av_safety_cpp/CLAUDE.md); never paste plan code over it
+    paths: [src/av_safety_cpp/src/aeb_node.cpp]
+  - action: ask
+    hand_build: true
+    reason: the user builds the overtake track by hand from the plan; Claude checks it (check-hand-build skill) and does not write it unasked
+    paths: ["src/av_overtake_cpp/*"]

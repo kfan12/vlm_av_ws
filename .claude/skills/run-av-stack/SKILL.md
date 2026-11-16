@@ -1,6 +1,6 @@
 ---
 name: run-av-stack
-description: This skill should be used when the user asks to "run the demo", "launch the stack", "start the simulation", "build and run the AV stack", "run the sim", "launch av_stack", "see it drive", "start the acc demo", or wants to build, launch, or debug the vlm_av_ws Gazebo/ROS 2 driving stack in any of its four setups (vlm, aeb, lidar, acc). Last verified against the code 2026-11-13.
+description: This skill should be used when the user asks to "run the demo", "launch the stack", "start the simulation", "build and run the AV stack", "run the sim", "launch av_stack", "see it drive", "start the acc demo", or wants to build, launch, or debug the vlm_av_ws Gazebo/ROS 2 driving stack in any of its four setups (vlm, aeb, lidar, acc). Last verified against the code 2026-11-16.
 ---
 
 # Running the vlm_av_ws AV stack
@@ -66,16 +66,16 @@ python3 -m vlm_planner_py.sign_maneuver_node --ros-args --params-file src/vlm_pl
 ## Before launching
 
 ```bash
-pgrep -af 'ign gazebo|parameter_bridge|lead_vehicle|ros2 launch'   # leftovers block or corrupt the next run
+bash scripts/stop_av_stack.sh -n      # lists leftovers; they block or corrupt the next run
 ```
 
-If something is there and the user did not start it on purpose, stop it (`source scripts/_av_stack_common.sh; av_cleanup`); if a `pkill` is refused by the permission mode, report the PIDs and ask once.
+If something is there and the user did not start it on purpose, stop it with `bash scripts/stop_av_stack.sh`; if that is refused by the permission mode, report the PIDs and ask once.
 
 ## Verify it is working
 
 ```bash
-ros2 topic hz /camera/front/depth/image_raw      # lane_node ticks on this; a stall freezes planning silently
-ros2 topic hz /lane/path_odom /plan/path_odom
+python3 tools/avkit/ros_probe.py rate /camera/front/depth/image_raw /lane/path_odom /plan/path_odom --for 10
+                                                 # lane_node ticks on depth; a stall there freezes planning silently
 ros2 topic info /cmd_vel -v                      # exactly one publisher: mpc_tracker_v2 (vlm) or control_arbiter (others)
 ros2 topic echo /control/active_source           # aeb/lidar/acc: mpc / aeb / fault_aeb_status / stop_no_fresh_source
 ros2 param get /aeb_node obstacle_source         # lidar/acc: must say lidar
@@ -95,9 +95,5 @@ RViz gets a per-setup config (`$TMPDIR/av_stack_<setup>.rviz`); edit `src/robot_
 ## How to check this skill is still right
 
 ```bash
-ls scripts/start_course_demo.sh scripts/run_headless_lap.sh scripts/run_aeb_scenario.sh scripts/run_acc_scenario.sh
-grep -n "DeclareLaunchArgument('" src/robot_bringup/launch/av_stack.launch.py | sed "s/.*('\([a-z_]*\)'.*/\1/"
-./scripts/start_course_demo.sh -h | grep -E '^  (vlm|aeb|lidar|acc) '
+bash .claude/skills/run-av-stack/check.sh
 ```
-
-The argument list and the mode list above must match those outputs.
