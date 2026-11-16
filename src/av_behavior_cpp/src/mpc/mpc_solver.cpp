@@ -54,8 +54,8 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     const double v_lin = std::clamp(current_state.v, vp_.min_speed, vp_.max_speed); // the operating point the lateral/heading dynamics are LINEARIZED around.
 
     // Reference tangent psi_ref from POINT geometry (not the poses' orientation,
-    // which may be missing or wrong). Use a LOOKAHEAD bearing — the bearing from
-    // point i to a point ~lookahead_m ahead on the path — instead of the raw local
+    // which may be missing or wrong). Use a LOOKAHEAD bearing - the bearing from
+    // point i to a point ~lookahead_m ahead on the path - instead of the raw local
     // segment tangent (ref[i]->ref[i+1], ~ds baseline). The local tangent turns a
     // couple cm of centerline noise into ~0.1-0.2 rad of reference-heading swing,
     // which the heading gain saturates into a steering limit cycle (the observed
@@ -225,7 +225,7 @@ MpcResult MpcSolver::Solve(const VehicleState &current_state,
     }
 
     // control effort (diagonal) + control-rate smoothness (Δu). The Δu penalty
-    // includes the change from the PREVIOUS applied command (u_0 - prev)^2 —
+    // includes the change from the PREVIOUS applied command (u_0 - prev)^2 -
     // this is what damps the tick-to-tick steering limit cycle, and is why the
     // solver takes previous_accel/previous_steer.
 
@@ -582,13 +582,13 @@ MpcResult MpcSolver::solve_proportional(const VehicleState &current_state,
     best_steer = std::clamp(-(k_lat * e_lat + k_head * e_head),
                             -vp_.max_steer, vp_.max_steer);
 
-    // Speed: the third state slot is ACTUAL speed (not an error) — same as the QP,
+    // Speed: the third state slot is ACTUAL speed (not an error) - same as the QP,
     // where the target is applied through the gradient q, not the state. The
     // proportional accel drives actual speed toward target_speed.
     best_accel = std::clamp(k_speed * (mp_.target_speed - s.v),
                             vp_.max_decel, vp_.max_accel);
 
-    // Blend with the previous command — stand-in for the QP's control-rate
+    // Blend with the previous command - stand-in for the QP's control-rate
     // (smoothness) weights. A higher rate-weight => stronger blend toward the
     // previous command => smoother / less oscillation, which is exactly the knob
     // the lap-metric tuning rules reach for (raise weight_steer_rate to damp wobble).

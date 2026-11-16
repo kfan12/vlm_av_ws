@@ -1,8 +1,8 @@
-"""sign_maneuver_node — v2 sign→action pipeline (course demo).
+"""sign_maneuver_node - v2 sign→action pipeline (course demo).
 
 The v2 port of v1's sign geometry + arbitration (vlm_node Phases 1–3+5),
 decoupled from any path planning: the road curvature steers the car (lane_node
-→ local_planner → MPC); signs only shape SPEED and add a stop point — the v2
+→ local_planner → MPC); signs only shape SPEED and add a stop point - the v2
 advisory invariant (caps only, never raises) holds by construction.
 
 Pipeline, all reused v1 logic where it was unit-tested:
@@ -19,13 +19,13 @@ Pipeline, all reused v1 logic where it was unit-tested:
       {"stamp": t, "maneuver": "straight|left|right|winding|stop",
        "speed_cap": float|null, "stop_dist_m": float|null,
        "sign": {"label": ..., "dist": ..., "locked": ..., "armed": ...}}
-The MPC takes min(profile, setpoint) — signs can only lower speed (advisory
+The MPC takes min(profile, setpoint) - signs can only lower speed (advisory
 invariant by construction). The stop sign halts purely through the speed
 channel: creep at stop_creep_cap, then 0 inside stop_standoff_m (v1-style;
 no planner stop-point plumbing).
 
 Runs under the torch venv alongside vlm_sign_node (which does the actual Qwen
-reads — this node never touches the GPU):
+reads - this node never touches the GPU):
 
     source ~/venvs/vlm_robot/bin/activate
     python3 -m vlm_planner_py.sign_maneuver_node --ros-args \
@@ -72,7 +72,7 @@ class SignManeuverNode(Node):
         self.speed_topic = p('target_speed_topic', '/maneuver/target_speed').value
         self.state_topic = p('maneuver_state_topic', '/maneuver/state').value
 
-        # --- camera intrinsics/extrinsics (bridge camera_info is WRONG — F2;
+        # --- camera intrinsics/extrinsics (bridge camera_info is WRONG - F2;
         #     derive from params exactly like the C++ nodes do)
         self.img_w = int(p('img_w', 424).value)
         self.img_h = int(p('img_h', 300).value)
@@ -133,7 +133,7 @@ class SignManeuverNode(Node):
                             WINDING: float(p('commit_dist_winding_m', 12.0).value),
                             STOP: float(p('commit_dist_stop_m', 10.0).value)}
 
-        # --- speeds (MPC takes min(profile, setpoint) — caps never raise)
+        # --- speeds (MPC takes min(profile, setpoint) - caps never raise)
         self.cruise_speed = float(p('cruise_speed', 1.5).value)
         self.turn_cap = float(p('turn_speed_cap', 1.0).value)
         self.winding_cap = float(p('winding_speed_cap', 1.0).value)
@@ -153,7 +153,7 @@ class SignManeuverNode(Node):
             release_dist_m=float(p('release_dist_m', 3.0).value),
             min_len_m=float(p('exit_min_len_m', 4.0).value))
 
-        # hold the car (cap 0) until the FIRST Qwen label arrives — Qwen takes
+        # hold the car (cap 0) until the FIRST Qwen label arrives - Qwen takes
         # ~1 min to load and the first sign is only ~40 m out (v1's
         # wait_for_first_sign, moved to the cap channel)
         self.wait_for_vlm = bool(p('wait_for_vlm', True).value)
@@ -163,7 +163,7 @@ class SignManeuverNode(Node):
         # display, same role as lane_node's /lane/debug_image).
         self.debug_image = bool(p('debug_image', True).value)
 
-        # intrinsics (square pixels, fx from hfov — pinhole_from_config twin)
+        # intrinsics (square pixels, fx from hfov - pinhole_from_config twin)
         self.fx = (self.img_w / 2.0) / math.tan(self.hfov / 2.0)
         self.cx = self.img_w / 2.0
         self.cy = self.img_h / 2.0
@@ -186,7 +186,7 @@ class SignManeuverNode(Node):
         self.rgb_bgr = None          # last decoded camera frame (detect + overlay)
         self.roi_px = None           # last ROI box handed to Qwen (x0, y0, x1, y1)
         self.vlm_last = None         # newest /vlm/sign read: dict(label, accepted,
-                                     # why, t_recv) — raw Qwen action, pre-latch
+                                     # why, t_recv) - raw Qwen action, pre-latch
 
         self.pub_out = self.create_publisher(String, self.out_topic, 10)
         self.pub_roi = self.create_publisher(String, self.roi_topic, 10)
@@ -476,7 +476,7 @@ class SignManeuverNode(Node):
         lock_txt = '  LOCKED' if s['locked'] else ''
         WHITE, GREEN, AMBER = (255, 255, 255), (0, 230, 0), (0, 190, 255)
 
-        # live Qwen action straight off /vlm/sign, before the latch decides —
+        # live Qwen action straight off /vlm/sign, before the latch decides -
         # green if the latch took it, amber if it bounced it (with the reason),
         # dimmed once it goes stale.
         v = self.vlm_last
@@ -517,7 +517,7 @@ class SignManeuverNode(Node):
                 gone = now - self.board_seen_t
                 ahead = self._odom_to_base(self.board_odom)[0]
                 # inside lock range: ride the frozen latch, never drop.
-                # short gap (board_lost_s..+grace): COAST — keep board_odom and
+                # short gap (board_lost_s..+grace): COAST - keep board_odom and
                 # the latch identity frozen so a re-acquisition within
                 # match_radius resumes the SAME board and any in-flight Qwen
                 # read stays valid (no stale-board churn through the S-curve).

@@ -5,7 +5,7 @@
        robotcar (the AckermannSteering plugin keys off the joint names).
        Mass is 300 kg NOT 1400 (plan note: stability > physics fidelity;
        raise later if the sim tolerates it). Camera extrinsic (cam_x/cam_z/
-       cam_pitch) is duplicated as parameters in every av_perception node —
+       cam_pitch) is duplicated as parameters in every av_perception node -
        keep them in sync. -->
 
     <!-- ===================== PHYSICAL PARAMETERS ===================== -->
@@ -442,7 +442,7 @@
     </gazebo>
 
     <!-- ===================== GAZEBO: RGB-D CAMERA ===================== -->
-    <!-- 640x360 @10 Hz, HFOV 1.6 (day-02 spike NOT run — conservative default;
+    <!-- 640x360 @10 Hz, HFOV 1.6 (day-02 spike NOT run - conservative default;
        848x480 is the upgrade candidate). far=50 m: day-11 obstacle range
        needs >= 40 m (v1 was 15!). -->
     <gazebo reference="front_camera_link">

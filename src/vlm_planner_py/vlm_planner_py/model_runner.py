@@ -83,7 +83,7 @@ def run_vlm_inference(
     # Decode only the newly generated tokens
     input_len = inputs['input_ids'].shape[1]
     n_generated = output_ids.shape[1] - input_len
-    # Diagnostic: input_len includes the (many) image tokens — if it is large, the
+    # Diagnostic: input_len includes the (many) image tokens - if it is large, the
     # prefill dominates; if n_generated ~= max_new_tokens, the decode does (no EOS).
     print(f"[infer] {input_len} input tokens (incl image), {n_generated} generated, "
           f"{elapsed:.2f}s ({elapsed / max(1, n_generated) * 1000:.0f} ms/tok)")
@@ -98,7 +98,7 @@ def cv2_to_pil(bgr_img):
     return Image.fromarray(rgb)
 
 
-# --- Qwen2.5-VL-3B (4-bit) — symbolic sign reading -------------------------
+# --- Qwen2.5-VL-3B (4-bit) - symbolic sign reading -------------------------
 # The sign-class task needs Qwen, not SmolVLM (memory: "Qwen reads symbolic
 # signs", "SmolVLM inadequate for geometry"; validated offline in
 # scripts/probe_signs_world.py). Kept separate from the SmolVLM loader above so

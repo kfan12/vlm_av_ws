@@ -1,4 +1,4 @@
-"""urban_world.launch.py — gazebo (urban world) + sedan spawn + bridge + EKF + RViz.
+"""urban_world.launch.py - gazebo (urban world) + sedan spawn + bridge + EKF + RViz.
 v1 launches untouched.
 
   ros2 launch robot_bringup urban_world.launch.py            # urban_course
@@ -107,12 +107,12 @@ def setup(context):
 
         # 3. bridge after Gazebo loads (CLAUDE.md ordering). The joint_state
         # topic embeds the world name, so it is bridged as a positional arg
-        # built from `world` (the yaml holds only world-independent topics —
+        # built from `world` (the yaml holds only world-independent topics -
         # a hardcoded urban_2x2 there broke wheel TFs on urban_course).
         # TWO separate parameter_bridge nodes: combining a CLI positional
         # topic arg with a config_file param on ONE node silently drops every
         # config_file bridge (odom/imu/camera/cmd_vel/clock all vanished,
-        # confirmed by log diff 2026-07-16 — no error, just missing). Each
+        # confirmed by log diff 2026-07-16 - no error, just missing). Each
         # mechanism works fine alone, so run them as separate nodes.
         TimerAction(period=3.0, actions=[
             Node(package='ros_gz_bridge', executable='parameter_bridge',
@@ -141,7 +141,7 @@ def setup(context):
                  name='odom_noise', output='screen',
                  parameters=[{'use_sim_time': True}])]),
 
-        # 4. spawn sedan (world name explicit — multi-world gotcha)
+        # 4. spawn sedan (world name explicit - multi-world gotcha)
         TimerAction(period=6.0, actions=[
             Node(package='ros_gz_sim', executable='create',
                  arguments=['-name', 'sedan', '-world', world,
@@ -150,7 +150,7 @@ def setup(context):
                             '-z', '0.45', '-Y', str(spawn['yaw'])],
                  output='screen')]),
 
-        # 5. EKF (robot_localization) — the ONLY publisher of the odom -> base_link
+        # 5. EKF (robot_localization) - the ONLY publisher of the odom -> base_link
         # TF. Without it RViz's `odom` fixed frame has no transform and nothing
         # renders. Fuses /odom (wheel twist) + /imu from the bridge; publishes
         # /odom_ekf (remapped from odometry/filtered) for lane_node / local_planner.
@@ -166,11 +166,11 @@ def setup(context):
                  remappings=[('odometry/filtered', '/odom_ekf')],
                  condition=IfCondition(LaunchConfiguration('ekf')))]),
 
-        # 5b. odom_compare — /odom_truth from the Gazebo ground-truth plugin is in
+        # 5b. odom_compare - /odom_truth from the Gazebo ground-truth plugin is in
         # ABSOLUTE world coords (it starts at the spawn pose, not the origin)
         # while /odom_ekf and /odom (wheel) are spawn-zeroed. This node applies
         # the same world->odom shift the map gets (map_origin_* = spawn) and
-        # publishes /odom_truth_spawn, so RViz can overlay all three. Viz only —
+        # publishes /odom_truth_spawn, so RViz can overlay all three. Viz only -
         # nothing controls off it.
         TimerAction(period=10.0, actions=[
             Node(package='robot_bringup', executable='odom_compare',
@@ -180,7 +180,7 @@ def setup(context):
                               'map_origin_y': float(spawn['y']),
                               'map_origin_yaw': float(spawn['yaw'])}])]),
 
-        # 6. RViz — last, so robot_description (latched), the odom TF, and the
+        # 6. RViz - last, so robot_description (latched), the odom TF, and the
         # sensor topics are all up by the time it subscribes. /lane/debug_image
         # and /lane/debug_markers are BEST_EFFORT (see lane_node.cpp); the shipped
         # config sets those two displays to Best Effort so they actually render.

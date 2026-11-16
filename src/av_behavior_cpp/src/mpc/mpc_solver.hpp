@@ -183,7 +183,7 @@ public:
     };
 
 private:
-    // Single-step proportional law on [e_lat, e_head, v] — the pre-QP stand-in,
+    // Single-step proportional law on [e_lat, e_head, v] - the pre-QP stand-in,
     // kept as the safety-net fallback whenever the OSQP solve fails to
     // initialize or converge (never leave the car without a command).
     MpcResult solve_proportional(

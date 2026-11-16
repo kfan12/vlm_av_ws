@@ -1,5 +1,5 @@
 #pragma once
-// Hysteresis latch — port of the v1 sign_latch.py discipline:
+// Hysteresis latch - port of the v1 sign_latch.py discipline:
 //  * k consecutive identical observations to switch the latched value
 //  * "no observation" (nullopt) NEVER clears a latched value inside lock_dist
 //  * level-triggered: the latched value holds until actively replaced

@@ -1,5 +1,5 @@
 #pragma once
-// JSON-on-String helpers — every v2 JSON topic goes through these two.
+// JSON-on-String helpers - every v2 JSON topic goes through these two.
 // Schemas: docs/v2_interfaces.md. Malformed input -> nullopt (drop + count at
 // the call site), never throw on the message path.
 #include <optional>

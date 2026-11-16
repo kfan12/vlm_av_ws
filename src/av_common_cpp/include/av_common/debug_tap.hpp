@@ -1,5 +1,5 @@
 #pragma once
-// C++ port of vlm_planner_py.debugtap — wire-compatible with the debugkit
+// C++ port of vlm_planner_py.debugtap - wire-compatible with the debugkit
 // recorder: ONE flat JSON object per tick on /debug/<node_name>, gated by the
 // bool parameter 'debug_tap' (default false, toggle live with `ros2 param set`).
 #include <string>
